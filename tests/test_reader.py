@@ -34,7 +34,8 @@ def library(tmp_path: Path) -> Path:
     doc.close()
 
     (root / "note.md").write_text(
-        "# Title\n\nsee [a](sub/a.pdf)\n\n![pic](sub/pic%20one.png)\n\n```python\nprint(1)\n```\n",
+        "# Title\n\nsee [a](sub/a.pdf)\n\n![pic](sub/pic%20one.png)\n\n"
+        "```python\nprint(1)\n```\n\nUse snake_case names.\n",
         encoding="utf-8",
     )
     (root / "sub" / "pic one.png").write_bytes(PNG_MAGIC + b"\x00")
@@ -87,7 +88,7 @@ def test_markdown_book_renders_links_and_code(client: Client) -> None:
     response = test_client.get("/book/note.md")
     assert response.status_code == 200
     body = response.text
-    assert "<h1>Title</h1>" in body
+    assert '">Title</h1>' in body
     assert "/book/sub/a.pdf" in body
     assert "language-python" in body
     assert 'src="/raw/sub/pic%20one.png"' in body
@@ -175,9 +176,9 @@ def test_page_index_reuses_persisted_counts_until_file_changes(
 
 def test_markdown_cache_invalidates_when_file_changes(client: Client, library: Path) -> None:
     test_client, _state = client
-    assert "<h1>Title</h1>" in test_client.get("/book/note.md").text
+    assert '">Title</h1>' in test_client.get("/book/note.md").text
     (library / "note.md").write_text("# Changed\n", encoding="utf-8")
-    assert "<h1>Changed</h1>" in test_client.get("/book/note.md").text
+    assert '">Changed</h1>' in test_client.get("/book/note.md").text
 
 
 def test_text_layer_returns_words(client: Client) -> None:
@@ -217,7 +218,9 @@ def test_notepad_groups_notes_and_export(client: Client) -> None:
 
     export = test_client.get("/api/notepad/export", params={"format": "markdown"}).text
     assert "## Memory" in export
-    assert "sub/a.pdf · p.1 · §Intro" in export
+    assert "### sub/a.pdf · p.1" in export
+    assert "§Intro" in export
+    assert "¶1" in export
     assert "> hello-search-needle" in export
     assert "revised" in export
     assert "source: `sub/a.pdf#p1`" in export
@@ -344,7 +347,8 @@ def test_library_search_without_elastic_uses_tree_when_available(
 ) -> None:
     tree = Searcher(Library(library), PdfCache(), SectionIndex(tmp_path), None, "pageindex")
     assert tree.backend() == "pageindex"
-    assert tree.library_wide("title", 10) == []
+    with pytest.raises(SearchUnavailable):
+        tree.library_wide("title", 10)
 
     strict = Searcher(Library(library), PdfCache(), SectionIndex(tmp_path), None, "local")
     assert strict.backend() == "local"
@@ -388,3 +392,85 @@ def test_pageindex_tree_search_uses_cached_sections(library: Path, tmp_path: Pat
     assert [(hit["section"], hit["page"]) for hit in hits] == [("Retrieval", 1)]
     library_hits = searcher.library_wide("vector", 10)
     assert [hit["section"] for hit in library_hits] == ["Vector similarity"]
+
+
+def test_text_layer_exposes_block_and_line_numbers(client: Client) -> None:
+    test_client, _state = client
+    layer = test_client.get("/api/text", params={"path": "sub/a.pdf", "page": 1}).json()
+    first = layer["words"][0]
+    assert isinstance(first["b"], int) and first["b"] >= 1
+    assert isinstance(first["l"], int) and first["l"] >= 1
+
+
+def test_pdf_note_records_block_and_line(client: Client) -> None:
+    test_client, _state = client
+    note = test_client.post(
+        "/api/notepad/notes",
+        json={
+            "book": "sub/a.pdf",
+            "kind": "pdf",
+            "quote": "hello-search-needle",
+            "page": 1,
+            "word_start": 0,
+            "word_end": 0,
+        },
+    ).json()
+    assert note["paragraph"] >= 1
+    assert note["line_start"] >= 1
+    export = test_client.get("/api/notepad/export", params={"format": "markdown"}).text
+    assert f"¶{note['paragraph']}" in export
+    assert f"lines {note['line_start']}" in export
+
+
+def test_markdown_locator_keeps_intraword_underscores(client: Client) -> None:
+    test_client, _state = client
+    note = test_client.post(
+        "/api/notepad/notes",
+        json={"book": "note.md", "kind": "md", "quote": "snake_case names"},
+    ).json()
+    assert note["line_start"] is not None
+    assert note["line_start"] >= 10
+
+
+def test_markdown_blocks_have_line_anchors(client: Client) -> None:
+    test_client, _state = client
+    body = test_client.get("/book/note.md").text
+    assert 'id="L1"' in body
+    assert 'id="L3"' in body
+
+
+def test_api_pages_skips_symlink_escape(library: Path, tmp_path: Path) -> None:
+    outside = tmp_path / "outside.pdf"
+    outside.write_bytes((library / "sub" / "a.pdf").read_bytes())
+    (library / "escape.pdf").symlink_to(outside)
+    with TestClient(create_app(library, tmp_path / "state")) as test_client:
+        counts = test_client.get("/api/pages").json()["counts"]
+    assert "escape.pdf" not in counts
+
+
+def test_tree_search_ignores_cached_books_outside_the_library(
+    library: Path, tmp_path: Path
+) -> None:
+    state = tmp_path / "state"
+    state.mkdir()
+    path = library / "sub" / "a.pdf"
+    stat = path.stat()
+    cache = {
+        "version": 1,
+        "books": {
+            "sub/a.pdf": {
+                "mtime": stat.st_mtime,
+                "size": stat.st_size,
+                "sections": [{"title": "Retrieval", "start_page": 1, "end_page": 3}],
+            },
+            "ghost.pdf": {
+                "mtime": stat.st_mtime,
+                "size": stat.st_size,
+                "sections": [{"title": "Retrieval strategies", "start_page": 1, "end_page": 3}],
+            },
+        },
+    }
+    (state / "sections.json").write_text(json.dumps(cache), encoding="utf-8")
+    searcher = Searcher(Library(library), PdfCache(), SectionIndex(state), None, "pageindex")
+    hits = searcher.library_wide("retrieval", 10)
+    assert [hit["book"] for hit in hits] == ["sub/a.pdf"]
