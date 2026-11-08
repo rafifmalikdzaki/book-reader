@@ -11,3 +11,9 @@ __pycache__/
 # Local design/architecture work products
 .archify/
 .impeccable/
+
+# React frontend (frontend/): dependencies and the Vite build output
+frontend/node_modules/
+frontend/dist/
+src/book_reader/static/app/
+*.tsbuildinfo

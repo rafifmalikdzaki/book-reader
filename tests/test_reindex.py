@@ -201,7 +201,7 @@ def test_section_cache_remap(tmp_path: Path) -> None:
     assert books["new.pdf"]["sections"][0]["title"] == "One"
 
 
-def test_old_book_url_redirects_and_index_announces_move(library: Path, tmp_path: Path) -> None:
+def test_old_book_url_redirects_and_library_announces_move(library: Path, tmp_path: Path) -> None:
     state = tmp_path / "state"
     app = create_app(library, state)
     with TestClient(app) as client:
@@ -211,9 +211,9 @@ def test_old_book_url_redirects_and_index_announces_move(library: Path, tmp_path
         assert response.status_code == 307
         assert response.headers["location"].endswith("/book/shelf/moved.pdf")
 
-        index = client.get("/")
-        assert "Library reorganized" in index.text
-        assert "shelf/moved.pdf" in index.text
+        library_payload = client.get("/api/library").json()
+        assert "1 book kept their notes and place" in library_payload["relocation_notice"]
+        assert "shelf/moved.pdf" in {book["rel"] for book in library_payload["books"]}
 
 
 def test_second_rename_after_restart_keeps_following_content(library: Path, tmp_path: Path) -> None:

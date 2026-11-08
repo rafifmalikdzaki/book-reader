@@ -1,0 +1,126 @@
+.books {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.colTitle {
+  width: 52%;
+}
+
+.colShelf {
+  width: 20%;
+}
+
+.colPages {
+  width: 10%;
+}
+
+.colLast {
+  width: 18%;
+}
+
+.books th {
+  position: sticky;
+  top: var(--mast-h);
+  z-index: var(--z-sticky);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--muted);
+  font: 600 10.5px/1 var(--sans);
+  letter-spacing: 0.13em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.books td {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: baseline;
+}
+
+.books .right {
+  text-align: right;
+}
+
+.title a {
+  color: var(--ink);
+  font: 400 15px/1.35 var(--serif);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.title a:hover {
+  color: var(--brass-deep);
+}
+
+.kind {
+  margin-left: 10px;
+  padding: 1px 5px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shelfCell,
+.opened {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.books td.shelfCell {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.books td.opened {
+  white-space: nowrap;
+}
+
+.pages {
+  min-width: 5ch;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .books {
+    table-layout: fixed;
+  }
+
+  .books .shelf {
+    width: 0;
+    max-width: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    visibility: hidden;
+  }
+
+  .colTitle {
+    width: 60%;
+  }
+
+  .colShelf {
+    width: 0;
+  }
+
+  .colPages {
+    width: 12%;
+  }
+
+  .colLast {
+    width: 28%;
+  }
+
+  .books th.lastHead,
+  .books td.opened {
+    padding-left: 10px;
+  }
+}

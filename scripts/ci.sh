@@ -8,3 +8,10 @@ uv run ruff format --check src tests
 uv run ruff check src tests
 uv run mypy src tests
 uv run pytest -q
+
+cd frontend
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run build

@@ -11,6 +11,8 @@ services:
       BOOK_READER_LIBRARY: /library
       BOOK_READER_STATE_DIR: /state
       BOOK_READER_HOST: 0.0.0.0
+      # The port is published on 127.0.0.1 only; answer to loopback Host headers only.
+      BOOK_READER_ALLOWED_HOSTS: localhost,127.0.0.1,::1
       BOOK_READER_ES_URL: http://elasticsearch:9200
       BOOK_READER_ES_INDEX: book-reader
     volumes:

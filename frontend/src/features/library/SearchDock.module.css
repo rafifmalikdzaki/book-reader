@@ -1,0 +1,85 @@
+.dock {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper-lit);
+}
+
+.failed {
+  border-color: var(--danger-line);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.head strong {
+  font: 600 13px/1 var(--sans);
+}
+
+.failed .head strong {
+  color: var(--danger);
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.close {
+  margin-left: auto;
+}
+
+.results {
+  max-height: 210px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.results li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--rule-soft);
+  font-size: 13px;
+}
+
+.results li:first-child {
+  border-top: 0;
+}
+
+.where {
+  min-width: 84px;
+  max-width: 280px;
+  overflow: hidden;
+  color: var(--brass-deep);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snippet mark {
+  padding: 0 1px;
+  background: var(--brass-wash);
+  color: inherit;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}

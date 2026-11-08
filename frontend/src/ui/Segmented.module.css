@@ -1,0 +1,41 @@
+.segmented {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+
+.option {
+  height: 30px;
+  padding: 0 11px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 500 12.5px/1 var(--sans);
+}
+
+.option + .option {
+  border-left: 1px solid var(--rule);
+}
+
+.option:hover {
+  color: var(--ink);
+}
+
+.option[aria-pressed='true'] {
+  --focus: var(--focus-on-dark);
+  background: var(--baize);
+  color: var(--paper);
+}
+
+/* Inside the overflow clip the default outside ring would be cut off. */
+.option:focus-visible {
+  outline-offset: -2px;
+}
+
+@media (pointer: coarse) {
+  .option {
+    min-height: var(--touch-min);
+    min-width: var(--touch-min);
+  }
+}

@@ -1,0 +1,30 @@
+.select {
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-sm);
+  background: var(--paper-lit);
+}
+
+.sm {
+  height: 30px;
+}
+
+.md {
+  height: var(--field-h);
+}
+
+.lg {
+  width: 100%;
+  height: 38px;
+}
+
+.select[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+@media (pointer: coarse) {
+  .select {
+    min-height: var(--touch-min);
+  }
+}

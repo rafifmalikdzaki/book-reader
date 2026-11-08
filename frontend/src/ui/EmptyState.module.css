@@ -1,0 +1,46 @@
+.copy {
+  margin: 0;
+  color: var(--muted);
+}
+
+.inline .copy {
+  font-size: 13px;
+}
+
+.hero {
+  max-width: 560px;
+  margin: auto;
+  padding: 24px 8px;
+  text-align: center;
+}
+
+.hero .title {
+  margin-bottom: 7px;
+  font: 600 30px/1.15 var(--serif);
+}
+
+.hero .copy {
+  max-width: 44ch;
+  margin: 0 auto 22px;
+  font-size: 13.5px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hero .actions {
+  justify-content: center;
+}
+
+.inline .actions {
+  margin-top: 10px;
+}
+
+@media (max-width: 900px) {
+  .hero .title {
+    font-size: 25px;
+  }
+}

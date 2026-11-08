@@ -1,0 +1,65 @@
+/* Ports the chat block of base.html; the rail shell itself comes from ui/Rail. */
+.context {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 18px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.context b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.status {
+  padding: 8px 18px 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error {
+  padding: 6px 18px 0;
+  color: var(--danger);
+  font-size: 12.5px;
+}
+
+.error:empty {
+  display: none;
+}
+
+.log {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  overflow: auto;
+}
+
+.log:empty::before {
+  max-width: 30ch;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+  content: 'Ask about the page you are on, or the whole library. Answers cite the book, page, and section they used.';
+}
+
+.form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 10px 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.input {
+  flex: 1;
+  min-height: 40px;
+  max-height: 140px;
+  border-radius: var(--radius-md);
+}

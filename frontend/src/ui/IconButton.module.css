@@ -1,0 +1,61 @@
+.iconButton {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+  border: 1px solid transparent;
+  background: none;
+  line-height: 1;
+}
+
+.glyph {
+  display: inline-grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+/* Legacy masthead `.icon-btn`. */
+.onDark {
+  width: var(--field-h);
+  height: var(--field-h);
+  border-radius: var(--radius-sm);
+  border-color: var(--baize-line);
+  color: var(--paper);
+}
+
+.onDark:hover:not(:disabled) {
+  border-color: var(--brass);
+  color: var(--paper-lit);
+}
+
+/* Legacy `.ask-menu`. */
+.outline {
+  width: var(--field-h);
+  height: var(--field-h);
+  border-radius: var(--radius-sm);
+  border-color: var(--rule);
+  background: var(--paper-lit);
+}
+
+.outline:hover:not(:disabled) {
+  border-color: var(--brass-deep);
+}
+
+/* Legacy `.rail-close`. */
+.plain {
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  font-size: 20px;
+}
+
+.plain:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+@media (pointer: coarse) {
+  .iconButton {
+    min-width: var(--touch-min);
+    min-height: var(--touch-min);
+  }
+}

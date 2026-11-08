@@ -19,29 +19,9 @@ JPEG_MAGIC = b"\xff\xd8\xff"
 Client = tuple[TestClient, Path]
 
 
-def test_index_lists_books_and_skips_hidden_dirs(client: Client) -> None:
-    test_client, _state = client
-    response = test_client.get("/")
-    assert response.status_code == 200
-    body = response.text
-    assert "/book/sub/a.pdf" in body
-    assert "/book/note.md" in body
-    assert "secret" not in body
-
-
-def test_index_has_tiles_categories_and_both_views(client: Client) -> None:
-    test_client, _state = client
-    body = test_client.get("/").text
-    assert 'class="tiles"' in body
-    assert 'class="tile"' in body
-    assert 'href="/book/sub/a.pdf"' in body
-    assert 'href="/book/note.md"' in body
-    assert 'id="category-filter"' in body
-    assert '<option value="">All categories</option>' in body
-    assert 'data-view="tiles"' in body
-    assert 'data-view="list"' in body
-    assert '<table class="books">' in body
-    assert 'src="/thumb.jpg?path=sub/a.pdf&amp;width=300"' in body
+def _library_books(test_client: TestClient) -> dict[str, dict[str, object]]:
+    rows = test_client.get("/api/library").json()["books"]
+    return {str(row["rel"]): row for row in rows}
 
 
 def test_raw_pdf_supports_range_requests(client: Client) -> None:
@@ -51,25 +31,6 @@ def test_raw_pdf_supports_range_requests(client: Client) -> None:
     assert len(response.content) == 100
     assert response.headers["content-range"].startswith("bytes 0-99/")
     assert response.headers["accept-ranges"] == "bytes"
-
-
-def test_pdf_book_embeds_pdfjs_viewer(client: Client) -> None:
-    test_client, _state = client
-    response = test_client.get("/book/sub/a.pdf")
-    assert response.status_code == 200
-    body = response.text
-    assert "/static/vendor/pdfjs/web/viewer.html?file=%2Fraw%2Fsub%2Fa.pdf#page=1" in body
-    assert 'id="pdf-frame"' in body
-    assert 'data-book="sub/a.pdf"' in body
-    assert 'data-page="1"' in body
-    assert 'allow="fullscreen"' in body
-    assert "/static/pdf_reader.js" in body
-    assert "/page.png" not in body
-    assert "/api/text" not in body
-
-    deep_link = test_client.get("/book/sub/a.pdf?page=2")
-    assert 'data-page="2"' in deep_link.text
-    assert "#page=2" in deep_link.text
 
 
 def test_thumbnail_renders_caches_and_revalidates(client: Client) -> None:
@@ -110,15 +71,16 @@ def test_path_traversal_is_rejected(client: Client) -> None:
     assert test_client.get("/thumb.jpg", params={"path": "../outside.pdf"}).status_code == 400
     assert test_client.get("/raw/..%2Foutside.pdf").status_code == 400
     assert test_client.get("/book/..%2F..%2Fetc%2Fpasswd").status_code == 400
+    assert test_client.get("/api/book", params={"path": "../../etc/passwd"}).status_code == 400
 
 
-def test_markdown_book_renders_links_and_code(client: Client) -> None:
+def test_markdown_renders_links_images_and_code(client: Client) -> None:
     test_client, _state = client
-    response = test_client.get("/book/note.md")
+    response = test_client.get("/api/book/markdown", params={"path": "note.md"})
     assert response.status_code == 200
-    body = response.text
+    body = response.json()["html"]
     assert '">Title</h1>' in body
-    assert "/book/sub/a.pdf" in body
+    assert 'href="/book/sub/a.pdf"' in body
     assert "language-python" in body
     assert 'src="/raw/sub/pic%20one.png"' in body
     assert "%2520" not in body
@@ -135,8 +97,8 @@ def test_progress_roundtrip_persists_page(client: Client) -> None:
     assert test_client.post("/api/progress", json={"path": "sub/a.pdf", "page": 2}).json() == {
         "ok": True
     }
-    assert 'data-page="2"' in test_client.get("/book/sub/a.pdf").text
-    assert "Continue reading" in test_client.get("/").text
+    assert test_client.get("/api/book", params={"path": "sub/a.pdf"}).json()["page"] == 2
+    assert test_client.get("/api/library").json()["resume"]["rel"] == "sub/a.pdf"
 
     stored = json.loads((state / "progress.json").read_text(encoding="utf-8"))
     assert stored["books"]["sub/a.pdf"]["page"] == 2
@@ -205,9 +167,12 @@ def test_page_index_reuses_persisted_counts_until_file_changes(
 
 def test_markdown_cache_invalidates_when_file_changes(client: Client, library: Path) -> None:
     test_client, _state = client
-    assert '">Title</h1>' in test_client.get("/book/note.md").text
+    params = {"path": "note.md"}
+    assert '">Title</h1>' in test_client.get("/api/book/markdown", params=params).json()["html"]
     (library / "note.md").write_text("# Changed\n", encoding="utf-8")
-    assert '">Changed</h1>' in test_client.get("/book/note.md").text
+    body = test_client.get("/api/book/markdown", params=params).json()
+    assert '">Changed</h1>' in body["html"]
+    assert body["title"] == "Changed"
 
 
 def test_page_words_returns_text_layer(library: Path) -> None:
@@ -538,7 +503,7 @@ def test_markdown_locator_keeps_intraword_underscores(client: Client) -> None:
 
 def test_markdown_blocks_have_line_anchors(client: Client) -> None:
     test_client, _state = client
-    body = test_client.get("/book/note.md").text
+    body = test_client.get("/api/book/markdown", params={"path": "note.md"}).json()["html"]
     assert 'id="L1"' in body
     assert 'id="L3"' in body
 
@@ -634,17 +599,7 @@ def test_bulk_indexing_errors_are_raised(tmp_path: Path) -> None:
         elastic._index_book(book, path)
 
 
-def test_index_survives_a_corrupt_pdf(client: Client, library: Path) -> None:
-    test_client, _state = client
-    (library / "bad.pdf").write_bytes(b"%PDF-1.4\nthis is not a PDF")
-
-    response = test_client.get("/")
-
-    assert response.status_code == 200
-    assert "bad" in response.text
-
-
-def test_index_uses_an_unambiguous_pdf_outline_title(client: Client, library: Path) -> None:
+def test_library_uses_an_unambiguous_pdf_outline_title(client: Client, library: Path) -> None:
     test_client, _state = client
     doc = pymupdf.open()
     doc.new_page().insert_text((72, 72), "paper body")
@@ -652,10 +607,11 @@ def test_index_uses_an_unambiguous_pdf_outline_title(client: Client, library: Pa
     doc.save(library / "paper.pdf")
     doc.close()
 
-    response = test_client.get("/")
+    books = _library_books(test_client)
 
-    assert response.status_code == 200
-    assert "A Paper Title With No Metadata" in response.text
+    assert books["paper.pdf"]["title"] == "A Paper Title With No Metadata"
+    detail = test_client.get("/api/book", params={"path": "paper.pdf"}).json()
+    assert detail["title"] == "A Paper Title With No Metadata"
 
 
 def test_numbered_outline_heading_is_not_used_as_a_title(client: Client, library: Path) -> None:
@@ -666,8 +622,28 @@ def test_numbered_outline_heading_is_not_used_as_a_title(client: Client, library
     doc.save(library / "chapter.pdf")
     doc.close()
 
-    response = test_client.get("/")
+    books = _library_books(test_client)
 
+    assert books["chapter.pdf"]["title"] == "chapter"
+
+
+def test_raw_html_and_svg_are_attachments(client: Client, library: Path) -> None:
+    (library / "sub" / "evil.html").write_text("<script>alert(1)</script>", encoding="utf-8")
+    (library / "sub" / "drawing.svg").write_text("<svg onload=alert(1)></svg>", encoding="utf-8")
+    test_client, _state = client
+
+    for name in ("evil.html", "drawing.svg"):
+        response = test_client.get(f"/raw/sub/{name}")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/octet-stream"
+        assert response.headers["content-disposition"] == "attachment"
+        assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_raw_pdf_stays_inline_for_the_viewer(client: Client) -> None:
+    test_client, _state = client
+    response = test_client.get("/raw/sub/a.pdf")
     assert response.status_code == 200
-    assert "1 . Introduction" not in response.text
-    assert "chapter" in response.text
+    assert response.headers["content-type"] == "application/pdf"
+    assert "content-disposition" not in response.headers
+    assert response.headers["x-content-type-options"] == "nosniff"

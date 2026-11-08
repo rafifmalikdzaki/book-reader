@@ -1,0 +1,137 @@
+.masthead {
+  --focus: var(--focus-on-dark);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-masthead);
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  height: var(--mast-h);
+  padding: 0 26px;
+  background: var(--baize);
+  color: var(--paper);
+  border-bottom: 1px solid var(--brass);
+}
+
+:global(body.lamp-off) .masthead {
+  background: var(--baize-deep);
+}
+
+.wordmark {
+  color: var(--paper);
+  font: 600 21px/1 var(--serif);
+  letter-spacing: 0.005em;
+  text-decoration: none;
+}
+
+.wordmark:hover {
+  color: var(--paper-lit);
+}
+
+.wordmark span {
+  color: var(--brass);
+}
+
+.nav {
+  display: flex;
+  gap: 2px;
+  margin-left: 6px;
+}
+
+.nav a,
+.nav button {
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--nav-text);
+  font-size: 14px;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.nav a:hover,
+.nav button:hover {
+  background: var(--on-dark-hover);
+  color: var(--paper-lit);
+}
+
+.nav a[aria-current='page'],
+.nav button[aria-expanded='true'] {
+  color: var(--paper-lit);
+  box-shadow: inset 0 -2px 0 var(--brass);
+}
+
+.nav button[aria-expanded='true'] {
+  background: var(--on-dark-hover);
+}
+
+.phoneOnly {
+  display: none;
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.search {
+  width: 280px;
+  height: var(--field-h);
+  padding: 0 11px;
+  border: 1px solid var(--baize-line);
+  border-radius: var(--radius-sm);
+  background: var(--baize-input);
+  color: var(--paper-lit);
+}
+
+.search::placeholder {
+  color: var(--baize-placeholder);
+}
+
+@media (pointer: coarse) {
+  .nav a,
+  .nav button {
+    min-height: var(--touch-min);
+  }
+
+  .search {
+    min-height: var(--touch-min);
+  }
+}
+
+@media (max-width: 900px) {
+  .masthead {
+    flex-wrap: wrap;
+    gap: 10px;
+    height: auto;
+    padding: 10px 14px;
+  }
+
+  .nav {
+    margin-left: auto;
+  }
+
+  .nav a,
+  .nav button {
+    padding: 9px 10px;
+  }
+
+  .phoneOnly {
+    display: block;
+  }
+
+  .tools {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .search {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+}

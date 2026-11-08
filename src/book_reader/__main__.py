@@ -11,6 +11,7 @@ import uvicorn
 from dotenv import load_dotenv
 
 from .app import DEFAULT_ES_INDEX, build_services, create_app
+from .security_headers import allowed_hosts_for
 from .state_lock import StateDirectoryLock, StateLockedError
 
 DEFAULT_LIBRARY = Path.home() / "Documents" / "Books"
@@ -180,6 +181,9 @@ def main(argv: list[str] | None = None) -> None:
             es_url=args.es_url,
             es_index=args.es_index,
             search_mode=args.search,
+            allowed_hosts=allowed_hosts_for(
+                args.host, os.environ.get("BOOK_READER_ALLOWED_HOSTS", "")
+            ),
         )
     except StateLockedError as exc:
         print(f"cannot start the reader: {exc}", file=sys.stderr)

@@ -11,6 +11,18 @@ PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
 @pytest.fixture
+def spa_static(tmp_path: Path) -> Path:
+    """Minimal packaged SPA so API tests never depend on a frontend build."""
+    root = tmp_path / "spa-static"
+    (root / "app" / "assets").mkdir(parents=True)
+    (root / "app" / "index.html").write_text(
+        "<!doctype html><html><body>test-shell</body></html>", encoding="utf-8"
+    )
+    (root / "app" / "assets" / "test.js").write_text("export {};\n", encoding="utf-8")
+    return root
+
+
+@pytest.fixture
 def library(tmp_path: Path) -> Path:
     root = tmp_path / "library"
     (root / "sub").mkdir(parents=True)
@@ -35,7 +47,7 @@ def library(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def client(library: Path, tmp_path: Path) -> Iterator[tuple[TestClient, Path]]:
+def client(library: Path, tmp_path: Path, spa_static: Path) -> Iterator[tuple[TestClient, Path]]:
     state = tmp_path / "state"
-    with TestClient(create_app(library, state)) as test_client:
+    with TestClient(create_app(library, state, static_dir=spa_static)) as test_client:
         yield test_client, state

@@ -1,0 +1,86 @@
+.page {
+  max-width: 980px;
+  padding: 26px 28px 90px;
+}
+
+.page h1 {
+  margin-bottom: 4px;
+  font: 600 32px/1.18 var(--serif);
+}
+
+.lede {
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.section {
+  margin-bottom: 30px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+}
+
+.section h2 {
+  margin-bottom: 12px;
+  font: 600 11px/1.2 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.caption {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--baize);
+  border-bottom: 1px solid var(--brass);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 360px;
+}
+
+.stage {
+  display: flex;
+  align-items: flex-start;
+  min-height: 300px;
+  border: 1px solid var(--rule);
+  background: var(--paper-lit);
+}
+
+.stageMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 14px;
+  font-size: 13px;
+}
+
+.railBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

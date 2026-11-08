@@ -1,0 +1,102 @@
+/*
+ * Design tokens, extracted from the legacy inline CSS (templates/base.html, ask.html).
+ * Components must use these variables; no raw hex/rgba in feature or ui CSS.
+ * Visual parity with the legacy UI is the goal, so values are unchanged.
+ */
+:root {
+  color-scheme: light;
+
+  /* ---- surface and ink palette ---- */
+  --baize: #1e352d;
+  --baize-deep: #16281f;
+  --oak: #2e2118;
+  --brass: #b08a4a;
+  --brass-lit: #d8b26c;
+  --brass-deep: #7e5f2e;
+  --paper: #f6f1e4;
+  --paper-lit: #fffdf6;
+  --ink: #241e16;
+  --muted: #6b5d4a;
+  --rule: #d8cbb4;
+  --rule-soft: #e8dfcc;
+  --amber: #a8621b;
+  --danger: #8c2f1f;
+  --focus: #7e5f2e; /* 5.23:1 on paper */
+  --focus-on-dark: #c7a15c; /* 5.42:1 on baize */
+  --field-line: #8f7f62; /* 3.84:1 on paper-lit, 3.26:1 on paper-edge */
+
+  /* ---- promoted literals (recurring in legacy CSS) ---- */
+  --wood-ink: #1a130c; /* text on a pressed brass button */
+  --paper-edge: #f1eadb; /* rails, code blocks, hover wells, route dots */
+  --paper-shade: #eadfc8; /* lamp-off gradient end */
+  --code-bg: #efe7d5; /* inline code */
+  --on-brass: #fff9ec; /* text on primary button */
+  --ink-soft: #453a2c; /* blockquote, relocation note */
+  --ink-softer: #3c3226; /* third-level contents entries */
+  --placeholder: #6e6250;
+  --nav-text: #d9d2c0; /* masthead nav links */
+  --baize-line: #5f7267; /* borders on baize */
+  --baize-input: #14251f; /* masthead search background */
+  --baize-placeholder: #a9b7ac;
+  --danger-line: #c9a99c; /* failed search dock border */
+
+  /* ---- translucent overlays ---- */
+  --veil: #241e1666; /* dialog backdrop, mobile drawer scrim */
+  --selection: #b08a4a3d;
+  --brass-wash: #b08a4a38; /* search hit highlight */
+  --brass-halo: #b08a4a33; /* current-section ring */
+  --on-dark-hover: #ffffff12;
+  --on-dark-hover-faint: #ffffff10;
+  --on-light-hover: #ffffff72;
+
+  /* ---- shadows ---- */
+  --shadow-plate: 0 16px 30px -26px #241e1677;
+  --shadow-cover: 0 14px 26px -24px #241e16aa;
+  --shadow-menu: 0 16px 30px -22px #241e16aa;
+  --shadow-toast: 0 16px 30px -18px #241e16cc;
+  --shadow-bubble: 0 10px 22px -12px #241e16cc;
+  --shadow-dialog: 0 30px 60px -30px #241e1699;
+
+  /* ---- type ---- */
+  --serif: 'Source Serif 4', 'Iowan Old Style', Palatino, Georgia, serif;
+  --sans: 'Public Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ---- radii ---- */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+
+  /* ---- layering ---- */
+  --z-sticky: 2;
+  --z-handle: 5;
+  --z-menu: 10;
+  --z-mobile-bar: 20;
+  --z-masthead: 30;
+  --z-bubble: 45; /* also the drawer scrim */
+  --z-drawer: 50;
+  --z-toast: 60; /* also the skip link */
+
+  /* ---- motion ---- */
+  --dur-fast: 0.18s;
+  --dur-base: 0.25s;
+  --ease: ease;
+
+  /* ---- layout ---- */
+  /* Breakpoint (cannot be a var in @media): 900px phone/tablet, 1100px index grid. */
+  --mast-h: 64px;
+  --rail-w: 360px;
+  --contents-w: 268px;
+  --measure: 68ch;
+  --field-h: 34px; /* legacy .field / masthead control height */
+  --sheet-w: min(92vw, 420px); /* rails as phone sheets (<= 900px) */
+  --touch-min: 44px; /* minimum target on coarse pointers (added, not legacy) */
+}
+
+@media (max-width: 900px) {
+  :root {
+    --mast-h: 104px;
+  }
+}

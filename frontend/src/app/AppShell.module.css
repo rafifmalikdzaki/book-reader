@@ -1,0 +1,62 @@
+.skip {
+  position: absolute;
+  top: 8px;
+  left: -9999px;
+  z-index: var(--z-toast);
+  padding: 8px 12px;
+  background: var(--paper-lit);
+}
+
+.skip:focus {
+  left: 12px;
+}
+
+.workspace {
+  display: flex;
+  align-items: flex-start;
+  min-height: calc(100vh - 64px);
+}
+
+:global(body.lamp-off) .workspace {
+  background: radial-gradient(
+    120% 80% at 50% 0%,
+    var(--paper-lit) 0%,
+    var(--paper) 58%,
+    var(--paper-shade) 100%
+  );
+}
+
+/* Left-hand rails (Markdown outline) portal in here as direct flex children. */
+.contentsHost {
+  display: contents;
+}
+
+.stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 26px 28px 90px;
+}
+
+.stage:focus {
+  outline: none;
+}
+
+:global(body.lamp-off) .stage {
+  background: transparent;
+}
+
+/* PDF reader and /ask own their full-bleed layout. */
+.flush {
+  min-height: 0;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .stage {
+    padding-bottom: 96px;
+  }
+
+  .flush {
+    padding-bottom: 0;
+  }
+}

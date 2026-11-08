@@ -1,0 +1,28 @@
+.field {
+  min-width: 0;
+  height: var(--field-h);
+  padding: 0 10px;
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-sm);
+  background: var(--paper-lit);
+}
+
+.field::placeholder {
+  color: var(--placeholder);
+}
+
+.field[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.textarea {
+  height: auto;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+@media (pointer: coarse) {
+  .field:not(.textarea) {
+    min-height: var(--touch-min);
+  }
+}

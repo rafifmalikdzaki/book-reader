@@ -97,8 +97,16 @@ class Library:
             return None
 
     def any_file(self, rel: str) -> Path:
-        """Resolve any existing file inside the library, or raise HTTP 400/404."""
-        return self._resolve(rel)
+        """Resolve any existing file inside the library, or raise HTTP 400/404.
+
+        Hidden non-book files (``.env``, ``.DS_Store``) are treated as missing, like
+        the hidden directories the scan skips. Hidden ``.pdf``/``.md`` files stay
+        reachable because the scan lists them as books.
+        """
+        path = self._resolve(rel)
+        if path.name.startswith(".") and path.suffix.lower() not in BOOK_SUFFIXES:
+            raise HTTPException(status_code=404, detail="not found")
+        return path
 
     def _resolve(self, rel: str) -> Path:
         if not rel or "\x00" in rel:
@@ -109,6 +117,13 @@ class Library:
             raise HTTPException(status_code=400, detail="invalid path") from exc
         if resolved == self.root or not resolved.is_relative_to(self.root):
             raise HTTPException(status_code=400, detail="invalid path")
+        # Same directory filter as scan(): a direct URL must not reach what the index hides.
+        # Checked after resolve(), so ``a/../.hidden/x`` and symlinks into hidden dirs are caught.
+        if any(
+            part.startswith(".") or part in SKIP_DIRS
+            for part in resolved.relative_to(self.root).parts[:-1]
+        ):
+            raise HTTPException(status_code=404, detail="not found")
         if not resolved.is_file():
             raise HTTPException(status_code=404, detail="not found")
         return resolved

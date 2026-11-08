@@ -1,0 +1,75 @@
+/* Legacy `.route` outline list. */
+.route {
+  margin: 0;
+  padding: 0 0 0 2px;
+  list-style: none;
+}
+
+.item {
+  position: relative;
+  margin-left: 5px;
+  padding: 3px 0 3px 12px;
+  border-left: 2px solid var(--rule);
+}
+
+.item::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: -5px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--rule);
+  border-radius: 50%;
+  background: var(--paper-edge);
+}
+
+.current {
+  border-left-color: var(--brass-deep);
+}
+
+.current::before {
+  border-color: var(--brass-deep);
+  background: var(--paper-lit);
+  box-shadow: 0 0 0 3px var(--brass-halo);
+}
+
+.link {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ink);
+  font: 400 13.5px/1.35 var(--serif);
+  text-decoration: none;
+}
+
+.title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link:hover .title {
+  color: var(--brass-deep);
+}
+
+.current .title {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.level2 .title {
+  font-weight: 600;
+}
+
+.level3 .title {
+  color: var(--ink-softer);
+  font-size: 12.8px;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}

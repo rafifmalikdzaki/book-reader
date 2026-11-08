@@ -1,0 +1,137 @@
+/* Legacy `.doc` (templates/base.html "markdown document"). Pygments emits plain spans
+   and the legacy page styles no token classes, so none are added here. */
+.doc {
+  max-width: var(--measure);
+  margin: 0 auto;
+  color: var(--ink);
+  font: 400 17.5px/1.72 var(--serif);
+}
+
+.doc h1,
+.doc h2,
+.doc h3,
+.doc h4 {
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.25;
+}
+
+.doc h1 {
+  margin: 0.2em 0 0.5em;
+  font-size: 1.9em;
+  font-weight: 600;
+}
+
+.doc h2 {
+  margin: 1.8em 0 0.45em;
+  font-size: 1.4em;
+  font-weight: 600;
+}
+
+.doc h3 {
+  margin: 1.5em 0 0.35em;
+  font-size: 1.17em;
+  font-weight: 600;
+}
+
+.doc h4 {
+  margin: 1.3em 0 0.3em;
+  font-size: 1em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.doc p,
+.doc ul,
+.doc ol,
+.doc blockquote {
+  margin: 0 0 1.05em;
+}
+
+.doc li {
+  margin: 0.25em 0;
+}
+
+.doc a {
+  color: var(--brass-deep);
+  text-underline-offset: 3px;
+}
+
+.doc blockquote {
+  margin-left: 0;
+  padding-left: 1.1em;
+  border-left: 2px solid var(--brass);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.doc code {
+  padding: 0.1em 0.3em;
+  border-radius: var(--radius-xs);
+  background: var(--code-bg);
+  font-family: var(--mono);
+  font-size: 0.84em;
+}
+
+.doc pre {
+  padding: 14px 16px;
+  overflow: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper-edge);
+  font-size: 0.82em;
+  line-height: 1.55;
+}
+
+.doc pre code {
+  padding: 0;
+  background: none;
+  font-size: 1em;
+}
+
+.doc table {
+  width: 100%;
+  margin: 0 0 1.2em;
+  border-collapse: collapse;
+  font-size: 0.86em;
+}
+
+.doc th,
+.doc td {
+  padding: 7px 10px 7px 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.doc th {
+  font: 600 12px/1.3 var(--sans);
+  letter-spacing: 0.04em;
+}
+
+.doc img {
+  max-width: 100%;
+  height: auto;
+}
+
+.doc hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* Deep links land below the sticky masthead. */
+.doc [id^='L'] {
+  scroll-margin-top: calc(var(--mast-h) + 22px);
+}
+
+@media (max-width: 900px) {
+  .doc {
+    font-size: 17px;
+    line-height: 1.68;
+  }
+
+  .doc h1 {
+    font-size: 1.65em;
+  }
+}

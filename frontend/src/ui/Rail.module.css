@@ -1,0 +1,112 @@
+/* Legacy `.rail`: a sticky column beside the stage. */
+.rail {
+  position: sticky;
+  top: var(--mast-h);
+  display: flex;
+  flex: 0 0 var(--rail-width, var(--rail-w));
+  flex-direction: column;
+  align-self: stretch;
+  width: var(--rail-width, var(--rail-w));
+  height: calc(100vh - var(--mast-h));
+  background: var(--paper-edge);
+}
+
+.rail[hidden] {
+  display: none;
+}
+
+.right {
+  border-left: 1px solid var(--rule);
+}
+
+.left {
+  flex-basis: var(--rail-width, var(--contents-w));
+  width: var(--rail-width, var(--contents-w));
+  border-right: 1px solid var(--rule);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.title {
+  flex: 1;
+  color: var(--muted);
+  font: 600 13px/1 var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.body {
+  flex: 1 1 auto;
+  padding: 14px 18px;
+  overflow: auto;
+}
+
+.scrim {
+  display: none;
+}
+
+/* Phones: the rail becomes a fixed sheet over the page with a scrim behind it. */
+@media (max-width: 900px) {
+  .rail {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: var(--z-drawer);
+    flex: none;
+    width: var(--sheet-w);
+    height: 100dvh;
+    border-color: var(--brass);
+  }
+
+  .right {
+    right: 0;
+  }
+
+  .left {
+    left: 0;
+    width: var(--sheet-w);
+  }
+
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-bubble);
+    display: block;
+    border: 0;
+    background: var(--veil);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @media (max-width: 900px) {
+    .right:not([hidden]) {
+      animation: slide-in-right var(--dur-fast) var(--ease);
+    }
+
+    .left:not([hidden]) {
+      animation: slide-in-left var(--dur-fast) var(--ease);
+    }
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+:global(body.panel-open) {
+  overflow: hidden;
+}

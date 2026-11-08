@@ -1,0 +1,32 @@
+.link {
+  padding: 4px 2px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: none;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+
+.link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.brass {
+  color: var(--brass-deep);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+@media (pointer: coarse) {
+  .link {
+    min-height: var(--touch-min);
+    padding-inline: 8px;
+  }
+}

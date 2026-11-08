@@ -1,0 +1,105 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--sans);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.sm {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.md {
+  height: 38px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.lg {
+  height: 44px;
+  padding: 0 20px;
+  font-size: 15px;
+}
+
+.primary {
+  background: var(--brass-deep);
+  border-color: var(--brass-deep);
+  color: var(--on-brass);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--oak);
+  border-color: var(--oak);
+}
+
+.ghost {
+  background: transparent;
+  border-color: var(--rule);
+  color: var(--ink);
+}
+
+.ghost:hover:not(:disabled) {
+  border-color: var(--brass-deep);
+}
+
+.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-brass);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--oak);
+  border-color: var(--oak);
+}
+
+/* Legacy `.btn[aria-expanded="true"]`: a toggle whose panel is open. */
+.primary[aria-expanded='true'],
+.ghost[aria-expanded='true'] {
+  background: var(--oak);
+  border-color: var(--oak);
+  color: var(--paper);
+}
+
+/* Masthead `.ghost-btn`: after the size classes so its metrics win. */
+.onDark {
+  height: var(--field-h);
+  padding: 0 12px;
+  background: transparent;
+  border-color: var(--brass);
+  color: var(--brass-lit);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.onDark:hover:not(:disabled) {
+  background: var(--on-dark-hover-faint);
+  color: var(--paper-lit);
+}
+
+.onDark[aria-pressed='true'],
+.onDark[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--brass);
+  color: var(--wood-ink);
+}
+
+/* Coarse pointers get 44px targets; desktop metrics stay legacy-exact. */
+@media (pointer: coarse) {
+  .button {
+    min-height: var(--touch-min);
+  }
+}

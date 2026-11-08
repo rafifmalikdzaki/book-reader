@@ -2,47 +2,46 @@
 
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import logging
 import mimetypes
 import os
-import re
 import threading
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
-from urllib.parse import quote, urlencode
 
 if TYPE_CHECKING:
     from .chat import ChatMessage, ChatService
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from starlette.datastructures import Headers
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
 from .chat_config import CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, chat_model_ids, select_model
-from .chats import RETENTION_DAYS, ChatStore
+from .chats import ChatStore
 from .library import Library
-from .mdrender import render_markdown_file
 from .notepad import NotepadStore
 from .organize import CategoryStore, LibraryOrganizer, MistralClient
 from .pages import PageIndex
 from .pdf import PdfCache
 from .preferences import Preferences
 from .progress import ProgressStore
-from .reconcile import LibraryReconciler, ReindexReport
+from .reconcile import LibraryReconciler
 from .routes_chat_sessions import register as register_chat_sessions
+from .routes_library import LibraryViews
+from .routes_library import register as register_library
 from .routes_notepad import register as register_notepad
+from .routes_spa import register as register_spa
 from .search import ElasticSearch, Searcher, SearchUnavailable
 from .sections import SectionIndex
+from .security_headers import install as install_security_headers
+from .security_headers import install_host_check
 from .state_lock import StateDirectoryLock
 
 logger = logging.getLogger(__name__)
@@ -50,10 +49,22 @@ logger = logging.getLogger(__name__)
 mimetypes.add_type("text/javascript", ".mjs")
 
 PACKAGE_DIR = Path(__file__).parent
-TEMPLATES = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
 SEARCH_LIMIT_MAX = 200
 RECENT_LIMIT = 5
 DEFAULT_ES_INDEX = "book-reader"
+
+# Only these types are safe to render inline from the library. Everything else is a
+# download with a generic media type (notably HTML/SVG, which would run on our origin).
+RAW_INLINE_MEDIA = {
+    ".pdf": "application/pdf",
+    ".md": "text/markdown; charset=utf-8",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".avif": "image/avif",
+}
 
 
 class ProgressBody(BaseModel):
@@ -194,104 +205,27 @@ def build_services(
     )
 
 
-def _category_slug(name: str) -> str:
-    slug = re.sub(r"[^a-z0-9]+", "-", name.casefold()).strip("-")
-    return slug or "unsorted"
-
-
-def _shelf_of(rel: str) -> str:
-    head, separator, _tail = rel.partition("/")
-    return head if separator else "Unfiled"
-
-
-def _label_time(timestamp: object) -> str:
-    try:
-        value = float(str(timestamp))
-    except (TypeError, ValueError):
-        return "—"
-    if value <= 0:
-        return "—"
-    return datetime.fromtimestamp(value).strftime("%d %b, %H:%M")
-
-
-def _note_locator(note: dict[str, object]) -> str:
-    parts: list[str] = []
-    if note.get("kind") == "pdf" and note.get("page"):
-        parts.append(f"p.{note['page']}")
-    elif note.get("line_start"):
-        end = note.get("line_end")
-        parts.append(
-            f"L{note['line_start']}" + (f"-{end}" if end and end != note["line_start"] else "")
-        )
-    if note.get("section"):
-        parts.append(f"§ {note['section']}")
-    return " · ".join(parts)
-
-
-def _note_preview(note: dict[str, object]) -> dict[str, object]:
-    return {
-        "book": note.get("book"),
-        "page": note.get("page"),
-        "line_start": note.get("line_start"),
-        "quote": " ".join(str(note.get("quote") or "").split())[:220],
-        "locator": _note_locator(note),
-    }
-
-
-def _display_title(
-    pdf: PdfCache,
-    sections: SectionIndex,
-    target: Path,
-    rel: str,
-    fallback: str,
-    page_count: int | None = None,
-) -> str:
-    if target.suffix.lower() != ".pdf":
-        return fallback
-    try:
-        embedded = pdf.title(target)
-        if embedded:
-            return embedded
-        count = page_count if page_count is not None else pdf.page_count(target)
-    except Exception:
-        return fallback
-    for section in sections.cached(rel):
-        if section["depth"] == 0 and section["start_page"] <= 1 and section["end_page"] >= count:
-            return section["title"]
-    return fallback
-
-
-def _markdown_title(text: str, fallback: str) -> str:
-    for line in text.splitlines():
-        match = re.match(r"^#\s+(.+?)\s*#*$", line)
-        if match:
-            title = re.sub(r"[*_`\[\]]|\([^)]*\)", "", match.group(1)).strip()
-            if title:
-                return title
-    return fallback
-
-
-def _markdown_outline(text: str) -> list[dict[str, object]]:
-    outline = []
-    for number, line in enumerate(text.splitlines(), start=1):
-        match = re.match(r"^(#{1,4})\s+(.+?)\s*#*$", line)
-        if not match:
-            continue
-        title = re.sub(r"[*_`\[\]]|\([^)]*\)", "", match.group(2)).strip()
-        if title:
-            outline.append({"level": len(match.group(1)), "title": title, "line": number})
-    return outline
-
-
 class GzipStaticFiles(StaticFiles):
     """Serve precompressed text assets when the browser accepts gzip."""
 
     async def get_response(self, path: str, scope: object) -> Response:
         headers = Headers(scope=scope)  # type: ignore[arg-type]
         if "gzip" in headers.get("accept-encoding", ""):
-            source = Path(str(self.directory)) / path
-            compressed = source.with_name(source.name + ".gz")
-            if compressed.is_file():
+            root = Path(str(self.directory)).resolve()
+            source: Path | None = None
+            compressed: Path | None = None
+            try:
+                source = (root / path).resolve()
+                compressed = source.with_name(source.name + ".gz").resolve()
+            except (OSError, RuntimeError):
+                pass
+            if (
+                source is not None
+                and compressed is not None
+                and source.is_relative_to(root)
+                and compressed.is_relative_to(root)
+                and compressed.is_file()
+            ):
                 media_type, _encoding = mimetypes.guess_type(str(source))
                 return FileResponse(
                     compressed,
@@ -309,8 +243,16 @@ def create_app(
     es_index: str | None = None,
     search_mode: str | None = None,
     chat: ChatService | None = None,
+    static_dir: Path | None = None,
+    allowed_hosts: Sequence[str] | None = None,
 ) -> FastAPI:
-    """Build the app with its own library, caches, and stores."""
+    """Build the app with its own library, caches, and stores.
+
+    ``static_dir`` overrides the packaged static folder (tests use a tmp bundle).
+    ``allowed_hosts`` rejects requests whose Host header is not listed (DNS-rebinding
+    guard); ``None`` disables the check.
+    """
+    static_root = static_dir if static_dir is not None else PACKAGE_DIR / "static"
     state_path = Path(state_dir)
     process_lock = StateDirectoryLock(state_path)
     process_lock.acquire()
@@ -325,7 +267,6 @@ def create_app(
     except BaseException:
         process_lock.release()
         raise
-    root = services.root
     library = services.library
     pdf = services.pdf
     pages = services.pages
@@ -368,8 +309,13 @@ def create_app(
     ) -> Response:
         response = await call_next(request)
         path = request.url.path
-        if path.startswith("/static/vendor/") or path.startswith("/static/fonts/"):
-            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        if path.startswith(("/static/vendor/", "/static/fonts/", "/static/app/assets/")):
+            # Pinned or hashed files. A miss (mid-rebuild, typo) must not be cached; 304 and 206
+            # keep `immutable` so a conditional or range request does not downgrade the stored copy.
+            immutable = "public, max-age=31536000, immutable"
+            response.headers["Cache-Control"] = (
+                immutable if response.status_code in (200, 206, 304) else "no-cache"
+            )
         elif path.startswith("/static/"):
             response.headers["Cache-Control"] = "no-cache"
         return response
@@ -381,7 +327,7 @@ def create_app(
         exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "application/pdf"),
     )
 
-    app.mount("/static", GzipStaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
+    app.mount("/static", GzipStaticFiles(directory=str(static_root)), name="static")
     register_notepad(app, notepad=services.notepad, library=library, pdf=pdf, sections=sections)
     register_chat_sessions(
         app,
@@ -392,188 +338,20 @@ def create_app(
         preferences=preferences,
         reconciler=reconciler,
     )
-
-    def render(template: str, request: Request, **context: object) -> HTMLResponse:
-        return TEMPLATES.TemplateResponse(request, template, {"library_root": str(root), **context})
-
-    def self_card(
-        rel: str, entry: dict[str, object], book: object, path: Path
-    ) -> dict[str, object]:
-        page = entry.get("page")
-        scroll = entry.get("scroll")
-        count = pages.count(rel, path) if getattr(book, "kind", "") == "pdf" else None
-        percent = 0
-        section = ""
-        if getattr(book, "kind", "") == "pdf" and page:
-            percent = round(100 * int(str(page)) / count) if count else 0
-            section = sections.cached_section_for_page(rel, int(str(page)))
-        elif scroll is not None:
-            percent = round(100 * float(str(scroll)))
-        title = getattr(book, "title", Path(rel).stem)
-        if getattr(book, "kind", "") == "md":
-            with contextlib.suppress(OSError):
-                title = _markdown_title(path.read_text(encoding="utf-8", errors="replace"), title)
-        return {
-            "rel": rel,
-            "title": _display_title(pdf, sections, path, rel, title, count),
-            "kind": getattr(book, "kind", ""),
-            "shelf": _shelf_of(rel),
-            "page": int(str(page)) if page else None,
-            "page_count": count,
-            "percent": max(0, min(100, percent)),
-            "section": section,
-            "updated_label": _label_time(entry.get("updated"))
-            if page or scroll is not None
-            else "not started",
-        }
-
-    @app.get("/", response_class=HTMLResponse)
-    def index(request: Request) -> HTMLResponse:
-        try:
-            report = reconciler.sync()
-        except Exception:
-            logger.exception("library reindex failed while rendering the index")
-            report = ReindexReport()
-        books = library.scan()
-        by_rel = {book.rel: book for book in books}
-        last_read = {
-            rel: float(str(entry.get("updated") or 0.0)) for rel, entry in progress.recent(500)
-        }
-        resume: dict[str, object] | None = None
-        resume_notes: list[dict[str, object]] = []
-        recent: list[dict[str, object]] = []
-        for rel, entry in progress.recent(8):
-            book = by_rel.get(rel)
-            path = library.find_book(rel)
-            if book is None or path is None:
-                continue
-            card = self_card(rel, entry, book, path)
-            if resume is None:
-                resume = card
-                resume_notes = [
-                    _note_preview(note) for note in reversed(notepad.notes(book=rel)[-4:])
-                ]
-            elif len(recent) < 3:
-                recent.append(card)
-
-        count_items: list[tuple[str, Path]] = []
-        for book in books:
-            path = library.find_book(book.rel)
-            if path is not None and book.kind == "pdf":
-                count_items.append((book.rel, path))
-        page_counts = pages.counts(count_items)
-        taxonomy = categories.taxonomy()
-        taxonomy_by_id = {item["id"]: item for item in taxonomy}
-        assignments = categories.assignments()
-
-        rows: list[dict[str, object]] = []
-        for book in books:
-            stamp = last_read.get(book.rel, 0.0)
-            entry = progress.get(book.rel) or {}
-            path = library.find_book(book.rel)
-            page_count = page_counts.get(book.rel) if book.kind == "pdf" else None
-            title = book.title
-            if path is not None:
-                if book.kind == "md":
-                    with contextlib.suppress(OSError):
-                        title = _markdown_title(
-                            path.read_text(encoding="utf-8", errors="replace"), title
-                        )
-                else:
-                    title = _display_title(pdf, sections, path, book.rel, title, page_count)
-            page = int(str(entry.get("page"))) if entry.get("page") else None
-            scroll = float(str(entry.get("scroll"))) if entry.get("scroll") is not None else None
-            if book.kind == "pdf" and page and page_count:
-                percent = round(100 * page / page_count)
-            elif scroll is not None:
-                percent = round(100 * scroll)
-            else:
-                percent = 0
-            fallback_category = _shelf_of(book.rel)
-            content_id = reconciler.content_id(book.rel)
-            assignment = assignments.get(content_id or "")
-            assigned = taxonomy_by_id.get(assignment["category"]) if assignment else None
-            category = assigned["name"] if assigned else fallback_category
-            category_id = assigned["id"] if assigned else _category_slug(fallback_category)
-            if taxonomy and not assigned:
-                category, category_id = "Unsorted", "unsorted"
-            rows.append(
-                {
-                    "rel": book.rel,
-                    "title": title,
-                    "kind": book.kind.upper(),
-                    "shelf": fallback_category,
-                    "category_id": category_id,
-                    "category_name": category,
-                    "page_count": page_count,
-                    "page": page,
-                    "percent": max(0, min(100, percent)),
-                    "thumb_url": (
-                        "/thumb.jpg?path=" + quote(book.rel) + "&width=300"
-                        if book.kind == "pdf"
-                        else ""
-                    ),
-                    "last_read_label": _label_time(stamp),
-                    "updated_label": _label_time(entry.get("updated")),
-                }
-            )
-        if taxonomy:
-            order = {item["id"]: position for position, item in enumerate(taxonomy)}
-            rows.sort(
-                key=lambda row: (
-                    order.get(str(row["category_id"]), len(order)),
-                    str(row["title"]).casefold(),
-                )
-            )
-        else:
-            rows.sort(
-                key=lambda row: (-last_read.get(str(row["rel"]), 0.0), str(row["title"]).casefold())
-            )
-        groups: dict[str, list[dict[str, object]]] = {}
-        for row in rows:
-            groups.setdefault(str(row["category_id"]), []).append(row)
-        if taxonomy:
-            category_names = {item["id"]: item["name"] for item in taxonomy}
-            category_names["unsorted"] = "Unsorted"
-            ordered_ids = [item["id"] for item in taxonomy if item["id"] in groups]
-            if "unsorted" in groups:
-                ordered_ids.append("unsorted")
-        else:
-            category_names = {str(row["category_id"]): str(row["category_name"]) for row in rows}
-            ordered_ids = list(groups)
-        book_groups = [
-            {
-                "id": category_id,
-                "name": category_names.get(category_id, category_id),
-                "books": groups[category_id],
-            }
-            for category_id in ordered_ids
-        ]
-        category_options = [{"id": group["id"], "name": group["name"]} for group in book_groups]
-        organizer_status = organizer.status() if organizer is not None else {"available": False}
-        return render(
-            "index.html",
-            request,
-            books=rows,
-            book_groups=book_groups,
-            category_options=category_options,
-            organize_available=organizer is not None,
-            organize_status=organizer_status,
-            book_count=len(books),
-            resume=resume,
-            resume_notes=resume_notes,
-            recent=recent,
-            relocation_notice=reconciler.notice_for(report),
-        )
-
-    @app.get("/ask", response_class=HTMLResponse)
-    def ask(request: Request) -> HTMLResponse:
-        return render(
-            "ask.html",
-            request,
-            chat_available=bool(chat_service and chat_service.available()),
-            retention_days=RETENTION_DAYS,
-        )
+    views = LibraryViews(
+        library=library,
+        pdf=pdf,
+        pages=pages,
+        progress=progress,
+        sections=sections,
+        notepad=notepad,
+        categories=categories,
+        reconciler=reconciler,
+        organizer=organizer,
+    )
+    register_library(app, views=views, library=library, reconciler=reconciler)
+    register_spa(app, library=library, reconciler=reconciler, spa_dir=static_root / "app")
+    install_security_headers(app)
 
     @app.get("/thumb.jpg")
     def thumbnail(
@@ -611,89 +389,24 @@ def create_app(
             headers={"ETag": etag, "Cache-Control": "private, max-age=31536000, immutable"},
         )
 
-    @app.get("/book/{rel:path}", response_class=HTMLResponse)
-    def book(request: Request, rel: str) -> Response:
-        try:
-            target = library.book_file(rel)
-        except HTTPException as exc:
-            if exc.status_code != 404:
-                raise
-            try:
-                reconciler.sync()
-            except Exception:
-                logger.exception("reindex failed while resolving a moved book")
-            moved = reconciler.resolve(rel)
-            if moved != rel and library.find_book(moved) is not None:
-                location = f"/book/{quote(moved)}"
-                if request.url.query:
-                    location += "?" + request.url.query
-                return RedirectResponse(url=location, status_code=307)
-            raise
-        title = _display_title(pdf, sections, target, rel, Path(rel).stem)
-        stored = progress.get(rel) or {"page": None, "scroll": None}
-
-        if target.suffix.lower() == ".md":
-            try:
-                body = render_markdown_file(target, file_rel=rel)
-            except OSError as exc:
-                raise HTTPException(status_code=500, detail=f"cannot read {rel}") from exc
-            try:
-                source = target.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                source = ""
-            title = _markdown_title(source, title)
-            return render(
-                "book_md.html",
-                request,
-                rel=rel,
-                title=title,
-                html=body,
-                outline=_markdown_outline(source),
-                progress=stored,
-                error=None,
-            )
-
-        count = pages.count(rel, target)
-        if count is None:
-            return render(
-                "book_pdf.html",
-                request,
-                rel=rel,
-                title=title,
-                page=1,
-                page_count=0,
-                toc=[],
-                progress=stored,
-                error=f"Cannot open {title}: not a readable PDF",
-            )
-        requested = str(request.query_params.get("page") or stored.get("page") or 1)
-        try:
-            current = int(requested)
-        except ValueError:
-            current = 1
-        current = max(1, min(count, current))
-        viewer_url = (
-            "/static/vendor/pdfjs/web/viewer.html?"
-            + urlencode({"file": "/raw/" + rel})
-            + f"#page={current}"
-        )
-        return render(
-            "book_pdf.html",
-            request,
-            rel=rel,
-            title=title,
-            page=current,
-            page_count=count,
-            viewer_url=viewer_url,
-            progress=stored,
-            error=None,
-        )
-
     @app.get("/raw/{rel:path}")
     def raw(rel: str) -> FileResponse:
         target = library.any_file(rel)
-        media_type, _encoding = mimetypes.guess_type(target.name)
-        return FileResponse(target, media_type=media_type or "application/octet-stream")
+        media_type = RAW_INLINE_MEDIA.get(target.suffix.lower())
+        if media_type is not None:
+            return FileResponse(
+                target,
+                media_type=media_type,
+                headers={"X-Content-Type-Options": "nosniff"},
+            )
+        return FileResponse(
+            target,
+            media_type="application/octet-stream",
+            headers={
+                "X-Content-Type-Options": "nosniff",
+                "Content-Disposition": "attachment",
+            },
+        )
 
     @app.get("/api/search")
     def api_search(
@@ -877,35 +590,13 @@ def create_app(
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     @app.exception_handler(HTTPException)
-    def http_error(request: Request, exc: HTTPException) -> Response:
-        accept = request.headers.get("accept", "")
-        json_only = "application/json" in accept and "text/html" not in accept
-        if request.url.path.startswith("/api") or json_only:
-            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
-        headings = {
-            400: "That address isn't a book",
-            404: "We couldn't find that",
-            500: "Something broke",
-        }
-        details = {
-            400: "The path points outside the library, or to a file this reader does not open.",
-            404: "That book is not in this library. It may have been moved or renamed.",
-            500: "The reader hit an error while opening this file.",
-        }
-        return TEMPLATES.TemplateResponse(
-            request,
-            "error.html",
-            {
-                "library_root": str(root),
-                "status": exc.status_code,
-                "heading": headings.get(exc.status_code, "Something broke"),
-                "detail": details.get(exc.status_code, str(exc.detail)),
-            },
-            status_code=exc.status_code,
-        )
+    def http_error(_request: Request, exc: HTTPException) -> Response:
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
     @app.get("/healthz")
     def healthz() -> dict[str, bool]:
         return {"ok": True}
 
+    if allowed_hosts:
+        install_host_check(app, allowed_hosts)
     return app

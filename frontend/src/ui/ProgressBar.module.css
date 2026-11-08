@@ -1,0 +1,14 @@
+.track {
+  height: 5px;
+  background: var(--rule-soft);
+}
+
+.thin {
+  height: 3px;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--brass-deep);
+}

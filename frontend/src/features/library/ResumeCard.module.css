@@ -1,0 +1,74 @@
+.plate {
+  padding: 26px 28px 22px;
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--brass);
+  background: var(--paper-lit);
+  box-shadow: var(--shadow-plate);
+}
+
+.title {
+  margin: 0 0 6px;
+  font: 600 32px/1.18 var(--serif);
+}
+
+.title a {
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.title a:hover {
+  color: var(--brass-deep);
+}
+
+.emptyTitle {
+  font-size: 26px;
+}
+
+.where {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.progress {
+  margin-bottom: 8px;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.shelfPath {
+  max-width: 52ch;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .title {
+    font-size: 25px;
+  }
+
+  .emptyTitle {
+    font-size: 25px;
+  }
+
+  .shelfPath {
+    max-width: 100%;
+  }
+}

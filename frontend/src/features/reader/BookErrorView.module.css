@@ -1,0 +1,42 @@
+/* Legacy `.error-panel` (+ `.bookplate` on the HTTP error page). */
+.panel {
+  max-width: 620px;
+  margin: 14vh auto 0;
+}
+
+.plate {
+  padding: 26px 28px 22px;
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--brass);
+  background: var(--paper-lit);
+  box-shadow: var(--shadow-plate);
+}
+
+.heading {
+  margin: 0 0 8px;
+  font: 600 32px/1.18 var(--serif);
+}
+
+.plate .heading {
+  margin-bottom: 6px;
+}
+
+.text {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.detail {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
