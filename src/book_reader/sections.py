@@ -83,20 +83,11 @@ class SectionIndex:
         except OSError:
             return []
         with self._lock:
-            entries = self._load()
-            entry = entries.get(rel)
-            cached = entry.get("sections") if entry is not None else None
-            if (
-                entry is not None
-                and entry.get("mtime") == stat.st_mtime
-                and entry.get("size") == stat.st_size
-                and isinstance(cached, list)
-            ):
-                return [
-                    section
-                    for section in (_coerce_section(item) for item in cached)
-                    if section is not None
-                ]
+            entry = self._load().get(rel)
+            if _entry_is_current(entry, stat):
+                decoded = _decode_sections(entry.get("sections") if entry else None)
+                if decoded is not None:
+                    return decoded
 
         sections: list[Section] = []
         try:
@@ -109,18 +100,10 @@ class SectionIndex:
         with self._lock:
             entries = self._load()
             current = entries.get(rel)
-            if (
-                current is not None
-                and current.get("mtime") == stat.st_mtime
-                and current.get("size") == stat.st_size
-            ):
-                cached_now = current.get("sections")
-                if isinstance(cached_now, list):
-                    return [
-                        section
-                        for section in (_coerce_section(item) for item in cached_now)
-                        if section is not None
-                    ]
+            if _entry_is_current(current, stat):
+                decoded = _decode_sections(current.get("sections") if current else None)
+                if decoded is not None:
+                    return decoded
             entries[rel] = {
                 "mtime": stat.st_mtime,
                 "size": stat.st_size,
@@ -132,12 +115,8 @@ class SectionIndex:
     def cached(self, rel: str) -> list[Section]:
         """Sections already on disk for ``rel``, without running extraction."""
         entry = self._load().get(rel)
-        cached = entry.get("sections") if entry is not None else None
-        if not isinstance(cached, list):
-            return []
-        return [
-            section for section in (_coerce_section(item) for item in cached) if section is not None
-        ]
+        decoded = _decode_sections(entry.get("sections") if entry else None)
+        return decoded or []
 
     def cached_books(self) -> list[str]:
         return sorted(
@@ -151,6 +130,22 @@ class SectionIndex:
             if section["start_page"] <= page <= section["end_page"]:
                 match = section["title"]
         return match
+
+
+def _decode_sections(cached: object) -> list[Section] | None:
+    if not isinstance(cached, list):
+        return None
+    return [
+        section for section in (_coerce_section(item) for item in cached) if section is not None
+    ]
+
+
+def _entry_is_current(entry: dict[str, object] | None, stat: os.stat_result) -> bool:
+    return (
+        entry is not None
+        and entry.get("mtime") == stat.st_mtime
+        and entry.get("size") == stat.st_size
+    )
 
 
 def _coerce_section(node: object) -> Section | None:
