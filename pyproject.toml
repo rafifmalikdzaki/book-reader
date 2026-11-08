@@ -1,0 +1,55 @@
+[project]
+name = "book-reader"
+version = "0.1.0"
+description = "Local web reader for PDF and Markdown books"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.116",
+  "uvicorn>=0.30",
+  "pymupdf>=1.26,<2",
+  "markdown-it-py>=4.0",
+  "jinja2>=3.1",
+  "pygments>=2.19",
+  "elasticsearch>=9,<10",
+]
+
+[project.optional-dependencies]
+pageindex = ["pageindex>=0.5.3"]
+
+[project.scripts]
+book-reader = "book_reader.__main__:main"
+
+[dependency-groups]
+dev = [
+  "httpx>=0.28",
+  "mypy>=1.14",
+  "pageindex>=0.5.3",
+  "pytest>=8.4",
+  "ruff>=0.9",
+  "types-pygments>=2.19",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/book_reader"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src"]
+strict = true
+
+# PyMuPDF ships py.typed without full annotations; pdf.py wraps it and the test
+# fixture builds PDFs, so the relaxation is scoped to those modules.
+[[tool.mypy.overrides]]
+module = ["book_reader.pdf", "test_reader"]
+disallow_untyped_calls = false
