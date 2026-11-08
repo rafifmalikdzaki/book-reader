@@ -3,12 +3,13 @@ import os
 from pathlib import Path
 from typing import Self, cast
 
+import pymupdf
 import pytest
 from elasticsearch import Elasticsearch
 from fastapi.testclient import TestClient
 
 from book_reader.app import create_app
-from book_reader.library import Library
+from book_reader.library import Book, Library
 from book_reader.mdrender import render_markdown
 from book_reader.pdf import PdfCache
 from book_reader.search import ElasticSearch, Searcher, SearchUnavailable
@@ -467,3 +468,57 @@ def test_tree_search_ignores_cached_books_outside_the_library(
     searcher = Searcher(Library(library), PdfCache(), SectionIndex(state), None, "pageindex")
     hits = searcher.library_wide("retrieval", 10)
     assert [hit["book"] for hit in hits] == ["sub/a.pdf"]
+
+
+def test_bulk_indexing_errors_are_raised(tmp_path: Path) -> None:
+    class FailingBulk:
+        class indices:
+            @staticmethod
+            def exists(**_kwargs: object) -> bool:
+                return True
+
+            @staticmethod
+            def delete(**_kwargs: object) -> dict[str, object]:
+                return {}
+
+            @staticmethod
+            def create(**_kwargs: object) -> dict[str, object]:
+                return {}
+
+            @staticmethod
+            def refresh(**_kwargs: object) -> dict[str, object]:
+                return {}
+
+        def options(self, **_kwargs: object) -> Self:
+            return self
+
+        def info(self) -> dict[str, object]:
+            return {}
+
+        def delete_by_query(self, **_kwargs: object) -> dict[str, int]:
+            return {"deleted": 0}
+
+        def bulk(self, **_kwargs: object) -> dict[str, object]:
+            return {
+                "errors": True,
+                "items": [{"index": {"status": 400, "error": {"type": "mapper"}}}],
+            }
+
+    doc = pymupdf.open()
+    doc.new_page().insert_text((72, 72), "equilibrium optimizer explanation text " * 5)
+    path = tmp_path / "long.pdf"
+    doc.save(path)
+    doc.close()
+    stat = path.stat()
+    book = Book(rel="long.pdf", title="long", kind="pdf", size=stat.st_size, mtime=stat.st_mtime)
+
+    elastic = ElasticSearch(
+        "http://localhost:9200",
+        "test",
+        PdfCache(),
+        SectionIndex(tmp_path),
+        tmp_path,
+        client=cast(Elasticsearch, FailingBulk()),
+    )
+    with pytest.raises(RuntimeError, match="bulk indexing failed"):
+        elastic._index_book(book, path)

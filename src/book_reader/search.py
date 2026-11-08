@@ -262,11 +262,28 @@ class ElasticSearch:
             operations.append(chunk)
             count += 1
             if len(operations) >= BULK_BATCH * 2:
-                self._client.bulk(operations=operations, refresh=False)
+                self._check_bulk(self._client.bulk(operations=operations, refresh=False), book.rel)
                 operations = []
         if operations:
-            self._client.bulk(operations=operations, refresh=False)
+            self._check_bulk(self._client.bulk(operations=operations, refresh=False), book.rel)
         return count
+
+    @staticmethod
+    def _check_bulk(response: object, rel: str) -> None:
+        """Bulk responses report per-document failures without raising."""
+        if not isinstance(response, dict) or not response.get("errors"):
+            return
+        items = response.get("items") or []
+        failed = sum(
+            1
+            for item in items
+            if isinstance(item, dict)
+            and any(
+                isinstance(result, dict) and int(result.get("status", 200)) >= 300
+                for result in item.values()
+            )
+        )
+        raise RuntimeError(f"bulk indexing failed for {failed or len(items)} chunk(s) of {rel}")
 
     def _chunks(self, book: Book, path: Path) -> Iterator[dict[str, object]]:
         if book.kind == "pdf":
