@@ -62,6 +62,42 @@ class ModelChoice(BaseModel):
     model: str
 
 
+CHAT_MAX_MESSAGES = 50
+CHAT_MAX_MESSAGE_CHARS = 8000
+
+
+def _chat_model_ids(chat: ChatService) -> set[str]:
+    return {option["id"] for option in chat.model_options()}
+
+
+def _chat_messages(items: list[ChatMessageBody]) -> list[ChatMessage]:
+    if not items:
+        raise HTTPException(status_code=400, detail="messages must not be empty")
+    messages: list[ChatMessage] = []
+    for item in items[-CHAT_MAX_MESSAGES:]:
+        role = item.role.strip()
+        content = item.content.strip()
+        if role not in {"user", "assistant"} or not content:
+            raise HTTPException(
+                status_code=400,
+                detail="messages need role user|assistant and non-empty content",
+            )
+        messages.append({"role": role, "content": content[:CHAT_MAX_MESSAGE_CHARS]})
+    return messages
+
+
+def _select_model(explicit: str | None, preferences: Preferences, chat: ChatService) -> str:
+    selected = explicit or preferences.get("chat_model", "auto") or "auto"
+    if selected == "auto":
+        return selected
+    if selected in _chat_model_ids(chat):
+        return selected
+    if explicit:
+        raise HTTPException(status_code=400, detail=f"unknown model: {selected}")
+    logger.warning("stored chat model %s is unavailable; using auto", selected)
+    return "auto"
+
+
 @dataclass(frozen=True)
 class Services:
     """Everything the HTTP layer needs, built once per process."""
@@ -403,8 +439,7 @@ def create_app(
         if model != "auto":
             if chat_service is None:
                 raise HTTPException(status_code=503, detail="chat is not configured")
-            known = {option["id"] for option in chat_service.model_options()}
-            if model not in known:
+            if model not in _chat_model_ids(chat_service):
                 raise HTTPException(status_code=400, detail=f"unknown model: {model}")
         preferences.set("chat_model", model)
         return {"ok": True, "selected": model}
@@ -424,29 +459,10 @@ def create_app(
                 status_code=503,
                 detail="chat is not configured; install the agent extra and set a provider key",
             )
-        if not body.messages:
-            raise HTTPException(status_code=400, detail="messages must not be empty")
-        messages: list[ChatMessage] = []
-        for item in body.messages[-50:]:
-            role = item.role.strip()
-            content = item.content.strip()
-            if role not in {"user", "assistant"} or not content:
-                raise HTTPException(
-                    status_code=400,
-                    detail="messages need role user|assistant and non-empty content",
-                )
-            messages.append({"role": role, "content": content[:8000]})
+        messages = _chat_messages(body.messages)
         if body.book is not None:
             library.book_file(body.book)
-        explicit = body.model
-        selected = explicit or preferences.get("chat_model", "auto") or "auto"
-        if selected != "auto":
-            known = {option["id"] for option in chat_service.model_options()}
-            if selected not in known:
-                if explicit:
-                    raise HTTPException(status_code=400, detail=f"unknown model: {selected}")
-                logger.warning("stored chat model %s is unavailable; using auto", selected)
-                selected = "auto"
+        selected = _select_model(body.model, preferences, chat_service)
         try:
             return chat_service.ask(messages, book=body.book, page=body.page, model=selected)
         except ChatUnavailable as exc:
