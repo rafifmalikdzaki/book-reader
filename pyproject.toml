@@ -11,10 +11,16 @@ dependencies = [
   "jinja2>=3.1",
   "pygments>=2.19",
   "elasticsearch>=9,<10",
+  "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]
 pageindex = ["pageindex>=0.5.3"]
+agent = [
+  "langchain-core>=1.7",
+  "langchain-openai>=1.7",
+  "langgraph>=1.2",
+]
 
 [project.scripts]
 book-reader = "book_reader.__main__:main"
@@ -22,6 +28,9 @@ book-reader = "book_reader.__main__:main"
 [dependency-groups]
 dev = [
   "httpx>=0.28",
+  "langchain-core>=1.7",
+  "langchain-openai>=1.7",
+  "langgraph>=1.2",
   "mypy>=1.14",
   "pageindex>=0.5.3",
   "pytest>=8.4",
@@ -51,5 +60,5 @@ strict = true
 # PyMuPDF ships py.typed without full annotations; pdf.py wraps it and the test
 # fixture builds PDFs, so the relaxation is scoped to those modules.
 [[tool.mypy.overrides]]
-module = ["book_reader.pdf", "test_reader"]
+module = ["book_reader.pdf", "test_reader", "test_retrieval", "conftest"]
 disallow_untyped_calls = false

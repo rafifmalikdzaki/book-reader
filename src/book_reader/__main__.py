@@ -8,10 +8,20 @@ import sys
 from pathlib import Path
 
 import uvicorn
+from dotenv import load_dotenv
 
 from .app import DEFAULT_ES_INDEX, build_services, create_app
 
 DEFAULT_LIBRARY = Path.home() / "Documents" / "Books"
+
+
+def load_env(directory: Path | None = None) -> bool:
+    """Load a local ``.env`` (if any) before CLI defaults are resolved."""
+    env_file = (directory or Path.cwd()) / ".env"
+    if not env_file.is_file():
+        return False
+    load_dotenv(env_file, override=False)
+    return True
 
 
 def default_state_dir() -> Path:
@@ -77,6 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> None:
+    load_env()
     args = build_parser().parse_args(argv)
     library_root = Path(args.library).expanduser()
     if not library_root.is_dir():
@@ -98,7 +109,7 @@ def main(argv: list[str] | None = None) -> None:
                 file=sys.stderr,
             )
             raise SystemExit(2)
-        if not services.elastic.available():
+        if not services.elastic.reachable():
             print(
                 f"Elasticsearch is not reachable at {services.elastic.url}",
                 file=sys.stderr,
