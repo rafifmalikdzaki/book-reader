@@ -1,0 +1,47 @@
+services:
+  reader:
+    build: .
+    image: book-reader:local
+    ports:
+      - "127.0.0.1:${BOOK_READER_PORT:-8000}:8000"
+    environment:
+      BOOK_READER_LIBRARY: /library
+      BOOK_READER_STATE_DIR: /state
+      BOOK_READER_HOST: 0.0.0.0
+      BOOK_READER_ES_URL: http://elasticsearch:9200
+      BOOK_READER_ES_INDEX: book-reader
+    volumes:
+      - "${BOOKS_DIR:-/home/dzakirm/Documents/Books}:/library:ro"
+      - reader-state:/state
+    depends_on:
+      elasticsearch:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/healthz').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.5
+    ports:
+      - "127.0.0.1:9200:9200"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.ml.enabled: "false"
+      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200/_cluster/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  reader-state:
+  es-data:
