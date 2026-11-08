@@ -56,8 +56,8 @@ the `reader-state` volume, Elasticsearch data in `es-data`. Ports bind to
    ordinary text).
 2. Click **+ Note**, pick a group, add an annotation, save.
 3. The drawer lists notes grouped by idea, with a link back to the source
-   (`book.pdf#p12`, `notes.md#L40`). Groups can be created, renamed by moving
-   notes, and deleted.
+   (`book.pdf#p12`, `notes.md#L40`). Groups can be created, notes moved between
+   them, and groups deleted together with their notes.
 
 Exports:
 
@@ -82,9 +82,11 @@ Exports:
 | Library-wide (`/api/search?q=…`) | Elasticsearch chunks, or PageIndex sections for books whose trees are cached |
 
 Build or refresh the Elasticsearch index with `uv run book-reader --index`
-(incremental, keyed by file mtime and size) or `--force-index`.
-`GET /api/index/status` reports backend availability and chunk count;
-`POST /api/index/rebuild` does the same from the browser session.
+(incremental, keyed by file mtime and size) or `--force-index`. Rebuilds prune
+chunks and state entries for books that are no longer under the library root.
+`GET /api/index/status` reports backend availability, chunk count, cached
+section trees, and the background job; `POST /api/index/rebuild` starts a
+rebuild in a worker thread and returns immediately with `{"started": true}`.
 
 Sections for PDF hits and notes come from PageIndex Flash
 (`pageindex.flash.main.extract_toc`), cached in `sections.json` per file mtime.
