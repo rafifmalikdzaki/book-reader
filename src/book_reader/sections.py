@@ -147,17 +147,15 @@ def _coerce_section(node: object) -> Section | None:
     return {"title": title, "start_page": start, "end_page": end}
 
 
-def _flatten(structure: list[dict[str, object]], depth: int = 0) -> list[Section]:
+def _flatten(structure: list[dict[str, object]]) -> list[Section]:
     sections: list[Section] = []
     for node in structure:
         title = str(node.get("title") or "").strip()
         start = node.get("start_index")
         end = node.get("end_index")
         if title and isinstance(start, int) and isinstance(end, int) and end >= start:
-            sections.append(
-                {"title": title if depth == 0 else f"{title}", "start_page": start, "end_page": end}
-            )
+            sections.append({"title": title, "start_page": start, "end_page": end})
         children = node.get("nodes")
         if isinstance(children, list):
-            sections.extend(_flatten(children, depth + 1))
+            sections.extend(_flatten(children))
     return sections
