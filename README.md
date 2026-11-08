@@ -246,6 +246,11 @@ Compose additionally reads `BOOKS_DIR` (host path mounted at `/library`) and
 | `POST /api/index/rebuild` | index the library |
 | `GET /healthz` | container healthcheck |
 
+## Architecture
+
+A validated component/data-flow diagram is checked in at
+[`docs/book-reader-architecture.html`](docs/book-reader-architecture.html).
+
 ## Development
 
 ```bash
