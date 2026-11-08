@@ -61,24 +61,35 @@ the `reader-state` volume, Elasticsearch data in `es-data`. Ports bind to
 
 Exports:
 
-- `GET /api/notepad/export?format=markdown` — quote, annotation, section, page
-  or line range, character span, and source anchor per note.
+- `GET /api/notepad/export?format=markdown` — quote, annotation, section,
+  paragraph, page or line range, character span, and source anchor per note.
 - `GET /api/notepad/export?format=json` — the same records for tooling.
 
 ## Search
 
-| Scope | Backend |
-| --- | --- |
-| In-book (`/api/search?path=…&q=…`) | Elasticsearch when reachable, else in-process scan |
-| Library-wide (`/api/search?q=…`) | Elasticsearch (503 when not configured) |
+`--search` (env `BOOK_READER_SEARCH`) selects the backend preference:
 
-Build or refresh the index with `uv run book-reader --index` (incremental, keyed
-by file mtime and size) or `--force-index`. `GET /api/index/status` reports
-backend availability and chunk count; `POST /api/index/rebuild` does the same
-from the browser session.
+| Mode | Behaviour |
+| --- | --- |
+| `auto` (default) | Elasticsearch when reachable, then PageIndex section trees, then in-process text scan |
+| `elastic` | Elasticsearch only for library-wide queries |
+| `pageindex` | Vectorless tree search over PageIndex section titles; no Elasticsearch needed |
+| `local` | In-process text scan only; library-wide queries return 503 |
+
+| Scope | Result |
+| --- | --- |
+| In-book (`/api/search?path=…&q=…`) | Backend-specific hits with page/line + section |
+| Library-wide (`/api/search?q=…`) | Elasticsearch chunks, or PageIndex sections for books whose trees are cached |
+
+Build or refresh the Elasticsearch index with `uv run book-reader --index`
+(incremental, keyed by file mtime and size) or `--force-index`.
+`GET /api/index/status` reports backend availability and chunk count;
+`POST /api/index/rebuild` does the same from the browser session.
 
 Sections for PDF hits and notes come from PageIndex Flash
 (`pageindex.flash.main.extract_toc`), cached in `sections.json` per file mtime.
+The first tree extraction for a book takes a few seconds; every later query
+against that book is a dictionary lookup.
 
 ## Configuration
 
@@ -90,6 +101,7 @@ Sections for PDF hits and notes come from PageIndex Flash
 | `--port` | `BOOK_READER_PORT` | `8000` |
 | `--es-url` | `BOOK_READER_ES_URL` | empty (Elasticsearch disabled) |
 | `--es-index` | `BOOK_READER_ES_INDEX` | `book-reader` |
+| `--search` | `BOOK_READER_SEARCH` | `auto` (`auto`/`elastic`/`pageindex`/`local`) |
 | `--index` / `--force-index` | — | build the index, then exit |
 
 Compose additionally reads `BOOKS_DIR` (host path mounted at `/library`) and
