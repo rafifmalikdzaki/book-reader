@@ -82,20 +82,21 @@ class SectionIndex:
             stat = path.stat()
         except OSError:
             return []
-        entries = self._load()
-        entry = entries.get(rel)
-        cached = entry.get("sections") if entry is not None else None
-        if (
-            entry is not None
-            and entry.get("mtime") == stat.st_mtime
-            and entry.get("size") == stat.st_size
-            and isinstance(cached, list)
-        ):
-            return [
-                section
-                for section in (_coerce_section(item) for item in cached)
-                if section is not None
-            ]
+        with self._lock:
+            entries = self._load()
+            entry = entries.get(rel)
+            cached = entry.get("sections") if entry is not None else None
+            if (
+                entry is not None
+                and entry.get("mtime") == stat.st_mtime
+                and entry.get("size") == stat.st_size
+                and isinstance(cached, list)
+            ):
+                return [
+                    section
+                    for section in (_coerce_section(item) for item in cached)
+                    if section is not None
+                ]
 
         sections: list[Section] = []
         try:
@@ -105,12 +106,27 @@ class SectionIndex:
             sections = _flatten(result.get("structure") or [])
         except Exception as exc:
             logger.warning("pageindex could not read %s: %s", rel, exc)
-        entries[rel] = {
-            "mtime": stat.st_mtime,
-            "size": stat.st_size,
-            "sections": sections,
-        }
-        self._write()
+        with self._lock:
+            entries = self._load()
+            current = entries.get(rel)
+            if (
+                current is not None
+                and current.get("mtime") == stat.st_mtime
+                and current.get("size") == stat.st_size
+            ):
+                cached_now = current.get("sections")
+                if isinstance(cached_now, list):
+                    return [
+                        section
+                        for section in (_coerce_section(item) for item in cached_now)
+                        if section is not None
+                    ]
+            entries[rel] = {
+                "mtime": stat.st_mtime,
+                "size": stat.st_size,
+                "sections": sections,
+            }
+            self._write()
         return sections
 
     def cached(self, rel: str) -> list[Section]:
