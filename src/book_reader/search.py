@@ -657,17 +657,57 @@ class Searcher:
         elastic_hits = self._search_elastic(query, limit=limit)
         if elastic_hits is not None:
             return elastic_hits
-        if self._mode in {"auto", "pageindex"} and self._sections.available():
-            if not self._sections.cached_books():
-                raise SearchUnavailable(
-                    "no cached PageIndex section trees yet; open a book to build one, "
-                    "or configure Elasticsearch"
-                )
+        if self._mode in {"auto", "pageindex"} and self._sections.cached_books():
             return self._tree.search(query, limit=limit)
-        raise SearchUnavailable(
-            "library-wide search needs Elasticsearch (BOOK_READER_ES_URL) "
-            "or the pageindex extra with cached section trees"
-        )
+        if self._mode == "pageindex":
+            raise SearchUnavailable(
+                "no cached PageIndex section trees yet; open a book to build one, "
+                "or configure Elasticsearch"
+            )
+        return self._local_library(query, limit)
+
+    def _local_library(self, query: str, limit: int) -> list[SearchHit]:
+        """Scan page/line text when no index is available yet."""
+        needle = query.strip()
+        if not needle:
+            return []
+        hits: list[SearchHit] = []
+        for book in self._library.scan():
+            target = self._library.find_book(book.rel)
+            if target is None:
+                continue
+            remaining = max(1, limit - len(hits))
+            if book.kind == "md":
+                for hit in search_markdown(target, needle, remaining):
+                    hits.append(
+                        SearchHit(
+                            book=book.rel,
+                            kind="md",
+                            page=None,
+                            line=int(str(hit["line"])),
+                            line_end=int(str(hit["line"])),
+                            section="",
+                            snippet=str(hit["snippet"]),
+                        )
+                    )
+            else:
+                for hit in self._pdf.search(target, needle, remaining):
+                    hits.append(
+                        SearchHit(
+                            book=book.rel,
+                            kind="pdf",
+                            page=int(str(hit["page"])),
+                            line=None,
+                            line_end=None,
+                            section=self._sections.cached_section_for_page(
+                                book.rel, int(str(hit["page"]))
+                            ),
+                            snippet=str(hit["snippet"]),
+                        )
+                    )
+            if len(hits) >= limit:
+                break
+        return hits[:limit]
 
 
 def _snippet(text: str, terms: list[str], radius: int) -> str:

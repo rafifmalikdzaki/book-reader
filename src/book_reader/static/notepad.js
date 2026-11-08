@@ -1,11 +1,9 @@
 (() => {
   "use strict";
 
-  const drawer = document.getElementById("notepad");
-  if (!drawer) return;
-
-  const toggle = document.getElementById("notepad-toggle");
   const body = document.getElementById("notepad-body");
+  if (!body) return;
+
   const compose = document.getElementById("compose");
   const composeQuote = document.getElementById("compose-quote");
   const composeLocator = document.getElementById("compose-locator");
@@ -13,21 +11,6 @@
   const composeGroup = document.getElementById("compose-group");
 
   const state = { groups: [], notes: [], pending: null };
-
-  function setOpen(open) {
-    drawer.hidden = !open;
-    document.body.classList.toggle("notepad-open", open);
-    if (toggle) toggle.setAttribute("aria-expanded", String(open));
-    if (open) {
-      const chat = document.getElementById("chat");
-      if (chat && !chat.hidden) {
-        chat.hidden = true;
-        document.body.classList.remove("chat-open");
-        const chatToggle = document.getElementById("chat-toggle");
-        if (chatToggle) chatToggle.setAttribute("aria-expanded", "false");
-      }
-    }
-  }
 
   async function api(path, options) {
     const response = await fetch(path, options);
@@ -40,28 +23,20 @@
 
   function locatorText(note) {
     const parts = [];
-    if (note.kind === "pdf" && note.page) {
-      parts.push("p." + note.page);
-    } else if (note.line_start) {
+    if (note.kind === "pdf" && note.page) parts.push("p." + note.page);
+    else if (note.line_start) {
       parts.push(
-        "lines " +
-          note.line_start +
+        "lines " + note.line_start +
           (note.line_end && note.line_end !== note.line_start ? "–" + note.line_end : ""),
       );
-    } else {
-      parts.push("unlocated");
-    }
+    } else parts.push("unlocated");
     if (note.section) parts.push("§ " + note.section);
+    if (note.paragraph) parts.push("¶ " + note.paragraph);
     return parts.join(" · ");
   }
 
   function sourceHref(note) {
-    const base =
-      "/book/" +
-      String(note.book || "")
-        .split("/")
-        .map(encodeURIComponent)
-        .join("/");
+    const base = "/book/" + String(note.book || "").split("/").map(encodeURIComponent).join("/");
     if (note.kind === "pdf" && note.page) return base + "#p" + note.page;
     if (note.line_start) return base + "#L" + note.line_start;
     return base;
@@ -69,7 +44,7 @@
 
   function noteCard(note) {
     const card = document.createElement("div");
-    card.className = "note";
+    card.className = "note-card";
 
     const quote = document.createElement("blockquote");
     quote.textContent = note.quote;
@@ -84,13 +59,14 @@
     const comment = document.createElement("textarea");
     comment.value = note.comment || "";
     comment.placeholder = "Annotation…";
+    comment.setAttribute("aria-label", "Annotation");
     let timer = null;
     const save = () => {
       api("/api/notepad/notes/" + encodeURIComponent(note.id), {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ comment: comment.value }),
-      }).catch(() => {});
+      }).catch(() => window.Shell.toast("Annotation not saved."));
     };
     comment.addEventListener("input", () => {
       clearTimeout(timer);
@@ -104,6 +80,7 @@
     const actions = document.createElement("div");
     actions.className = "note-actions";
     const move = document.createElement("select");
+    move.setAttribute("aria-label", "Move note to group");
     for (const group of state.groups) {
       const option = document.createElement("option");
       option.value = group.id;
@@ -116,17 +93,17 @@
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ group: move.value }),
-      })
-        .then(load)
-        .catch(() => {});
+      }).then(load).catch(() => window.Shell.toast("Could not move the note."));
     });
     const remove = document.createElement("button");
     remove.type = "button";
+    remove.className = "remove";
     remove.textContent = "Delete";
     remove.addEventListener("click", () => {
+      if (!window.confirm("Delete this note?")) return;
       api("/api/notepad/notes/" + encodeURIComponent(note.id), { method: "DELETE" })
-        .then(load)
-        .catch(() => {});
+        .then(() => { window.Shell.toast("Note deleted."); return load(); })
+        .catch(() => window.Shell.toast("Could not delete the note."));
     });
     actions.append(move, remove);
 
@@ -138,13 +115,13 @@
     body.replaceChildren();
     if (!state.groups.length) {
       const empty = document.createElement("p");
-      empty.className = "empty";
+      empty.className = "side-empty";
       empty.textContent = "No groups yet.";
       body.append(empty);
       return;
     }
     for (const group of state.groups) {
-      const section = document.createElement("div");
+      const section = document.createElement("section");
       section.className = "note-group";
       const head = document.createElement("header");
       const title = document.createElement("h3");
@@ -154,14 +131,14 @@
       if (group.id !== "inbox") {
         const remove = document.createElement("button");
         remove.type = "button";
-        remove.textContent = "delete";
+        remove.className = "remove";
+        remove.textContent = "Delete";
         remove.addEventListener("click", () => {
-          const question =
-            "Delete group \"" + group.name + "\" and its " + notes.length + " notes?";
+          const question = "Delete group \"" + group.name + "\" and its " + notes.length + " notes?";
           if (!window.confirm(question)) return;
           api("/api/notepad/groups/" + encodeURIComponent(group.id), { method: "DELETE" })
             .then(load)
-            .catch(() => {});
+            .catch(() => window.Shell.toast("Could not delete the group."));
         });
         head.append(remove);
       }
@@ -194,24 +171,17 @@
 
   function startCompose(info) {
     state.pending = info;
-    setOpen(true);
     compose.hidden = false;
     fillGroupSelect();
     composeQuote.textContent = String(info.quote || "").replace(/\s+/g, " ").slice(0, 600);
     const parts = [String(info.book || "").split("/").pop()];
     if (info.page) parts.push("p." + info.page);
     if (info.section) parts.push("§ " + info.section);
+    if (info.paragraph) parts.push("¶ " + info.paragraph);
     composeLocator.textContent = parts.filter(Boolean).join(" · ");
     composeComment.value = "";
     composeComment.focus();
   }
-
-  document.getElementById("notepad-toggle").addEventListener("click", () => {
-    setOpen(drawer.hidden);
-  });
-  document.getElementById("notepad-close").addEventListener("click", () => {
-    setOpen(false);
-  });
 
   document.getElementById("group-form").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -223,11 +193,8 @@
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name }),
     })
-      .then(() => {
-        input.value = "";
-        return load();
-      })
-      .catch((error) => window.alert(error.message));
+      .then(() => { input.value = ""; return load(); })
+      .catch((error) => window.Shell.toast(error.message));
   });
 
   document.getElementById("compose-cancel").addEventListener("click", () => {
@@ -253,11 +220,19 @@
         compose.hidden = true;
         const selection = window.getSelection();
         if (selection) selection.removeAllRanges();
+        window.Shell.toast("Note saved.");
         return load();
       })
-      .catch((error) => window.alert(error.message));
+      .catch((error) => window.Shell.toast(error.message));
   });
 
-  window.Notepad = { compose: startCompose, open: () => setOpen(true), refresh: load };
+  composeComment.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      document.getElementById("compose-save").click();
+    }
+  });
+
+  window.Notepad = { compose: startCompose, refresh: load };
   load();
 })();

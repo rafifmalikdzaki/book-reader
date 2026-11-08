@@ -15,7 +15,7 @@ from book_reader.pdf import PdfCache
 from book_reader.search import ElasticSearch, Searcher, SearchUnavailable
 from book_reader.sections import SectionIndex
 
-PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+JPEG_MAGIC = b"\xff\xd8\xff"
 Client = tuple[TestClient, Path]
 
 
@@ -29,25 +29,86 @@ def test_index_lists_books_and_skips_hidden_dirs(client: Client) -> None:
     assert "secret" not in body
 
 
-def test_page_png_renders_and_rejects_out_of_range(client: Client) -> None:
+def test_index_has_tiles_categories_and_both_views(client: Client) -> None:
     test_client, _state = client
-    response = test_client.get("/page.png", params={"path": "sub/a.pdf", "page": 1, "zoom": 1.0})
+    body = test_client.get("/").text
+    assert 'class="tiles"' in body
+    assert 'class="tile"' in body
+    assert 'href="/book/sub/a.pdf"' in body
+    assert 'href="/book/note.md"' in body
+    assert 'id="category-filter"' in body
+    assert '<option value="">All categories</option>' in body
+    assert 'data-view="tiles"' in body
+    assert 'data-view="list"' in body
+    assert '<table class="books">' in body
+    assert 'src="/thumb.jpg?path=sub/a.pdf&amp;width=300"' in body
+
+
+def test_raw_pdf_supports_range_requests(client: Client) -> None:
+    test_client, _state = client
+    response = test_client.get("/raw/sub/a.pdf", headers={"Range": "bytes=0-99"})
+    assert response.status_code == 206
+    assert len(response.content) == 100
+    assert response.headers["content-range"].startswith("bytes 0-99/")
+    assert response.headers["accept-ranges"] == "bytes"
+
+
+def test_pdf_book_embeds_pdfjs_viewer(client: Client) -> None:
+    test_client, _state = client
+    response = test_client.get("/book/sub/a.pdf")
     assert response.status_code == 200
-    assert response.headers["content-type"].startswith("image/png")
-    body = response.content
-    assert body.startswith(PNG_MAGIC)
-    width = int.from_bytes(body[16:20], "big")
-    height = int.from_bytes(body[20:24], "big")
-    assert width > 0 and height > 0
-    assert test_client.get("/page.png", params={"path": "sub/a.pdf", "page": 99}).status_code == 400
+    body = response.text
+    assert "/static/vendor/pdfjs/web/viewer.html?file=%2Fraw%2Fsub%2Fa.pdf#page=1" in body
+    assert 'id="pdf-frame"' in body
+    assert 'data-book="sub/a.pdf"' in body
+    assert 'data-page="1"' in body
+    assert 'allow="fullscreen"' in body
+    assert "/static/pdf_reader.js" in body
+    assert "/page.png" not in body
+    assert "/api/text" not in body
+
+    deep_link = test_client.get("/book/sub/a.pdf?page=2")
+    assert 'data-page="2"' in deep_link.text
+    assert "#page=2" in deep_link.text
+
+
+def test_thumbnail_renders_caches_and_revalidates(client: Client) -> None:
+    test_client, state = client
+    response = test_client.get("/thumb.jpg", params={"path": "sub/a.pdf", "width": 240})
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/jpeg")
+    assert response.content.startswith(JPEG_MAGIC)
+    assert "immutable" in response.headers["cache-control"]
+    etag = response.headers["etag"]
+    assert etag.startswith('W/"')
+    assert len(list((state / "thumbs").glob("*-240.jpg"))) == 1
+
+    repeat = test_client.get(
+        "/thumb.jpg",
+        params={"path": "sub/a.pdf", "width": 240},
+        headers={"If-None-Match": etag},
+    )
+    assert repeat.status_code == 304
+    assert repeat.content == b""
+    assert repeat.headers["etag"] == etag
+
+    wider = test_client.get("/thumb.jpg", params={"path": "sub/a.pdf", "width": 360})
+    assert wider.status_code == 200
+    assert wider.headers["etag"] != etag
+    assert len(list((state / "thumbs").glob("*-360.jpg"))) == 1
+
+    assert (
+        test_client.get("/thumb.jpg", params={"path": "note.md", "width": 240}).status_code == 400
+    )
+    assert (
+        test_client.get("/thumb.jpg", params={"path": "sub/a.pdf", "width": 100}).status_code == 422
+    )
 
 
 def test_path_traversal_is_rejected(client: Client) -> None:
     test_client, _state = client
-    assert (
-        test_client.get("/page.png", params={"path": "../outside.pdf", "page": 1}).status_code
-        == 400
-    )
+    assert test_client.get("/thumb.jpg", params={"path": "../outside.pdf"}).status_code == 400
+    assert test_client.get("/raw/..%2Foutside.pdf").status_code == 400
     assert test_client.get("/book/..%2F..%2Fetc%2Fpasswd").status_code == 400
 
 
@@ -149,11 +210,15 @@ def test_markdown_cache_invalidates_when_file_changes(client: Client, library: P
     assert '">Changed</h1>' in test_client.get("/book/note.md").text
 
 
-def test_text_layer_returns_words(client: Client) -> None:
-    test_client, _state = client
-    layer = test_client.get("/api/text", params={"path": "sub/a.pdf", "page": 1}).json()
-    assert layer["width"] > 0 and layer["height"] > 0
-    assert any(word["t"] == "hello-search-needle" for word in layer["words"])
+def test_page_words_returns_text_layer(library: Path) -> None:
+    layer = PdfCache().page_words(library / "sub" / "a.pdf", 1)
+    width = layer["width"]
+    height = layer["height"]
+    words = layer["words"]
+    assert isinstance(width, (int, float)) and width > 0
+    assert isinstance(height, (int, float)) and height > 0
+    assert isinstance(words, list)
+    assert any(isinstance(word, dict) and word.get("t") == "hello-search-needle" for word in words)
 
 
 def test_notepad_groups_notes_and_export(client: Client) -> None:
@@ -346,8 +411,8 @@ def test_library_search_without_elastic_uses_tree_when_available(
 
     strict = Searcher(Library(library), PdfCache(), SectionIndex(tmp_path), None, "local")
     assert strict.backend() == "local"
-    with pytest.raises(SearchUnavailable):
-        strict.library_wide("title", 10)
+    local_hits = strict.library_wide("title", 10)
+    assert [(hit["book"], hit["line"]) for hit in local_hits] == [("note.md", 1)]
 
 
 def test_find_book_rejects_symlink_escape(library: Path, tmp_path: Path) -> None:
@@ -388,10 +453,12 @@ def test_pageindex_tree_search_uses_cached_sections(library: Path, tmp_path: Pat
     assert [hit["section"] for hit in library_hits] == ["Vector similarity"]
 
 
-def test_text_layer_exposes_block_and_line_numbers(client: Client) -> None:
-    test_client, _state = client
-    layer = test_client.get("/api/text", params={"path": "sub/a.pdf", "page": 1}).json()
-    first = layer["words"][0]
+def test_page_words_exposes_block_and_line_numbers(library: Path) -> None:
+    layer = PdfCache().page_words(library / "sub" / "a.pdf", 1)
+    words = layer["words"]
+    assert isinstance(words, list) and words
+    first = words[0]
+    assert isinstance(first, dict)
     assert isinstance(first["b"], int) and first["b"] >= 1
     assert isinstance(first["l"], int) and first["l"] >= 1
 
@@ -414,6 +481,49 @@ def test_pdf_note_records_block_and_line(client: Client) -> None:
     export = test_client.get("/api/notepad/export", params={"format": "markdown"}).text
     assert f"¶{note['paragraph']}" in export
     assert f"lines {note['line_start']}" in export
+
+
+def test_pdf_note_without_word_offsets_uses_page_text_and_cached_section(
+    library: Path, tmp_path: Path
+) -> None:
+    state = tmp_path / "state"
+    with TestClient(create_app(library, state)) as test_client:
+        path = library / "sub" / "a.pdf"
+        stat = path.stat()
+        (state / "sections.json").write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "books": {
+                        "sub/a.pdf": {
+                            "mtime": stat.st_mtime,
+                            "size": stat.st_size,
+                            "sections": [
+                                {"title": "Intro", "start_page": 1, "end_page": 3, "depth": 0}
+                            ],
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        response = test_client.post(
+            "/api/notepad/notes",
+            json={
+                "book": "sub/a.pdf",
+                "kind": "pdf",
+                "page": 1,
+                "quote": "hello-search-needle",
+            },
+        )
+
+    assert response.status_code == 200, response.text
+    note = response.json()
+    assert note["page"] == 1
+    assert note["section"] == "Intro"
+    assert note["paragraph"] is None
+    assert note["char_start"] is not None
+    assert note["char_end"] == note["char_start"] + len("hello-search-needle")
 
 
 def test_markdown_locator_keeps_intraword_underscores(client: Client) -> None:
@@ -522,3 +632,42 @@ def test_bulk_indexing_errors_are_raised(tmp_path: Path) -> None:
     )
     with pytest.raises(RuntimeError, match="bulk indexing failed"):
         elastic._index_book(book, path)
+
+
+def test_index_survives_a_corrupt_pdf(client: Client, library: Path) -> None:
+    test_client, _state = client
+    (library / "bad.pdf").write_bytes(b"%PDF-1.4\nthis is not a PDF")
+
+    response = test_client.get("/")
+
+    assert response.status_code == 200
+    assert "bad" in response.text
+
+
+def test_index_uses_an_unambiguous_pdf_outline_title(client: Client, library: Path) -> None:
+    test_client, _state = client
+    doc = pymupdf.open()
+    doc.new_page().insert_text((72, 72), "paper body")
+    doc.set_toc([[1, "A Paper Title With No Metadata", 1]])
+    doc.save(library / "paper.pdf")
+    doc.close()
+
+    response = test_client.get("/")
+
+    assert response.status_code == 200
+    assert "A Paper Title With No Metadata" in response.text
+
+
+def test_numbered_outline_heading_is_not_used_as_a_title(client: Client, library: Path) -> None:
+    test_client, _state = client
+    doc = pymupdf.open()
+    doc.new_page().insert_text((72, 72), "body")
+    doc.set_toc([[1, "1 . Introduction", 1], [2, "1.1 Background", 1]])
+    doc.save(library / "chapter.pdf")
+    doc.close()
+
+    response = test_client.get("/")
+
+    assert response.status_code == 200
+    assert "1 . Introduction" not in response.text
+    assert "chapter" in response.text

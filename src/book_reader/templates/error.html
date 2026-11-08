@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ status }} — book-reader{% endblock %}
+{% block body %}
+<div class="error-panel bookplate">
+  <h1>{{ heading }}</h1>
+  <p>{{ detail }}</p>
+  <p class="detail">{{ status }} · {{ request.url.path }}</p>
+  <div class="error-actions">
+    <a class="btn" href="/">Back to the library</a>
+    <button class="btn secondary" type="button" onclick="document.getElementById('global-search').focus()">Search the library</button>
+  </div>
+</div>
+{% endblock %}

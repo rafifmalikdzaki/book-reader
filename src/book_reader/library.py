@@ -34,10 +34,10 @@ class Library:
         self._books: list[Book] = []
         self._scanned_at = 0.0
 
-    def scan(self) -> list[Book]:
+    def scan(self, *, force: bool = False) -> list[Book]:
         now = time.monotonic()
         with self._lock:
-            if self._books and now - self._scanned_at < SCAN_TTL_SECONDS:
+            if not force and self._books and now - self._scanned_at < SCAN_TTL_SECONDS:
                 return list(self._books)
 
         books: list[Book] = []

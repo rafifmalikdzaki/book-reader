@@ -6,8 +6,11 @@ import json
 import logging
 import os
 import threading
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import TypedDict
+
+from .statemove import RemapError, apply_remap, plan_remap
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +31,11 @@ class SectionIndex:
     the reader keeps working.
     """
 
-    def __init__(self, state_dir: Path) -> None:
+    def __init__(
+        self, state_dir: Path, *, lock: AbstractContextManager[object] | None = None
+    ) -> None:
         self.path = Path(state_dir) / "sections.json"
-        self._lock = threading.RLock()
+        self._lock: AbstractContextManager[object] = lock or threading.RLock()
         self._cache: dict[str, dict[str, object]] | None = None
         self._available: bool | None = None
 
@@ -65,7 +70,23 @@ class SectionIndex:
             return {}
         return {str(rel): entry for rel, entry in books.items() if isinstance(entry, dict)}
 
-    def _write(self) -> None:
+    def remap(self, mapping: dict[str, str]) -> set[str]:
+        """Move cached section trees with their books, including swaps."""
+        if not mapping:
+            return set()
+        with self._lock:
+            entries = self._load()
+            safe, conflicts = plan_remap(mapping, set(entries))
+            if safe:
+                moved = apply_remap(entries, safe)
+                previous = self._cache
+                self._cache = moved
+                if not self._write():
+                    self._cache = previous
+                    raise RemapError(f"cannot persist section cache to {self.path}")
+        return conflicts
+
+    def _write(self) -> bool:
         payload = {"version": 1, "books": self._load()}
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -74,6 +95,12 @@ class SectionIndex:
             os.replace(tmp, self.path)
         except OSError as exc:
             logger.warning("cannot persist section cache to %s: %s", self.path, exc)
+            return False
+        return True
+
+    def reload(self) -> None:
+        with self._lock:
+            self._cache = None
 
     def sections(self, rel: str, path: Path) -> list[Section]:
         if path.suffix.lower() != ".pdf" or not self.available():
@@ -117,6 +144,14 @@ class SectionIndex:
         entry = self._load().get(rel)
         decoded = _decode_sections(entry.get("sections") if entry else None)
         return decoded or []
+
+    def cached_section_for_page(self, rel: str, page: int) -> str:
+        """Deepest cached section containing ``page``; never triggers extraction."""
+        match = ""
+        for section in self.cached(rel):
+            if section["start_page"] <= page <= section["end_page"]:
+                match = section["title"]
+        return match
 
     def cached_books(self) -> list[str]:
         return sorted(

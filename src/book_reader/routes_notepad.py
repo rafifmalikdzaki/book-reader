@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from .library import Library
 from .notepad import MAX_COMMENT, MAX_GROUP_NAME, MAX_QUOTE, NotepadError, NotepadStore
 from .pdf import PdfCache
+from .sections import SectionIndex
 
 
 class GroupBody(BaseModel):
@@ -39,7 +40,14 @@ class NotePatch(BaseModel):
     group: str | None = None
 
 
-def register(app: FastAPI, *, notepad: NotepadStore, library: Library, pdf: PdfCache) -> None:
+def register(
+    app: FastAPI,
+    *,
+    notepad: NotepadStore,
+    library: Library,
+    pdf: PdfCache,
+    sections: SectionIndex,
+) -> None:
     """Attach notepad routes; dependencies are injected by the app factory."""
     router = APIRouter(prefix="/api/notepad", tags=["notepad"])
 
@@ -75,32 +83,40 @@ def register(app: FastAPI, *, notepad: NotepadStore, library: Library, pdf: PdfC
         if kind == "pdf":
             if body.page is None:
                 raise HTTPException(status_code=400, detail="pdf notes need a page number")
-            try:
-                layer = pdf.page_words(target, body.page)
-            except Exception as exc:
-                raise HTTPException(
-                    status_code=400, detail=f"cannot read page text: {exc}"
-                ) from exc
-            words = layer["words"]
-            if (
-                isinstance(words, list)
-                and body.word_start is not None
-                and body.word_end is not None
-            ):
-                start = min(body.word_start, body.word_end)
-                end = max(body.word_start, body.word_end)
-                if 0 <= start <= end < len(words):
-                    first = words[start]
-                    last = words[end]
-                    if isinstance(first, dict) and isinstance(first.get("b"), int):
-                        paragraph = first["b"]
-                    if isinstance(first, dict) and isinstance(first.get("l"), int):
-                        line_start = first["l"]
-                        if isinstance(last, dict) and isinstance(last.get("l"), int):
-                            line_end = last["l"]
-                offsets = _word_offsets(words, start, end)
-                if offsets is not None:
-                    char_start, char_end = offsets
+            if not body.section:
+                body.section = sections.cached_section_for_page(body.book, body.page)
+            if body.word_start is not None and body.word_end is not None:
+                try:
+                    layer = pdf.page_words(target, body.page)
+                except Exception as exc:
+                    raise HTTPException(
+                        status_code=400, detail=f"cannot read page text: {exc}"
+                    ) from exc
+                words = layer["words"]
+                if isinstance(words, list):
+                    start = min(body.word_start, body.word_end)
+                    end = max(body.word_start, body.word_end)
+                    if 0 <= start <= end < len(words):
+                        first = words[start]
+                        last = words[end]
+                        if isinstance(first, dict) and isinstance(first.get("b"), int):
+                            paragraph = first["b"]
+                        if isinstance(first, dict) and isinstance(first.get("l"), int):
+                            line_start = first["l"]
+                            if isinstance(last, dict) and isinstance(last.get("l"), int):
+                                line_end = last["l"]
+                    offsets = _word_offsets(words, start, end)
+                    if offsets is not None:
+                        char_start, char_end = offsets
+            elif char_start is None and char_end is None:
+                try:
+                    text = pdf.page_text(target, body.page)
+                except Exception:
+                    text = ""
+                needle = body.quote.strip()
+                found = text.find(needle) if needle else -1
+                if found >= 0:
+                    char_start, char_end = found, found + len(needle)
         else:
             char_start, char_end, line_start, line_end = _markdown_locator(target, body.quote)
 

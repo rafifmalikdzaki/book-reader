@@ -12,6 +12,7 @@ dependencies = [
   "pygments>=2.19",
   "elasticsearch>=9,<10",
   "python-dotenv>=1.0",
+  "httpx>=0.28",
 ]
 
 [project.optional-dependencies]
@@ -60,5 +61,5 @@ strict = true
 # PyMuPDF ships py.typed without full annotations; pdf.py wraps it and the test
 # fixture builds PDFs, so the relaxation is scoped to those modules.
 [[tool.mypy.overrides]]
-module = ["book_reader.pdf", "test_reader", "test_retrieval", "conftest"]
+module = ["book_reader.pdf", "test_reader", "test_retrieval", "test_reindex", "conftest"]
 disallow_untyped_calls = false

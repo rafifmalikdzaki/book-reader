@@ -14,8 +14,11 @@ import os
 import secrets
 import threading
 import time
+from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import TypedDict
+
+from .statemove import RemapError
 
 logger = logging.getLogger(__name__)
 
@@ -51,10 +54,12 @@ class NotepadStore:
                     "char_end": 140, "comment": "", "created": ..., "updated": ...}]}
     """
 
-    def __init__(self, state_dir: Path) -> None:
+    def __init__(
+        self, state_dir: Path, *, lock: AbstractContextManager[object] | None = None
+    ) -> None:
         self.state_dir = Path(state_dir)
         self.path = self.state_dir / "notepad.json"
-        self._lock = threading.RLock()
+        self._lock: AbstractContextManager[object] = lock or threading.RLock()
         self._data: _State | None = None
 
     def _load(self) -> _State:
@@ -84,7 +89,30 @@ class NotepadStore:
             else [],
         }
 
-    def _write(self) -> None:
+    def remap(self, mapping: dict[str, str]) -> int:
+        """Point stored notes at moved books; note ids and groups stay put."""
+        if not mapping:
+            return 0
+        with self._lock:
+            data = self._load()
+            original = data["notes"]
+            updated: list[Note] = []
+            changed = 0
+            for note in original:
+                copy = dict(note)
+                book = copy.get("book")
+                if isinstance(book, str) and book in mapping:
+                    copy["book"] = mapping[book]
+                    changed += 1
+                updated.append(copy)
+            if changed:
+                data["notes"] = updated
+                if not self._write():
+                    data["notes"] = original
+                    raise RemapError(f"cannot persist notes to {self.path}")
+        return changed
+
+    def _write(self) -> bool:
         data = self._load()
         payload = {"version": 1, "groups": data["groups"], "notes": data["notes"]}
         try:
@@ -94,6 +122,8 @@ class NotepadStore:
             os.replace(tmp, self.path)
         except OSError as exc:
             logger.warning("cannot persist notepad to %s: %s", self.path, exc)
+            return False
+        return True
 
     def _groups(self) -> list[Group]:
         return self._load()["groups"]
@@ -107,6 +137,10 @@ class NotepadStore:
             inbox = {"id": INBOX_ID, "name": INBOX_NAME, "created": time.time()}
             self._groups().insert(0, inbox)
         return inbox
+
+    def reload(self) -> None:
+        with self._lock:
+            self._data = None
 
     def groups(self) -> list[Group]:
         with self._lock:

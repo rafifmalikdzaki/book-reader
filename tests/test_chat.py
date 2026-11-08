@@ -7,7 +7,13 @@ from fastapi.testclient import TestClient
 from langchain_core.messages import BaseMessage, ToolMessage
 
 from book_reader.app import create_app
-from book_reader.chat import ChatService, ProviderConfig, collect_sources, resolve_providers
+from book_reader.chat import (
+    ChatService,
+    ProviderConfig,
+    _with_context_source,
+    collect_sources,
+    resolve_providers,
+)
 from book_reader.library import Library
 from book_reader.notepad import NotepadStore
 from book_reader.pdf import PdfCache
@@ -240,6 +246,8 @@ def test_stale_saved_model_falls_back_to_auto(library: Path, tmp_path: Path) -> 
     with TestClient(app) as client:
         assert client.post("/api/chat/options", json={"model": "stub:m"}).status_code == 200
 
+    app.state.state_dir_lock.release()  # simulate a process restart
+
     second = RecordingChat([{"id": "other:x", "provider": "other", "model": "x"}])
     app = create_app(library, state, chat=cast(ChatService, second))
     with TestClient(app) as client:
@@ -326,3 +334,16 @@ def test_empty_final_answer_triggers_provider_fallback(
     monkeypatch.setattr(chat, "_graph", lambda *args, **kwargs: EmptyGraph())
     with pytest.raises(ChatError, match="empty answer"):
         chat.ask([{"role": "user", "content": "hi"}])
+
+
+def test_context_page_is_a_source_only_with_real_excerpt() -> None:
+    assert _with_context_source([], "sub/a.pdf", 2, excerpt="") == []
+    assert _with_context_source([], "sub/a.pdf", 2, excerpt="real page text") == [
+        {"book": "sub/a.pdf", "page": 2}
+    ]
+    assert _with_context_source(
+        [{"book": "sub/a.pdf", "page": 2}], "sub/a.pdf", 2, excerpt="real page text"
+    ) == [{"book": "sub/a.pdf", "page": 2}]
+    assert _with_context_source([{"book": "x.md", "line": 4}], None, None, excerpt="") == [
+        {"book": "x.md", "line": 4}
+    ]

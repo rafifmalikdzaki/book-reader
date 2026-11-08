@@ -3,18 +3,27 @@
 Local web reader for a folder of PDF and Markdown books, with a researcher
 notepad and library-wide search.
 
-- Library index grouped by top-level folder, page counts, "Continue reading".
-- PDF reader: server-rendered page images (PyMuPDF), selectable text layer,
-  prev/next/first/last, page jump, zoom, table of contents, in-book search,
-  keyboard navigation.
+- Library index with a default tile grid (first-page JPEG previews, progress,
+  category) and a list view. One search field filters titles live and runs
+  full-text library search on Enter; a category select replaces the old shelf
+  tabs.
+- PDF reader: the open-source **PDF.js** viewer (vendored, no CDN), with
+  continuous scroll, thumbnails, outline, text selection/copy, native find,
+  zoom, rotate, download, print, presentation mode, and keyboard paging. The
+  app bridge keeps deep links, reading progress, page-aware **Ask**, and
+  selection → note.
+- Markdown reader: CommonMark (+ tables, strikethrough, Pygments highlighting)
+  with relative links rewritten to library routes. HTML passthrough is
+  **disabled**, so library Markdown cannot inject scripts.
 - Markdown reader: CommonMark (+ tables, strikethrough, Pygments highlighting)
   with relative links rewritten to library routes. HTML passthrough is
   **disabled**, so library Markdown cannot inject scripts.
 - Notepad: select text in either reader and add it to a group with an
   annotation. Notes carry a locator (PDF page + word/character span, or
   Markdown line range + section) and export as AI context in Markdown or JSON.
-- Search: in-process text scan by default; Elasticsearch for fast library-wide
-  BM25 search with highlighted snippets. PDF sections come from
+- Search: PageIndex section search when trees are cached, then a local page/line
+  scan; Elasticsearch for fast library-wide BM25 search with highlighted
+  snippets. PDF sections come from
   [PageIndex](https://github.com/VectifyAI/PageIndex) Flash, which reads the
   layout tree offline (no model, no API key).
 - Reading position (page for PDFs, scroll ratio for Markdown) persisted to
@@ -22,7 +31,13 @@ notepad and library-wide search.
 - **Ask the library**: a LangGraph agent answers questions with tools
   (`search_library`, `read_document`, `add_note`) over Mistral, Inception,
   OpenRouter, or Ollama, falling back down a configurable priority chain. The
-  **Options** button picks a specific provider/model at runtime.
+  current page's real text is supplied before it is cited; answers render
+  Markdown and LaTeX with locally vendored KaTeX. The **Options** button picks a
+  specific provider/model at runtime.
+- **Auto-organize**: a confirmed background job reads titles, PageIndex section
+  headings, and short first-page excerpts and asks Mistral for a flat category
+  taxonomy plus one category per document. Categories are virtual, stored by
+  SHA-256 content ID in `categories.json`; files never move.
 
 ## Quickstart (uv)
 
@@ -64,6 +79,45 @@ docker compose run --rm reader book-reader --index   # build the search index
 The library is mounted **read-only** at `/library`; state and caches persist in
 the `reader-state` volume, Elasticsearch data in `es-data`. Ports bind to
 `127.0.0.1` only because the app has no authentication.
+
+## Reorganizing the library
+
+Move, rename, or regroup books and folders with your file manager; saved state
+is matched by **content**, not by file name.
+
+- At startup and whenever the library index is opened, a reindex compares the
+  library with `library_manifest.json` in the state directory. Each book gets a
+  SHA-256 content hash (cached by inode/size/mtime, so unchanged books are not
+  re-read).
+- A path that disappeared and a path that appeared are paired only when their
+  content hashes match one-to-one. Reading positions, notes, page counts, and
+  PageIndex section trees are then moved to the new path.
+- Old bookmarks redirect to the new path; the index shows a one-time notice
+  when a move was absorbed.
+- Before any state rewrite, the affected files are copied to
+  `state/backups/reindex-<timestamp>/`. Existing state at a target path is
+  never overwritten; that conflict is reported and the old copy stays in the
+  backup.
+- The migration holds one lock shared with every state writer, and writes a
+  transaction marker before touching stores. If a store write, manifest commit,
+  or redirect log fails, all stores are rolled back to the snapshot; if the
+  process dies midway, the next reindex restores that snapshot first. A
+  concurrent note or reading-position write therefore either lands before the
+  snapshot or after the rollback, never inside it.
+
+Run it on demand with `uv run book-reader --reindex`, the **Reindex library**
+button under Options, or `POST /api/library/reindex`. The CLI takes an exclusive
+lock on the state directory, so it refuses while a server is running; use the
+button or the API for the live server. The same lock prevents two servers from
+sharing one state directory.
+
+Deleting a book keeps its manifest entry, so the same content restored later
+under another name gets its notes and place back. A move made **and** edited
+before a reindex cannot be identified by content; its old state is retained in
+the backup rather than guessed. Movement detection starts with the first
+manifest this version records; moves made before that cannot be reconstructed
+from content. Elasticsearch stores paths at index time: after a reorg, rebuild
+it with `--index` (the local and PageIndex backends re-read the library live).
 
 ## Notepad
 
@@ -161,6 +215,7 @@ locally if documents must not leave the machine.
 | `--es-url` | `BOOK_READER_ES_URL` | empty (Elasticsearch disabled) |
 | `--es-index` | `BOOK_READER_ES_INDEX` | `book-reader` |
 | `--search` | `BOOK_READER_SEARCH` | `auto` (`auto`/`elastic`/`pageindex`/`local`) |
+| `--reindex` | — | match moved/renamed books by content, migrate state, then exit |
 | `--index` / `--force-index` | — | build the index, then exit |
 | — | `BOOK_READER_CHAT_PRIORITY` | Mistral chain → Inception → OpenRouter → Ollama |
 | — | `BOOK_READER_<PROVIDER>_MODEL` | per-provider model override |
@@ -175,17 +230,19 @@ Compose additionally reads `BOOKS_DIR` (host path mounted at `/library`) and
 | --- | --- |
 | `GET /` | library index + library-wide search |
 | `GET /book/{rel}` | PDF or Markdown reader |
-| `GET /page.png?path=&page=&zoom=` | rendered PDF page (PNG, ETag) |
-| `GET /api/text?path=&page=` | selectable text layer with word boxes and section |
+| `GET /thumb.jpg?path=&width=` | first-page JPEG preview, content-hash cached |
 | `GET /raw/{rel}` | raw library file |
 | `GET /api/search?path=&q=&limit=` | in-book search (omit `path` for library-wide) |
 | `GET /api/pages` | page counts for the index |
 | `POST /api/progress` | persist `{"path", "page"}` or `{"path", "scroll"}` |
 | `GET/POST/DELETE /api/notepad…` | groups, notes, export |
 | `GET /api/index/status` | search backend status |
+| `GET /api/organize/status` | Mistral organizer state and taxonomy |
+| `POST /api/organize` | start categorization (`confirm: true`; virtual shelves) |
 | `GET/POST /api/chat/options` | selectable models and the persisted choice |
 | `GET /api/chat/status` | chat provider chain and selection |
 | `POST /api/chat` | agentic question over the library |
+| `POST /api/library/reindex` | match moved/renamed books by content and migrate state |
 | `POST /api/index/rebuild` | index the library |
 | `GET /healthz` | container healthcheck |
 
@@ -204,7 +261,7 @@ CI (`.github/workflows/ci.yml`) runs the same gate plus a Docker build.
 src/book_reader/
   app.py             FastAPI factory, reader routes, service wiring
   library.py         scanning + path-safety choke point
-  pdf.py             PyMuPDF document LRU, render, text, words, search, TOC
+  pdf.py             PyMuPDF LRU: page counts, metadata, text, search, thumbnails
   pages.py           persisted page counts
   mdrender.py        Markdown → HTML, cache, link rewriting, line search
   sections.py        PageIndex Flash section trees (offline, cached)
@@ -212,8 +269,14 @@ src/book_reader/
   notepad.py         groups, notes, AI-context export
   progress.py        reading positions
   preferences.py     persisted UI choices
+  reconcile.py       content-hash reindex, state migration, move redirects
+  organize.py        content-hash category store, PageIndex signals, Mistral job
+  state_lock.py      one-process state ownership
+  statemove.py       simultaneous progress/page/section remaps, including swaps
   chat.py            LangGraph agent, tools, provider fallback
   routes_notepad.py  notepad HTTP routes
   templates/         index and reader pages
   static/notepad.js  notepad drawer, note capture
+  static/pdf_reader.js  PDF.js iframe bridge (progress, notes, resize)
+  static/vendor/     pinned PDF.js and KaTeX distributions
 ```

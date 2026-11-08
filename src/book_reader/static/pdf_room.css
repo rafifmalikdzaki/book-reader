@@ -1,0 +1,14 @@
+:root {
+  --body-bg-color: #f6f1e4;
+  --toolbar-bg-color: #f1eadb;
+  --toolbar-border-color: #d8cbb4;
+  --toolbar-icon-bg-color: #3c3226;
+  --toolbar-icon-hover-bg-color: #241e16;
+  --sidebar-bg-color: #f1eadb;
+  --sidebar-border-color: #d8cbb4;
+  --button-hover-color: #e8dec9;
+  --findbar-bg-color: #f6f1e4;
+  --findbar-nextprevious-btn-bg-color: #e8dec9;
+  --field-bg-color: #fffaf0;
+  --field-border-color: #d8cbb4;
+}

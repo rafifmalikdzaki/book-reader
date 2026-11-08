@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from collections import OrderedDict
 from pathlib import Path
@@ -12,6 +13,73 @@ import pymupdf
 logger = logging.getLogger(__name__)
 
 SNIPPET_RADIUS = 60
+
+
+def _clean_title(raw: object) -> str | None:
+    value = " ".join(str(raw or "").replace("\x00", " ").split())
+    if len(value) < 4:
+        return None
+    if value.casefold().endswith(".pdf") or value.casefold() in {"untitled", "unknown"}:
+        return None
+    return value
+
+
+_GENERIC_TITLES = {
+    "contents",
+    "cover",
+    "foreword",
+    "introduction",
+    "preface",
+    "table of contents",
+    "title page",
+}
+
+
+_NUMBERED_HEADING = re.compile(
+    r"^\s*(?:(?:chapter|part|section)\s+[\divxlc]+|\d+(?:\.\d+)*)"
+    r"\s*[.:)\-\u2013\u2014]?\s+",
+    re.IGNORECASE,
+)
+
+
+_PART_HEADING = re.compile(
+    r"^\s*(?:part|chapter|section|volume)\s+(?:[ivxlcdm]+|\d+)\b",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_document_title(value: str) -> bool:
+    """Reject chapter headings that an outline puts on page one."""
+    normalized = value.casefold().strip(" .:;-")
+    if normalized in _GENERIC_TITLES:
+        return False
+    return not (_NUMBERED_HEADING.match(value) or _PART_HEADING.match(value))
+
+
+def _outline_title(doc: pymupdf.Document) -> str | None:
+    """A document title from the first outline entry when it is unambiguous.
+
+    Academic PDFs commonly lose the metadata title but keep the paper title as
+    the only level-1 outline entry on page one. A book whose outline starts at
+    chapter one (page > 1) or has several level-1 entries on page one is left
+    to the caller's fallback.
+    """
+    try:
+        toc = doc.get_toc(simple=True)
+    except Exception:
+        return None
+    if not toc:
+        return None
+    level, title, page = toc[0]
+    if level != 1 or page > 1:
+        return None
+    cleaned = _clean_title(title)
+    if not cleaned or not _looks_like_document_title(cleaned):
+        return None
+    first_page_level_one = [entry for entry in toc if entry[0] == 1 and entry[2] <= 1]
+    if len(first_page_level_one) != 1:
+        return None
+    return cleaned
 
 
 class PdfCache:
@@ -30,6 +98,7 @@ class PdfCache:
         self._word_cache: OrderedDict[tuple[str, float, int], dict[str, object]] = OrderedDict()
         self._text_max = 64
         self._text_cache: OrderedDict[tuple[str, float, int], str] = OrderedDict()
+        self._title_cache: OrderedDict[tuple[str, float], str | None] = OrderedDict()
 
     def _doc(self, path: Path) -> pymupdf.Document:
         key = (str(path), path.stat().st_mtime)
@@ -51,15 +120,36 @@ class PdfCache:
         with self._lock:
             return int(self._doc(path).page_count)
 
-    def render(self, path: Path, page: int, zoom: float) -> bytes:
+    def thumbnail(self, path: Path, width: int) -> bytes:
         with self._lock:
             doc = self._doc(path)
-            if not 1 <= page <= doc.page_count:
-                raise ValueError(f"page out of range: {page}")
-            pixmap = doc.load_page(page - 1).get_pixmap(
-                matrix=pymupdf.Matrix(zoom, zoom), alpha=False
-            )
-            return bytes(pixmap.tobytes("png"))
+            page = doc.load_page(0)
+            source_width = float(page.rect.width) or 1.0
+            zoom = max(0.05, min(4.0, width / source_width))
+            pixmap = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False)
+            return bytes(pixmap.tobytes("jpg", jpg_quality=80))
+
+    def title(self, path: Path) -> str | None:
+        """The document's embedded title, when it carries a real one."""
+        try:
+            stamp = path.stat().st_mtime
+        except OSError:
+            return None
+        key = (str(path), stamp)
+        with self._lock:
+            if key in self._title_cache:
+                self._title_cache.move_to_end(key)
+                return self._title_cache[key]
+            try:
+                doc = self._doc(path)
+                raw = (doc.metadata or {}).get("title")
+                value = _clean_title(raw) or _outline_title(doc)
+            except Exception:
+                value = None
+            self._title_cache[key] = value
+            while len(self._title_cache) > 512:
+                self._title_cache.popitem(last=False)
+            return value
 
     def page_text(self, path: Path, page: int) -> str:
         key = (str(path), path.stat().st_mtime, page)

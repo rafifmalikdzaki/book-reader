@@ -11,6 +11,7 @@ import uvicorn
 from dotenv import load_dotenv
 
 from .app import DEFAULT_ES_INDEX, build_services, create_app
+from .state_lock import StateDirectoryLock, StateLockedError
 
 DEFAULT_LIBRARY = Path.home() / "Documents" / "Books"
 
@@ -74,6 +75,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="search backend preference (default: %(default)s)",
     )
     parser.add_argument(
+        "--reindex",
+        action="store_true",
+        help="match moved/renamed books by content, migrate saved state, then exit",
+    )
+    parser.add_argument(
         "--index",
         action="store_true",
         help="build or update the Elasticsearch index, then exit",
@@ -95,52 +101,102 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(2)
     state_dir = Path(args.state_dir).expanduser()
 
-    if args.index or args.force_index:
-        services = build_services(
-            library_root,
-            state_dir,
-            es_url=args.es_url,
-            es_index=args.es_index,
-            search_mode=args.search,
-        )
-        if services.elastic is None:
-            print(
-                "Elasticsearch is not configured; pass --es-url or set BOOK_READER_ES_URL",
-                file=sys.stderr,
+    if args.reindex:
+        lock = _locked_state(state_dir)
+        try:
+            services = build_services(
+                library_root,
+                state_dir,
+                es_url=args.es_url,
+                es_index=args.es_index,
+                search_mode=args.search,
             )
-            raise SystemExit(2)
-        if not services.elastic.reachable():
+            report = services.reconciler.sync()
             print(
-                f"Elasticsearch is not reachable at {services.elastic.url}",
-                file=sys.stderr,
+                f"reindexed: {report.count} moved, {report.added} new, "
+                f"{report.missing} missing, {report.hashed} hashed"
             )
-            raise SystemExit(2)
-        print(
-            f"indexing {library_root} into {services.elastic.url}/{services.elastic.index}…",
-            flush=True,
-        )
-        stats = services.elastic.rebuild(services.library, force=args.force_index)
-        print(
-            "indexed {indexed}, skipped {skipped}, chunks {chunks}, total {total}".format(
-                total=services.elastic.chunk_count(), **stats
-            ),
-            flush=True,
-        )
+            if report.failed:
+                print(f"reindex failed: {', '.join(report.failed)}", file=sys.stderr)
+                raise SystemExit(2)
+            if report.backed_up:
+                print(f"state backup: {report.backed_up}")
+            for conflict in report.conflicts:
+                print(
+                    "conflict: {store} {from} -> {to}".format(**conflict),
+                    file=sys.stderr,
+                )
+        finally:
+            lock.release()
         return
 
-    print(f"book-reader: {library_root} → http://{args.host}:{args.port}", flush=True)
-    uvicorn.run(
-        create_app(
+    if args.index or args.force_index:
+        lock = _locked_state(state_dir)
+        try:
+            services = build_services(
+                library_root,
+                state_dir,
+                es_url=args.es_url,
+                es_index=args.es_index,
+                search_mode=args.search,
+            )
+            if services.elastic is None:
+                print(
+                    "Elasticsearch is not configured; pass --es-url or set BOOK_READER_ES_URL",
+                    file=sys.stderr,
+                )
+                raise SystemExit(2)
+            if not services.elastic.reachable():
+                print(
+                    f"Elasticsearch is not reachable at {services.elastic.url}",
+                    file=sys.stderr,
+                )
+                raise SystemExit(2)
+            report = services.reconciler.sync()
+            if report.failed:
+                print(f"reindex failed: {', '.join(report.failed)}", file=sys.stderr)
+                raise SystemExit(2)
+            if report.count:
+                print(f"reindexed {report.count} moved book(s) before indexing", flush=True)
+            print(
+                f"indexing {library_root} into {services.elastic.url}/{services.elastic.index}…",
+                flush=True,
+            )
+            stats = services.elastic.rebuild(services.library, force=args.force_index)
+            print(
+                "indexed {indexed}, skipped {skipped}, chunks {chunks}, total {total}".format(
+                    total=services.elastic.chunk_count(), **stats
+                ),
+                flush=True,
+            )
+        finally:
+            lock.release()
+        return
+
+    try:
+        app = create_app(
             library_root,
             state_dir,
             es_url=args.es_url,
             es_index=args.es_index,
             search_mode=args.search,
-        ),
-        host=args.host,
-        port=args.port,
-        log_level="info",
-    )
+        )
+    except StateLockedError as exc:
+        print(f"cannot start the reader: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+
+    print(f"book-reader: {library_root} → http://{args.host}:{args.port}", flush=True)
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
+
+def _locked_state(state_dir: Path) -> StateDirectoryLock:
+    lock = StateDirectoryLock(state_dir)
+    try:
+        lock.acquire()
+    except StateLockedError as exc:
+        print(f"cannot use the state directory: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    return lock
 
 
 if __name__ == "__main__":

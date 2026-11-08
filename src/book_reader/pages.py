@@ -7,9 +7,11 @@ import logging
 import os
 import threading
 from collections.abc import Iterable
+from contextlib import AbstractContextManager
 from pathlib import Path
 
 from .pdf import PdfCache
+from .statemove import RemapError, apply_remap, plan_remap
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +23,16 @@ class PageIndex:
     including a failure (``None``) — is reused until the file changes.
     """
 
-    def __init__(self, state_dir: Path, pdf: PdfCache) -> None:
+    def __init__(
+        self,
+        state_dir: Path,
+        pdf: PdfCache,
+        *,
+        lock: AbstractContextManager[object] | None = None,
+    ) -> None:
         self.path = Path(state_dir) / "pages.json"
         self._pdf = pdf
-        self._lock = threading.RLock()
+        self._lock: AbstractContextManager[object] = lock or threading.RLock()
         self._entries: dict[str, dict[str, object]] = {}
         self._loaded = False
 
@@ -47,6 +55,11 @@ class PageIndex:
         if not isinstance(books, dict):
             return {}
         return {str(rel): entry for rel, entry in books.items() if isinstance(entry, dict)}
+
+    def reload(self) -> None:
+        with self._lock:
+            self._entries = {}
+            self._loaded = False
 
     def count(self, rel: str, path: Path) -> int | None:
         return self.counts([(rel, path)])[rel]
@@ -90,7 +103,21 @@ class PageIndex:
             logger.warning("cannot read %s: %s", rel, exc)
             return None
 
-    def _write(self, entries: dict[str, dict[str, object]]) -> None:
+    def remap(self, mapping: dict[str, str]) -> set[str]:
+        """Move cached page counts to new paths, applying swaps at once."""
+        if not mapping:
+            return set()
+        with self._lock:
+            entries = self._load()
+            safe, conflicts = plan_remap(mapping, set(entries))
+            if safe:
+                moved = apply_remap(entries, safe)
+                if not self._write(moved):
+                    raise RemapError(f"cannot persist page counts to {self.path}")
+                self._entries = moved
+        return conflicts
+
+    def _write(self, entries: dict[str, dict[str, object]]) -> bool:
         payload = {"version": 1, "books": entries}
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -99,3 +126,5 @@ class PageIndex:
             os.replace(tmp, self.path)
         except OSError as exc:
             logger.warning("cannot persist page index to %s: %s", self.path, exc)
+            return False
+        return True

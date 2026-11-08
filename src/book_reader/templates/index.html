@@ -1,116 +1,375 @@
 {% extends "base.html" %}
 {% block title %}Library — book-reader{% endblock %}
+{% block head_extra %}
+<script>
+try {
+  document.documentElement.dataset.libraryView =
+    localStorage.getItem("br-view") === "list" ? "list" : "tiles";
+} catch (error) {
+  document.documentElement.dataset.libraryView = "tiles";
+}
+</script>
+{% endblock %}
 {% block body %}
-<div class="searchbar">
-  <input id="library-search" type="search" placeholder="Search the library…" aria-label="Search the library">
-  <span class="pages">search: {{ search_backend }}</span>
+<div class="dock" id="library-dock" hidden aria-live="polite">
+  <div class="dock-head"><strong id="dock-title">Search</strong><span class="muted" id="dock-meta"></span>
+    <button type="button" id="dock-close">Close</button></div>
+  <ol id="dock-results"></ol>
+  <p class="empty" id="dock-empty" hidden>No matches in the library.</p>
 </div>
-<ul id="library-hits" class="hits"></ul>
-<input id="filter" type="search" placeholder="Filter {{ book_count }} books…" autofocus>
-{% if recent %}
-<section>
-  <h2>Continue reading</h2>
-  <ul class="recent">
-    {% for item in recent %}
-    <li>
-      <a href="/book/{{ item.rel|urlencode }}{% if item.page %}#p{{ item.page }}{% endif %}">{{ item.title }}</a>
-      {% if item.page %}<span class="pages">page {{ item.page }}</span>{% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-</section>
-{% endif %}
-{% for group, books in groups %}
-<details open>
-  <summary>{{ group }} <span class="pages">{{ books|length }}</span></summary>
-  {% for b in books %}
-  <div class="row">
-    <a class="book" href="/book/{{ b.rel|urlencode }}">{{ b.title }}</a>
-    <span class="kind">{{ b.kind }}</span>
-    <span class="pages" data-rel="{{ b.rel }}">…</span>
+
+<div class="index-grid">
+  {% if relocation_notice %}
+  <p class="relocation-note" role="status">{{ relocation_notice }}</p>
+  {% endif %}
+  <section class="resume" aria-labelledby="resume-heading">
+    <p class="section-label">Continue reading</p>
+    {% if resume %}
+    <article class="bookplate">
+      <h1 id="resume-heading"><a href="/book/{{ resume.rel|urlencode }}{% if resume.page %}#p{{ resume.page }}{% endif %}">{{ resume.title }}</a></h1>
+      <p class="where">{% if resume.kind == "md" %}Markdown{% else %}PDF{% endif %} · {% if resume.section %}§ {{ resume.section }} · {% endif %}{{ resume.shelf }}</p>
+      <div class="progress" role="img" aria-label="{{ resume.percent }}% read"><i style="width: {{ resume.percent }}%"></i></div>
+      <div class="pagemeta"><span>{% if resume.page %}Page {{ resume.page }} of {{ resume.page_count or '—' }}{% else %}Scroll position {{ resume.percent }}%{% endif %}</span>
+        <span>{{ resume.updated_label }}</span></div>
+      <div class="bookplate-actions">
+        <a class="btn" href="/book/{{ resume.rel|urlencode }}{% if resume.page %}#p{{ resume.page }}{% endif %}">{% if resume.page %}Resume page {{ resume.page }}{% else %}Resume reading{% endif %}</a>
+        <span class="shelf-path" title="{{ resume.rel }}">Shelf · {{ resume.rel }}</span>
+      </div>
+    </article>
+    {% else %}
+    <article class="bookplate empty-plate">
+      <h1 id="resume-heading">Nothing open yet</h1>
+      <p class="where">Pick a book below; your page will be waiting here next time.</p>
+      <a class="btn" href="#library">Browse the library</a>
+    </article>
+    {% endif %}
+  </section>
+
+  <aside class="index-side" aria-label="Notes and recent books">
+    <section>
+      <p class="section-label">{% if resume %}Notes from this book{% else %}Notes{% endif %}</p>
+      {% if resume_notes %}
+      <ul class="quote-list">
+        {% for note in resume_notes %}
+        <li>
+          <a href="/book/{{ note.book|urlencode }}{% if note.page %}#p{{ note.page }}{% elif note.line_start %}#L{{ note.line_start }}{% endif %}">{{ note.quote }}</a>
+          <span class="locator">{{ note.locator }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="side-empty">Select text in a book to keep a passage here.</p>
+      {% endif %}
+    </section>
+    {% if recent %}
+    <section>
+      <p class="section-label">Recently opened</p>
+      <ul class="recent-list">
+        {% for item in recent %}
+        <li>
+          <a class="t" href="/book/{{ item.rel|urlencode }}{% if item.page %}#p{{ item.page }}{% endif %}">{{ item.title }}</a>
+          <span class="p num">{{ item.percent }}%</span>
+          <span class="m">{% if item.page %}p.{{ item.page }}{% endif %}{% if item.section %} · § {{ item.section }}{% endif %}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    <p class="side-foot">{{ book_count }} books · local library</p>
+  </aside>
+</div>
+
+<section class="library" id="library" aria-labelledby="library-heading">
+  <div class="library-head">
+    <h2 id="library-heading">Library</h2>
+    <label class="visually-hidden" for="category-filter">Filter by category</label>
+    <select class="field category-filter" id="category-filter">
+      <option value="">All categories</option>
+      {% for category in category_options %}
+      <option value="{{ category.id }}">{{ category.name }}</option>
+      {% endfor %}
+    </select>
+    <div class="view-toggle" role="group" aria-label="Library view">
+      <button type="button" data-view="list" aria-pressed="false">List</button>
+      <button type="button" data-view="tiles" aria-pressed="true">Tiles</button>
+    </div>
+    <button class="btn secondary organize-open" id="organize-open" type="button"
+            {% if not organize_available %}disabled title="Mistral is not configured; add MISTRAL_API_KEY"{% endif %}>Auto-organize</button>
+    <span class="organize-status" id="organize-status" role="status">
+      {% if organize_status.running %}Sorting {{ organize_status.done }} / {{ organize_status.total }}…{% endif %}
+    </span>
   </div>
-  {% endfor %}
-</details>
-{% else %}
-<p class="empty">No PDFs or Markdown files found in {{ library_root }}.</p>
-{% endfor %}
+
+  <div class="tiles" id="book-tiles" aria-label="Books">
+    {% for group in book_groups %}
+    <section class="tile-group" data-category="{{ group.id }}">
+      <div class="tile-group-head"><h3>{{ group.name }}</h3><span>{{ group.books|length }}</span></div>
+      <div class="tile-grid">
+        {% for b in group.books %}
+        <a class="tile" href="/book/{{ b.rel|urlencode }}{% if b.page %}#p{{ b.page }}{% endif %}"
+           data-title="{{ b.title|lower }}" data-category="{{ b.category_id }}" data-shelf="{{ b.shelf }}">
+          <span class="tile-cover">
+            {% if b.kind == "PDF" %}
+            <img src="{{ b.thumb_url }}" loading="lazy" decoding="async" alt="">
+            {% else %}
+            <span class="tile-md" aria-hidden="true">MD</span>
+            {% endif %}
+          </span>
+          <span class="tile-title">{{ b.title }}</span>
+          <span class="tile-meta">{{ b.kind }}{% if b.category_name %} · {{ b.category_name }}{% endif %}</span>
+          {% if b.percent %}
+          <span class="tile-progress" aria-label="{{ b.percent }}% read"><i style="width: {{ b.percent }}%"></i></span>
+          {% endif %}
+          <span class="tile-read">{{ b.last_read_label }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+    <p class="empty-table" id="tiles-empty" hidden>No books match this filter.</p>
+  </div>
+
+  <table class="books">
+    <colgroup><col class="col-title"><col class="col-shelf"><col class="col-pages"><col class="col-last"></colgroup>
+    <thead><tr><th scope="col">Title</th><th scope="col">Category</th><th scope="col" class="right">Pages</th><th scope="col" class="right">Last read</th></tr></thead>
+    <tbody id="book-rows">
+      {% for b in books %}
+      <tr data-title="{{ b.title|lower }}" data-category="{{ b.category_id }}" data-shelf="{{ b.shelf }}" data-rel="{{ b.rel }}" data-kind="{{ b.kind|lower }}">
+        <td class="t"><a href="/book/{{ b.rel|urlencode }}{% if b.page %}#p{{ b.page }}{% endif %}">{{ b.title }}</a><span class="kind">{{ b.kind }}</span></td>
+        <td class="shelf">{{ b.category_name }}</td>
+        <td class="right num pages">{{ b.page_count or '—' }}</td>
+        <td class="right opened">{{ b.last_read_label }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="empty-table" id="book-empty" hidden>No books match this filter.</p>
+</section>
+
+<dialog class="options organize-dialog" id="organize-dialog" aria-label="Auto-organize library">
+  <h2>Auto-organize the library?</h2>
+  <p>Mistral will read the titles, PageIndex section headings, and short first-page excerpts for
+    {{ book_count }} books, then propose a category for each.</p>
+  <p class="muted">Files stay exactly where they are. Categories are virtual and follow each book by
+    content, not file name. The excerpts are sent to Mistral only after you confirm.</p>
+  <div class="compose-actions">
+    <button class="btn" id="organize-start" type="button">Start sorting</button>
+    <button class="btn secondary" id="organize-cancel" type="button">Cancel</button>
+  </div>
+  <p class="organize-error" id="organize-error" hidden></p>
+</dialog>
 {% endblock %}
 {% block scripts %}
 <script>
-const filter = document.getElementById('filter');
-filter.addEventListener('input', () => {
-  const q = filter.value.trim().toLowerCase();
-  for (const row of document.querySelectorAll('.row')) {
-    row.hidden = q.length > 0 && !row.textContent.toLowerCase().includes(q);
-  }
-});
-fetch('/api/pages').then(r => r.json()).then(({ counts }) => {
-  for (const el of document.querySelectorAll('[data-rel]')) {
-    const n = counts[el.dataset.rel];
-    el.textContent = (n == null) ? '—' : (n + ' pages');
-  }
-}).catch(() => {});
+const searchField = document.getElementById("global-search");
+const rows = Array.from(document.querySelectorAll("#book-rows tr"));
+const tiles = Array.from(document.querySelectorAll(".tile"));
+const tileGroups = Array.from(document.querySelectorAll(".tile-group"));
+const categoryFilter = document.getElementById("category-filter");
+const emptyRow = document.getElementById("book-empty");
+const emptyTiles = document.getElementById("tiles-empty");
+const viewButtons = Array.from(document.querySelectorAll(".view-toggle button"));
+let filterTerm = "";
 
-function bookHref(hit) {
-  const base = '/book/' + String(hit.book || '').split('/').map(encodeURIComponent).join('/');
-  if (hit.kind === 'pdf' && hit.page) return base + '#p' + hit.page;
-  if (hit.line) return base + '#L' + hit.line;
+function setView(view) {
+  const next = view === "list" ? "list" : "tiles";
+  document.documentElement.dataset.libraryView = next;
+  try { localStorage.setItem("br-view", next); } catch (error) { /* private mode */ }
+  for (const button of viewButtons) {
+    button.setAttribute("aria-pressed", String(button.dataset.view === next));
+  }
+}
+
+function applyFilter(term = filterTerm) {
+  filterTerm = term;
+  const needle = term.trim().toLowerCase();
+  const category = categoryFilter.value;
+  let visibleRows = 0;
+  for (const row of rows) {
+    const textMatch = !needle || (row.dataset.title + " " + row.dataset.category + " " + row.dataset.shelf).includes(needle);
+    const categoryMatch = !category || row.dataset.category === category;
+    const show = textMatch && categoryMatch;
+    row.hidden = !show;
+    if (show) visibleRows += 1;
+  }
+  let visibleTiles = 0;
+  for (const tile of tiles) {
+    const textMatch = !needle || (tile.dataset.title + " " + tile.dataset.category + " " + tile.dataset.shelf).includes(needle);
+    const categoryMatch = !category || tile.dataset.category === category;
+    const show = textMatch && categoryMatch;
+    tile.hidden = !show;
+    if (show) visibleTiles += 1;
+  }
+  for (const group of tileGroups) {
+    group.hidden = !group.querySelector(".tile:not([hidden])");
+  }
+  emptyRow.hidden = visibleRows !== 0;
+  emptyTiles.hidden = visibleTiles !== 0;
+}
+
+for (const button of viewButtons) {
+  button.addEventListener("click", () => setView(button.dataset.view));
+}
+categoryFilter.addEventListener("change", () => applyFilter());
+setView(document.documentElement.dataset.libraryView || "tiles");
+
+const dock = document.getElementById("library-dock");
+const dockTitle = document.getElementById("dock-title");
+const dockMeta = document.getElementById("dock-meta");
+const dockResults = document.getElementById("dock-results");
+const dockEmpty = document.getElementById("dock-empty");
+document.getElementById("dock-close").addEventListener("click", () => { dock.hidden = true; });
+
+function locator(hit) {
+  const parts = [hit.page ? "p." + hit.page : (hit.line ? "L" + hit.line : "")].filter(Boolean);
+  if (hit.section) parts.push("§ " + hit.section);
+  return parts.join(" · ");
+}
+function href(hit) {
+  const base = "/book/" + String(hit.book || "").split("/").map(encodeURIComponent).join("/");
+  if (hit.page) return base + "#p" + hit.page;
+  if (hit.line) return base + "#L" + hit.line;
   return base;
 }
 
-function locatorText(hit) {
-  const parts = [];
-  if (hit.page) parts.push('p.' + hit.page);
-  else if (hit.line) parts.push('lines ' + hit.line + (hit.line_end && hit.line_end !== hit.line ? '–' + hit.line_end : ''));
-  if (hit.section) parts.push('§ ' + hit.section);
-  return parts.join(' · ');
+async function searchInside(term) {
+  dockTitle.textContent = "Searching “" + term + "”…";
+  dockMeta.textContent = "";
+  dockResults.replaceChildren();
+  dockEmpty.hidden = true;
+  dock.hidden = false;
+  try {
+    const response = await fetch("/api/search?q=" + encodeURIComponent(term) + "&limit=20");
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || "Search failed");
+    dockTitle.textContent = data.hits.length + " result" + (data.hits.length === 1 ? "" : "s") + " inside books";
+    dockMeta.textContent = data.backend || "";
+    for (const hit of data.hits) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.className = "where";
+      a.href = href(hit);
+      a.textContent = String(hit.book || "").split("/").pop() + " · " + locator(hit);
+      const span = document.createElement("span");
+      span.className = "snippet";
+      const text = hit.snippet || "";
+      const lower = text.toLowerCase();
+      const needle = term.toLowerCase();
+      let at = 0;
+      let found = lower.indexOf(needle);
+      while (found >= 0) {
+        span.append(document.createTextNode(text.slice(at, found)));
+        const mark = document.createElement("mark");
+        mark.textContent = text.slice(found, found + needle.length);
+        span.append(mark);
+        at = found + needle.length;
+        found = lower.indexOf(needle, at);
+      }
+      span.append(document.createTextNode(text.slice(at)));
+      li.append(a, span);
+      dockResults.append(li);
+    }
+    dockEmpty.hidden = data.hits.length !== 0;
+  } catch (error) {
+    dock.classList.add("failed");
+    dockTitle.textContent = "Search failed";
+    dockMeta.textContent = "";
+    dockEmpty.textContent = error.message;
+    dockEmpty.hidden = false;
+  }
 }
 
-const librarySearch = document.getElementById('library-search');
-const libraryHits = document.getElementById('library-hits');
-let searchTimer = null;
-librarySearch.addEventListener('input', () => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(async () => {
-    const term = librarySearch.value.trim();
-    libraryHits.replaceChildren();
-    if (!term) return;
-    try {
-      const response = await fetch('/api/search?q=' + encodeURIComponent(term));
-      const data = await response.json();
-      if (!response.ok) {
-        const item = document.createElement('li');
-        item.className = 'muted';
-        item.textContent = data.detail || 'search unavailable';
-        libraryHits.append(item);
-        return;
-      }
-      for (const hit of data.hits) {
-        const item = document.createElement('li');
-        const link = document.createElement('a');
-        link.href = bookHref(hit);
-        link.textContent = String(hit.book || '').split('/').pop();
-        const where = document.createElement('span');
-        where.className = 'pages';
-        where.textContent = ' ' + locatorText(hit) + ' ';
-        const snippet = document.createElement('span');
-        snippet.textContent = String(hit.snippet || '').slice(0, 220);
-        item.append(link, where, snippet);
-        libraryHits.append(item);
-      }
-      if (!data.hits.length) {
-        const item = document.createElement('li');
-        item.className = 'muted';
-        item.textContent = 'no matches';
-        libraryHits.append(item);
-      }
-    } catch (error) {
-      const item = document.createElement('li');
-      item.className = 'muted';
-      item.textContent = 'search failed';
-      libraryHits.append(item);
+const organizeButton = document.getElementById("organize-open");
+const organizeDialog = document.getElementById("organize-dialog");
+const organizeStart = document.getElementById("organize-start");
+const organizeCancel = document.getElementById("organize-cancel");
+const organizeError = document.getElementById("organize-error");
+const organizeStatus = document.getElementById("organize-status");
+let organizeTimer = null;
+
+function showOrganizeStatus(data) {
+  if (!organizeStatus) return;
+  if (data.running) {
+    const total = data.total ? " / " + data.total : "";
+    organizeStatus.textContent = "Sorting " + data.done + total + "…";
+    if (organizeStart) organizeStart.disabled = true;
+  } else if (data.phase === "done") {
+    organizeStatus.textContent = "Categories ready.";
+    clearInterval(organizeTimer);
+    window.location.reload();
+  } else if (data.error) {
+    organizeStatus.textContent = "Sorting failed.";
+    if (organizeError) {
+      organizeError.textContent = data.error;
+      organizeError.hidden = false;
     }
-  }, 300);
+    if (organizeStart) organizeStart.disabled = false;
+    clearInterval(organizeTimer);
+  } else {
+    organizeStatus.textContent = "";
+  }
+}
+
+async function pollOrganizer() {
+  try {
+    const response = await fetch("/api/organize/status");
+    const data = await response.json();
+    showOrganizeStatus(data);
+  } catch (error) {
+    clearInterval(organizeTimer);
+  }
+}
+
+if (organizeButton && !organizeButton.disabled) {
+  organizeButton.addEventListener("click", () => {
+    if (organizeError) organizeError.hidden = true;
+    organizeDialog.showModal();
+  });
+}
+if (organizeCancel) organizeCancel.addEventListener("click", () => organizeDialog.close());
+if (organizeStart) {
+  organizeStart.addEventListener("click", async () => {
+    organizeStart.disabled = true;
+    if (organizeError) organizeError.hidden = true;
+    try {
+      const response = await fetch("/api/organize", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ confirm: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Could not start sorting");
+      organizeDialog.close();
+      showOrganizeStatus(data.status || { running: true, done: 0, total: {{ book_count }} });
+      organizeTimer = setInterval(pollOrganizer, 1500);
+    } catch (error) {
+      if (organizeError) {
+        organizeError.textContent = error.message;
+        organizeError.hidden = false;
+      }
+      organizeStart.disabled = false;
+    }
+  });
+}
+if (organizeStatus && organizeStatus.textContent.trim()) {
+  organizeTimer = setInterval(pollOrganizer, 1500);
+}
+
+window.addEventListener("library-search", (event) => {
+  const term = event.detail.term;
+  if (!event.detail.inside) {
+    dock.hidden = true;
+    applyFilter(term);
+    return;
+  }
+  if (!term) {
+    dock.hidden = true;
+    applyFilter("");
+    return;
+  }
+  applyFilter("");
+  dock.classList.remove("failed");
+  searchInside(term);
 });
 </script>
 {% endblock %}
