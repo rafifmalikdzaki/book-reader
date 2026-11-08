@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from .chats import ChatStore
 from .library import Library
 from .notepad import NotepadStore
 from .pages import PageIndex
@@ -49,6 +50,7 @@ HASH_CHUNK = 1024 * 1024
 STATE_FILES = (
     "progress.json",
     "notepad.json",
+    "chats.json",
     "pages.json",
     "sections.json",
     "library_manifest.json",
@@ -239,6 +241,7 @@ class LibraryReconciler:
         *,
         progress: ProgressStore,
         notepad: NotepadStore,
+        chats: ChatStore,
         pages: PageIndex,
         sections: SectionIndex,
         lock: AbstractContextManager[object] | None = None,
@@ -247,6 +250,7 @@ class LibraryReconciler:
         self.state_dir = Path(state_dir).resolve()
         self.progress = progress
         self.notepad = notepad
+        self.chats = chats
         self.pages = pages
         self.sections = sections
         self.manifest_path = self.state_dir / "library_manifest.json"
@@ -390,6 +394,11 @@ class LibraryReconciler:
                 except Exception:
                     failed.append("notes")
                     logger.exception("could not durably remap notes during reindex")
+                try:
+                    self.chats.remap(pairs)
+                except Exception:
+                    failed.append("chats")
+                    logger.exception("could not durably remap chats during reindex")
                 for store, remap in (
                     ("progress", self.progress.remap),
                     ("pages", self.pages.remap),
@@ -610,6 +619,7 @@ class LibraryReconciler:
         self.pages.reload()
         self.sections.reload()
         self.notepad.reload()
+        self.chats.reload()
         self.moves.reload()
         self._manifest = None
 

@@ -391,6 +391,21 @@
   .chat-status { font-size: 12px; color: var(--muted); padding: 8px 18px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chat-error { font-size: 12.5px; color: var(--danger); padding: 6px 18px 0; }
   .chat-error[hidden] { display: none; }
+  .rail-resize {
+    position: absolute; left: -3px; top: 0; bottom: 0; width: 6px;
+    cursor: col-resize; touch-action: none; background: transparent; z-index: 5;
+  }
+  .rail-resize::before {
+    content: ""; position: absolute; left: 2px; top: 0; bottom: 0; width: 1px; background: transparent;
+  }
+  .rail-resize:hover::before, .rail-resize:focus-visible::before,
+  body.rail-resizing .rail-resize::before { background: var(--brass); }
+  .rail-resize:focus-visible { outline: none; }
+  body.rail-resizing { cursor: col-resize; user-select: none; }
+  body.rail-resizing iframe { pointer-events: none; }
+  @media (max-width: 900px) {
+    .rail-resize { display: none; }
+  }
 
   /* ---- options dialog ---- */
   dialog.options {
@@ -473,7 +488,11 @@
   <a class="wordmark" href="/">book<span>·</span>reader</a>
   <nav class="nav" aria-label="Research tools">
     <button id="notepad-toggle" type="button" aria-controls="notepad" aria-expanded="false">Notes</button>
+    {% if request.url.path.startswith("/book/") %}
     <button id="chat-toggle" type="button" aria-controls="chat" aria-expanded="false">Ask</button>
+    {% else %}
+    <a id="ask-link" href="/ask"{% if request.url.path == "/ask" %} aria-current="page"{% endif %}>Ask</a>
+    {% endif %}
   </nav>
   <div class="mast-tools">
     <input class="mast-search" id="global-search" type="search" placeholder="Search titles — Enter for full text" aria-label="Filter books by title, or press Enter to search inside books">
@@ -515,6 +534,7 @@
   </aside>
 
   <aside class="rail" id="chat" aria-label="Ask the library" hidden>
+    <div class="rail-resize" id="chat-rail-handle" role="separator" aria-orientation="vertical" aria-label="Resize chat panel" aria-valuemin="300" aria-valuemax="640" aria-valuenow="360" tabindex="0" title="Drag to resize"></div>
     <div class="rail-head">
       <h2>Ask</h2>
       <button class="rail-close" type="button" data-close="chat" aria-label="Close chat">×</button>
@@ -550,6 +570,7 @@
 <div class="toast" id="toast" role="status" hidden></div>
 <script src="/static/shell.js"></script>
 <script src="/static/notepad.js"></script>
+<script src="/static/chat_render.js"></script>
 <script src="/static/chat.js"></script>
 {% block scripts %}{% endblock %}
 </body>

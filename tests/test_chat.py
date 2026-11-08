@@ -295,6 +295,8 @@ def test_ask_falls_through_when_a_provider_returns_no_answer(
         *,
         book: str | None,
         page: int | None,
+        allowed_books: set[str] | None,
+        scope: str | None,
     ) -> dict[str, object]:
         calls.append(provider.name)
         if provider.name == "test":
@@ -347,3 +349,29 @@ def test_context_page_is_a_source_only_with_real_excerpt() -> None:
     assert _with_context_source([{"book": "x.md", "line": 4}], None, None, excerpt="") == [
         {"book": "x.md", "line": 4}
     ]
+
+
+def test_search_library_respects_allowed_books(library: Path, tmp_path: Path) -> None:
+    chat = build_chat(library, tmp_path)
+    payload = json.loads(chat._search_library("hello-search-needle", allowed_books={"sub/a.pdf"}))
+    assert payload["sources"]
+    assert {source["book"] for source in payload["sources"]} == {"sub/a.pdf"}
+
+    empty = json.loads(chat._search_library("hello-search-needle", allowed_books=set()))
+    assert empty["sources"] == []
+
+    outside = json.loads(
+        chat._search_library("hello-search-needle", book="note.md", allowed_books={"sub/a.pdf"})
+    )
+    assert "outside the selected scope" in outside["error"]
+
+
+def test_system_prompt_respects_category_scope(library: Path, tmp_path: Path) -> None:
+    chat = build_chat(library, tmp_path)
+    prompt = chat._system_prompt(None, None, scope="categories: A", allowed_books={"sub/a.pdf"})
+    assert "Retrieval is limited" in prompt
+    assert "sub/a.pdf" in prompt
+    assert "note.md" not in prompt
+
+    outside = chat._system_prompt("note.md", 1, allowed_books={"sub/a.pdf"})
+    assert "currently viewing" not in outside

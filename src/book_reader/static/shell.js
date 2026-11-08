@@ -75,6 +75,81 @@
 
   document.getElementById("notepad-toggle")?.addEventListener("click", () => toggle("notepad"));
   document.getElementById("chat-toggle")?.addEventListener("click", () => toggle("chat"));
+
+  /* ---- resizable chat rail ---- */
+  const chatRail = document.getElementById("chat");
+  const railHandle = document.getElementById("chat-rail-handle");
+  const RAIL_KEY = "br-chat-rail-width";
+  const RAIL_MIN = 300;
+  const RAIL_MAX = 640;
+  const RAIL_DEFAULT = 360;
+  const railDesktop = window.matchMedia("(min-width: 901px)");
+
+  function clampRail(value) {
+    return Math.min(RAIL_MAX, Math.max(RAIL_MIN, Math.round(value)));
+  }
+
+  function storedRailWidth() {
+    const stored = Number.parseFloat(localStorage.getItem(RAIL_KEY));
+    return Number.isFinite(stored) ? clampRail(stored) : RAIL_DEFAULT;
+  }
+
+  function setRailWidth(value, persist) {
+    if (!chatRail) return;
+    const width = clampRail(value);
+    if (railDesktop.matches) {
+      chatRail.style.width = `${width}px`;
+      chatRail.style.flexBasis = `${width}px`;
+    } else {
+      chatRail.style.width = "";
+      chatRail.style.flexBasis = "";
+    }
+    railHandle?.setAttribute("aria-valuenow", String(width));
+    if (persist) localStorage.setItem(RAIL_KEY, String(width));
+  }
+
+  if (chatRail && railHandle) {
+    setRailWidth(storedRailWidth(), false);
+    let dragStartX = 0;
+    let dragStartWidth = 0;
+    let dragging = false;
+
+    railHandle.addEventListener("pointerdown", (event) => {
+      if (!railDesktop.matches) return;
+      event.preventDefault();
+      dragging = true;
+      dragStartX = event.clientX;
+      dragStartWidth = chatRail.getBoundingClientRect().width;
+      railHandle.setPointerCapture(event.pointerId);
+      document.body.classList.add("rail-resizing");
+    });
+    railHandle.addEventListener("pointermove", (event) => {
+      if (!dragging) return;
+      setRailWidth(dragStartWidth + dragStartX - event.clientX, false);
+    });
+    function endRailDrag(event) {
+      if (!dragging) return;
+      dragging = false;
+      document.body.classList.remove("rail-resizing");
+      if (railHandle.hasPointerCapture(event.pointerId)) {
+        railHandle.releasePointerCapture(event.pointerId);
+      }
+      setRailWidth(Number.parseFloat(chatRail.style.width) || storedRailWidth(), true);
+    }
+    railHandle.addEventListener("pointerup", endRailDrag);
+    railHandle.addEventListener("pointercancel", endRailDrag);
+    railHandle.addEventListener("keydown", (event) => {
+      let next = null;
+      if (event.key === "ArrowLeft") next = storedRailWidth() + 16;
+      else if (event.key === "ArrowRight") next = storedRailWidth() - 16;
+      else if (event.key === "Home") next = RAIL_MIN;
+      else if (event.key === "End") next = RAIL_MAX;
+      if (next === null) return;
+      event.preventDefault();
+      setRailWidth(next, true);
+    });
+    railDesktop.addEventListener("change", () => setRailWidth(storedRailWidth(), false));
+  }
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       const openPanels = PANELS.filter((id) => panel(id) && !panel(id).hidden);

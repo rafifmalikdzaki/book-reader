@@ -44,6 +44,13 @@ def test_rename_moves_progress_note_and_page_count(library: Path, tmp_path: Path
     source = library / "sub" / "a.pdf"
     services.progress.update("sub/a.pdf", page=2)
     _note(services, "sub/a.pdf")
+    session = services.chats.create_session(book="sub/a.pdf")
+    services.chats.add_message(
+        session["id"],
+        "assistant",
+        "quote",
+        sources=[{"book": "sub/a.pdf", "page": 1}],
+    )
     assert services.pages.count("sub/a.pdf", source) == 3
 
     (library / "shelf").mkdir()
@@ -57,9 +64,14 @@ def test_rename_moves_progress_note_and_page_count(library: Path, tmp_path: Path
     assert services.progress.get("sub/a.pdf") is None
     assert services.notepad.notes(book="shelf/a-renamed.pdf")[0]["quote"] == "hello-search-needle"
     assert services.pages.count("shelf/a-renamed.pdf", target) == 3
+    chat = services.chats.get_session(session["id"])
+    assert chat is not None
+    assert chat["book"] == "shelf/a-renamed.pdf"
+    assert chat["messages"][0]["sources"][0]["book"] == "shelf/a-renamed.pdf"
     assert services.reconciler.resolve("sub/a.pdf") == "shelf/a-renamed.pdf"
     assert report.backed_up is not None
     assert (Path(report.backed_up) / "progress.json").is_file()
+    assert (Path(report.backed_up) / "chats.json").is_file()
 
     pages = json.loads((tmp_path / "state" / "pages.json").read_text())
     assert "sub/a.pdf" not in pages["books"]

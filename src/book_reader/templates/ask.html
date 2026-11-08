@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Ask — book-reader{% endblock %}
+{% block stage_class %}ask-stage{% endblock %}
+{% block head_extra %}
+<style>
+  .stage.ask-stage { padding: 0; min-height: 0; }
+  .ask-shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: calc(100dvh - var(--mast-h)); }
+  .ask-index {
+    display: flex; flex-direction: column; min-height: 0;
+    height: calc(100dvh - var(--mast-h)); position: sticky; top: var(--mast-h);
+    background: #F1EADB; border-right: 1px solid var(--rule);
+  }
+  .ask-side-head { display: flex; align-items: center; gap: 8px; padding: 16px 16px 10px; }
+  .ask-side-head .section-label { flex: 1; margin: 0; }
+  .ask-side-close { display: none; background: none; border: 0; color: var(--muted); font-size: 20px; line-height: 1; }
+  .ask-new { margin: 0 16px 10px; height: 36px; justify-content: flex-start; }
+  .ask-project-create { padding: 0 16px 10px; }
+  .ask-project-create > button {
+    background: none; border: 0; color: var(--brass-deep); padding: 4px 0;
+    font-size: 12.5px; letter-spacing: .02em;
+  }
+  .ask-project-create form { display: flex; gap: 5px; margin-top: 4px; }
+  .ask-project-create input { flex: 1; min-width: 0; height: 30px; padding: 0 7px; border: 1px solid var(--rule); border-radius: 3px; background: var(--paper-lit); }
+  .ask-project-create form[hidden] { display: none; }
+  .ask-project-create .mini { border: 0; background: none; color: var(--muted); font-size: 12px; }
+  .ask-sessions { flex: 1; min-height: 0; overflow: auto; padding: 2px 10px 16px; }
+  .ask-group { margin: 10px 0 2px; }
+  .ask-group-head { display: flex; align-items: baseline; gap: 6px; padding: 5px 6px; }
+  .ask-group-head h2 { flex: 1; font: 600 10.5px/1.2 var(--sans); letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+  .ask-group-head span { color: var(--muted); font-size: 10.5px; }
+  .ask-session, .ask-project-row {
+    display: flex; align-items: baseline; gap: 6px; width: 100%; min-width: 0;
+    border: 0; background: transparent; text-align: left; color: var(--ink);
+    padding: 7px 8px; border-radius: 3px; text-decoration: none; font-size: 13px;
+  }
+  .ask-session:hover, .ask-project-row:hover { background: #FFFFFF72; }
+  .ask-session[aria-current="true"] { background: var(--paper-lit); color: var(--ink); box-shadow: inset 2px 0 0 var(--brass); }
+  .ask-session .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ask-session .m { color: var(--muted); font-size: 10px; white-space: nowrap; }
+  .ask-session .pin { color: var(--brass-deep); font-size: 11px; }
+  .ask-project-row { font-weight: 600; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; padding-bottom: 2px; }
+  .ask-project-row .x { margin-left: auto; border: 0; background: none; color: var(--danger); font-size: 14px; padding: 0 2px; }
+  .ask-project-empty { margin: 0; padding: 2px 10px 4px; color: var(--muted); font-size: 11.5px; }
+  .ask-side-empty { margin: 10px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+  .ask-retention { margin: auto 0 0; padding: 12px 16px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 11px; line-height: 1.45; }
+  .ask-main { display: flex; flex-direction: column; min-width: 0; height: calc(100dvh - var(--mast-h)); }
+  .ask-head { display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--rule); background: var(--paper); }
+  .ask-menu { display: none; border: 1px solid var(--rule); background: var(--paper-lit); border-radius: 3px; width: 34px; height: 34px; }
+  .ask-title-wrap { flex: 1; min-width: 0; }
+  .ask-title-wrap h1 { font: 600 18px/1.25 var(--serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ask-title-wrap p { margin: 1px 0 0; color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ask-head-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .ask-head-actions .btn { height: 32px; padding: 0 10px; font-size: 12px; }
+  .ask-head-actions select { max-width: 150px; height: 32px; font-size: 12px; }
+  .ask-scope { padding: 9px 24px 0; max-width: 868px; width: 100%; margin: 0 auto; }
+  .ask-scope details { position: relative; display: inline-block; }
+  .ask-scope summary {
+    cursor: pointer; list-style: none; padding: 4px 9px; border: 1px solid var(--rule);
+    border-radius: 3px; background: var(--paper-lit); font-size: 12px; color: var(--muted);
+  }
+  .ask-scope summary::-webkit-details-marker { display: none; }
+  .ask-scope summary b { color: var(--ink); font-weight: 500; }
+  .ask-scope-menu {
+    position: absolute; z-index: 10; top: calc(100% + 4px); left: 0; width: 250px;
+    max-height: 280px; overflow: auto; padding: 7px; border: 1px solid var(--rule);
+    border-radius: 4px; background: var(--paper-lit); box-shadow: 0 16px 30px -22px #241E16AA;
+  }
+  .ask-scope-menu label { display: flex; gap: 7px; align-items: baseline; padding: 5px 6px; font-size: 12.5px; border-radius: 2px; cursor: pointer; }
+  .ask-scope-menu label:hover { background: #F1EADB; }
+  .ask-scope-menu .all { border-bottom: 1px solid var(--rule-soft); margin-bottom: 3px; padding-bottom: 8px; font-weight: 600; }
+  .ask-thread {
+    flex: 1; min-height: 0; overflow: auto; width: 100%; max-width: 820px;
+    margin: 0 auto; padding: 28px 24px 12px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .ask-thread .msg { font-size: 14.5px; line-height: 1.6; }
+  .ask-thread .msg.assistant { background: transparent; border: 0; padding: 2px 0; max-width: 100%; }
+  .ask-thread .msg.user { max-width: 78%; }
+  .ask-thread .sources { margin-top: 7px; }
+  .ask-thread .msg.pending { color: var(--muted); font-style: italic; }
+  .ask-empty { margin: auto; text-align: center; max-width: 560px; padding: 24px 8px; }
+  .ask-empty h2 { font: 600 30px/1.15 var(--serif); margin-bottom: 7px; }
+  .ask-empty p { color: var(--muted); font-size: 13.5px; margin: 0 auto 22px; max-width: 44ch; }
+  .ask-prompts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .ask-prompts button {
+    border: 1px solid var(--rule); background: var(--paper-lit); color: var(--ink);
+    border-radius: 999px; padding: 7px 12px; font-size: 12.5px;
+  }
+  .ask-prompts button:hover { border-color: var(--brass); color: var(--brass-deep); }
+  .ask-error { max-width: 820px; width: 100%; margin: 0 auto; padding: 0 24px 6px; color: var(--danger); font-size: 12.5px; }
+  .ask-error[hidden] { display: none; }
+  .ask-composer {
+    display: flex; gap: 8px; align-items: flex-end; width: 100%; max-width: 820px;
+    margin: 0 auto; padding: 8px 24px 10px;
+  }
+  .ask-composer textarea {
+    flex: 1; min-height: 46px; max-height: 180px; resize: none; padding: 11px 12px;
+    border: 1px solid var(--rule); border-radius: 5px; background: var(--paper-lit); line-height: 1.45;
+  }
+  .ask-composer .btn { height: 44px; min-width: 68px; }
+  .ask-status { max-width: 820px; width: 100%; margin: 0 auto; padding: 0 24px 10px; color: var(--muted); font-size: 11px; }
+  .ask-backdrop { display: none; }
+  dialog.ask-dialog { border: 1px solid var(--brass); border-radius: 8px; padding: 20px; width: min(420px, 92vw); background: var(--paper-lit); color: var(--ink); box-shadow: 0 30px 60px -30px #241E1699; }
+  dialog.ask-dialog::backdrop { background: #241E1666; }
+  dialog.ask-dialog h2 { font: 600 19px/1.3 var(--serif); margin: 0 0 5px; }
+  dialog.ask-dialog p { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+  dialog.ask-dialog .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  @media (max-width: 900px) {
+    .ask-shell { grid-template-columns: 1fr; }
+    .ask-index {
+      position: fixed; z-index: 50; left: 0; top: 0; height: 100dvh; width: min(86vw, 320px);
+      transform: translateX(-102%); transition: transform .18s ease; border-right: 1px solid var(--brass);
+    }
+    .ask-index.open { transform: none; }
+    .ask-side-close { display: block; }
+    .ask-main { height: calc(100dvh - var(--mast-h)); }
+    .ask-menu { display: block; }
+    .ask-head { padding: 9px 12px; gap: 8px; flex-wrap: wrap; }
+    .ask-title-wrap { flex: 1 1 170px; }
+    .ask-head-actions { flex: 1 1 100%; justify-content: flex-start; }
+    .ask-head-actions select { max-width: 130px; }
+    .ask-scope { padding: 8px 12px 0; }
+    .ask-thread { padding: 18px 12px 8px; }
+    .ask-empty h2 { font-size: 25px; }
+    .ask-composer { padding: 6px 12px 8px; }
+    .ask-status { padding: 0 12px 8px; }
+    .ask-error { padding: 0 12px 5px; }
+    .ask-backdrop { display: block; position: fixed; inset: 0; z-index: 45; border: 0; background: #241E1666; }
+    .ask-backdrop[hidden] { display: none; }
+  }
+</style>
+{% endblock %}
+{% block body %}
+<div class="ask-shell">
+  <aside class="ask-index" id="ask-index" aria-label="Chat sessions">
+    <div class="ask-side-head">
+      <p class="section-label">Chats</p>
+      <button class="ask-side-close" id="ask-side-close" type="button" aria-label="Close chat list">×</button>
+    </div>
+    <button class="btn ask-new" id="new-chat" type="button">+ New chat</button>
+    <div class="ask-project-create">
+      <button id="project-toggle" type="button">+ Project</button>
+      <form id="project-form" hidden autocomplete="off">
+        <input class="field" id="project-name" maxlength="60" placeholder="Project name" aria-label="Project name">
+        <button class="btn" type="submit">Add</button>
+        <button class="mini" id="project-cancel" type="button">Cancel</button>
+      </form>
+    </div>
+    <div class="ask-sessions" id="ask-sessions" aria-live="polite"></div>
+    <p class="ask-retention">Chats are deleted after {{ retention_days }} days unless pinned or in a project.</p>
+  </aside>
+  <button class="ask-backdrop" id="ask-backdrop" type="button" aria-label="Close chat list" hidden></button>
+  <section class="ask-main">
+    <header class="ask-head">
+      <button class="ask-menu" id="ask-menu" type="button" aria-controls="ask-index" aria-expanded="false" aria-label="Open chat list">☰</button>
+      <div class="ask-title-wrap">
+        <h1 id="ask-title">New chat</h1>
+        <p id="ask-subtitle">Library-wide · RAG</p>
+      </div>
+      <div class="ask-head-actions">
+        <button class="btn secondary" id="pin-chat" type="button" aria-pressed="false" disabled>Pin</button>
+        <select class="field" id="project-select" aria-label="Chat project" disabled><option value="">No project</option></select>
+        <button class="btn secondary" id="delete-chat" type="button" disabled>Delete</button>
+      </div>
+    </header>
+    <div class="ask-scope">
+      <details id="scope-picker">
+        <summary>Categories: <b id="scope-label">All books</b></summary>
+        <div class="ask-scope-menu" id="scope-menu"></div>
+      </details>
+    </div>
+    <div class="ask-thread" id="thread" role="log" aria-live="polite">
+      <div class="ask-empty">
+        <h2>Ask the library</h2>
+        <p>Answers search your books and cite the page or line they used.</p>
+      </div>
+    </div>
+    <p class="ask-error" id="ask-error" hidden></p>
+    <form class="ask-composer" id="ask-form" autocomplete="off">
+      <textarea id="ask-input" rows="2" placeholder="Ask about your books… (Enter to send)" aria-label="Ask about your books"></textarea>
+      <button class="btn" id="ask-send" type="submit">Send</button>
+    </form>
+    <p class="ask-status" id="ask-status">Ready · RAG</p>
+  </section>
+</div>
+<dialog class="ask-dialog" id="delete-dialog">
+  <h2 id="delete-title">Delete this chat?</h2>
+  <p id="delete-copy">This removes the transcript from this device. It cannot be undone.</p>
+  <div class="actions">
+    <button class="btn secondary" id="delete-cancel" type="button">Cancel</button>
+    <button class="btn" id="delete-confirm" type="button">Delete</button>
+  </div>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script src="/static/ask.js"></script>
+{% endblock %}

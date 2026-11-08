@@ -32,8 +32,12 @@ uv run python scripts/vendor_katex.py
 - Auto-organize writes `categories.json` only. It never moves library files.
 - The PDF surface is an iframe of the vendored PDF.js viewer. `pdf_reader.js`
   bridges page progress, deep links, selection notes, Ask context, and resize.
-- Text state (notes, progress, categories) is content-addressed and portable.
-  Zotero is not integrated; the content hash is the intended future join key.
+- Reader Ask stays a resizable side panel. Home Ask is `/ask`, a library-wide
+  workspace with persistent sessions, category-scoped retrieval, and projects.
+  Chat sessions expire after seven days unless pinned or assigned to a project.
+- Text state (notes, progress, categories, chat book/source contexts) is
+  content-addressed and portable. Zotero is not integrated; the content hash is
+  the intended future join key.
 
 ## Editing boundaries
 

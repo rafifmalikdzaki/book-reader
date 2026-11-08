@@ -28,6 +28,8 @@ from pydantic import BaseModel
 from starlette.datastructures import Headers
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
+from .chat_config import CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, chat_model_ids, select_model
+from .chats import RETENTION_DAYS, ChatStore
 from .library import Library
 from .mdrender import render_markdown_file
 from .notepad import NotepadStore
@@ -37,6 +39,7 @@ from .pdf import PdfCache
 from .preferences import Preferences
 from .progress import ProgressStore
 from .reconcile import LibraryReconciler, ReindexReport
+from .routes_chat_sessions import register as register_chat_sessions
 from .routes_notepad import register as register_notepad
 from .search import ElasticSearch, Searcher, SearchUnavailable
 from .sections import SectionIndex
@@ -80,14 +83,6 @@ class OrganizeBody(BaseModel):
     force_taxonomy: bool = False
 
 
-CHAT_MAX_MESSAGES = 50
-CHAT_MAX_MESSAGE_CHARS = 8000
-
-
-def _chat_model_ids(chat: ChatService) -> set[str]:
-    return {option["id"] for option in chat.model_options()}
-
-
 def _chat_messages(items: list[ChatMessageBody]) -> list[ChatMessage]:
     if not items:
         raise HTTPException(status_code=400, detail="messages must not be empty")
@@ -104,18 +99,6 @@ def _chat_messages(items: list[ChatMessageBody]) -> list[ChatMessage]:
     return messages
 
 
-def _select_model(explicit: str | None, preferences: Preferences, chat: ChatService) -> str:
-    selected = explicit or preferences.get("chat_model", "auto") or "auto"
-    if selected == "auto":
-        return selected
-    if selected in _chat_model_ids(chat):
-        return selected
-    if explicit:
-        raise HTTPException(status_code=400, detail=f"unknown model: {selected}")
-    logger.warning("stored chat model %s is unavailable; using auto", selected)
-    return "auto"
-
-
 @dataclass(frozen=True)
 class Services:
     """Everything the HTTP layer needs, built once per process."""
@@ -126,6 +109,7 @@ class Services:
     pages: PageIndex
     progress: ProgressStore
     notepad: NotepadStore
+    chats: ChatStore
     sections: SectionIndex
     elastic: ElasticSearch | None
     searcher: Searcher
@@ -156,6 +140,7 @@ def build_services(
     elastic = ElasticSearch(url, index, pdf, sections, state) if url else None
     searcher = Searcher(library, pdf, sections, elastic, mode)
     notepad = NotepadStore(state, lock=state_lock)
+    chats = ChatStore(state, lock=state_lock)
     pages = PageIndex(state, pdf, lock=state_lock)
     progress = ProgressStore(state, lock=state_lock)
     reconciler = LibraryReconciler(
@@ -163,6 +148,7 @@ def build_services(
         state,
         progress=progress,
         notepad=notepad,
+        chats=chats,
         pages=pages,
         sections=sections,
         lock=state_lock,
@@ -196,6 +182,7 @@ def build_services(
         pages=pages,
         progress=progress,
         notepad=notepad,
+        chats=chats,
         sections=sections,
         elastic=elastic,
         searcher=searcher,
@@ -349,6 +336,7 @@ def create_app(
     chat_service = chat if chat is not None else services.chat
     preferences = services.preferences
     notepad = services.notepad
+    chats = services.chats
     reconciler = services.reconciler
     categories = services.categories
     organizer = services.organizer
@@ -359,6 +347,10 @@ def create_app(
             logger.info("startup reindex: %s", startup_report.notice())
     except Exception:
         logger.exception("startup reindex failed; serving the library as-is")
+    try:
+        chats.remove_expired()
+    except Exception:
+        logger.exception("chat retention cleanup failed")
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -391,6 +383,15 @@ def create_app(
 
     app.mount("/static", GzipStaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
     register_notepad(app, notepad=services.notepad, library=library, pdf=pdf, sections=sections)
+    register_chat_sessions(
+        app,
+        chats=chats,
+        library=library,
+        categories=categories,
+        chat=chat_service,
+        preferences=preferences,
+        reconciler=reconciler,
+    )
 
     def render(template: str, request: Request, **context: object) -> HTMLResponse:
         return TEMPLATES.TemplateResponse(request, template, {"library_root": str(root), **context})
@@ -563,6 +564,15 @@ def create_app(
             resume_notes=resume_notes,
             recent=recent,
             relocation_notice=reconciler.notice_for(report),
+        )
+
+    @app.get("/ask", response_class=HTMLResponse)
+    def ask(request: Request) -> HTMLResponse:
+        return render(
+            "ask.html",
+            request,
+            chat_available=bool(chat_service and chat_service.available()),
+            retention_days=RETENTION_DAYS,
         )
 
     @app.get("/thumb.jpg")
@@ -835,7 +845,7 @@ def create_app(
         if model != "auto":
             if chat_service is None:
                 raise HTTPException(status_code=503, detail="chat is not configured")
-            if model not in _chat_model_ids(chat_service):
+            if model not in chat_model_ids(chat_service):
                 raise HTTPException(status_code=400, detail=f"unknown model: {model}")
         preferences.set("chat_model", model)
         return {"ok": True, "selected": model}
@@ -858,7 +868,7 @@ def create_app(
         messages = _chat_messages(body.messages)
         if body.book is not None:
             library.book_file(body.book)
-        selected = _select_model(body.model, preferences, chat_service)
+        selected = select_model(body.model, preferences, chat_service)
         try:
             return chat_service.ask(messages, book=body.book, page=body.page, model=selected)
         except ChatUnavailable as exc:

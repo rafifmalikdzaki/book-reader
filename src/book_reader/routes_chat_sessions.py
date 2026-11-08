@@ -1,0 +1,307 @@
+"""HTTP routes for persistent Ask sessions, chat projects, and scoped RAG messages."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from fastapi import APIRouter, FastAPI, HTTPException
+from pydantic import BaseModel, Field
+
+from .chat_config import CHAT_MAX_MESSAGE_CHARS, select_model
+from .chats import (
+    _UNSET,
+    RETENTION_DAYS,
+    ChatProject,
+    ChatSession,
+    ChatStorageError,
+    ChatStore,
+    _Unset,
+)
+from .chats import (
+    ChatError as ChatStoreError,
+)
+from .library import Library
+from .organize import CategoryStore
+from .preferences import Preferences
+from .reconcile import LibraryReconciler
+
+if TYPE_CHECKING:
+    from .chat import ChatMessage, ChatService
+
+
+class SessionCreate(BaseModel):
+    book: str | None = None
+    page: int | None = Field(default=None, ge=1)
+    categories: list[str] | None = None
+
+
+class SessionPatch(BaseModel):
+    title: str | None = None
+    pinned: bool | None = None
+    project_id: str | None = None
+    categories: list[str] | None = None
+
+
+class MessageBody(BaseModel):
+    content: str
+
+
+class ProjectBody(BaseModel):
+    name: str
+
+
+def register(
+    app: FastAPI,
+    *,
+    chats: ChatStore,
+    library: Library,
+    categories: CategoryStore,
+    chat: ChatService | None,
+    preferences: Preferences,
+    reconciler: LibraryReconciler,
+) -> None:
+    """Attach Ask session routes; dependencies are injected by the app factory."""
+    router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+    def session_or_404(session_id: str) -> ChatSession:
+        session = chats.get_session(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="chat session not found")
+        return session
+
+    def validate_categories(raw: list[str]) -> list[str]:
+        known = {item["id"] for item in categories.taxonomy()}
+        selected: list[str] = []
+        for value in raw:
+            category_id = value.strip()
+            if category_id not in known:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"unknown category: {category_id or value}",
+                )
+            if category_id not in selected:
+                selected.append(category_id)
+        return selected
+
+    def resolve_book(rel: str) -> str:
+        """Validate a book path, following a recorded rename when it moved."""
+        current = reconciler.resolve(rel)
+        if current != rel and library.find_book(current) is not None:
+            return current
+        library.book_file(rel)
+        return rel
+
+    def allowed_books(selected: list[str]) -> set[str] | None:
+        if not selected:
+            return None
+        chosen = set(selected)
+        assignments = categories.assignments()
+        allowed: set[str] = set()
+        for book in library.scan():
+            content_id = reconciler.content_id(book.rel)
+            if content_id is None:
+                continue
+            assignment = assignments.get(content_id)
+            if assignment is not None and assignment["category"] in chosen:
+                allowed.add(book.rel)
+        return allowed
+
+    def scope_label(selected: list[str]) -> str | None:
+        if not selected:
+            return None
+        chosen = set(selected)
+        taxonomy = categories.taxonomy()
+        labels = [item["name"] for item in taxonomy if item["id"] in chosen]
+        known = {item["id"] for item in taxonomy}
+        labels.extend(item for item in selected if item not in known)
+        return "categories: " + ", ".join(labels)
+
+    def store_error(exc: Exception) -> HTTPException:
+        if isinstance(exc, ChatStorageError):
+            return HTTPException(status_code=500, detail=str(exc))
+        return HTTPException(status_code=400, detail=str(exc))
+
+    @router.get("/sessions")
+    def list_sessions() -> dict[str, object]:
+        try:
+            sessions = chats.list_sessions()
+            projects = chats.list_projects()
+        except (ChatStorageError, ChatStoreError) as exc:
+            raise store_error(exc) from exc
+        return {
+            "retention_days": RETENTION_DAYS,
+            "categories": categories.taxonomy(),
+            "projects": projects,
+            "sessions": sessions,
+        }
+
+    @router.post("/sessions", status_code=201)
+    def create_session(body: SessionCreate) -> ChatSession:
+        book = resolve_book(body.book) if body.book is not None else None
+        selected = validate_categories(body.categories or [])
+        try:
+            return chats.create_session(book=book, page=body.page, categories=selected)
+        except (ChatStorageError, ChatStoreError) as exc:
+            raise store_error(exc) from exc
+
+    @router.get("/sessions/{session_id}")
+    def get_session(session_id: str) -> ChatSession:
+        return session_or_404(session_id)
+
+    @router.patch("/sessions/{session_id}")
+    def update_session(session_id: str, body: SessionPatch) -> ChatSession:
+        session_or_404(session_id)
+        fields = body.model_fields_set
+        if not fields:
+            raise HTTPException(status_code=400, detail="nothing to update")
+        if "title" in fields and body.title is None:
+            raise HTTPException(status_code=400, detail="title must be a string")
+        if "pinned" in fields and body.pinned is None:
+            raise HTTPException(status_code=400, detail="pinned must be a boolean")
+        project_id: str | _Unset | None = _UNSET
+        if "project_id" in fields:
+            project_id = body.project_id
+        selected: list[str] | _Unset = _UNSET
+        if "categories" in fields:
+            if body.categories is None:
+                raise HTTPException(status_code=400, detail="categories must be a list")
+            selected = validate_categories(body.categories)
+        try:
+            return chats.update_session(
+                session_id,
+                title=body.title,
+                pinned=body.pinned,
+                project_id=project_id,
+                categories=selected,
+            )
+        except (ChatStorageError, ChatStoreError) as exc:
+            raise store_error(exc) from exc
+
+    @router.delete("/sessions/{session_id}")
+    def delete_session(session_id: str) -> dict[str, bool]:
+        try:
+            chats.delete_session(session_id)
+        except ChatStoreError as exc:
+            raise HTTPException(status_code=404, detail="chat session not found") from exc
+        except ChatStorageError as exc:
+            raise store_error(exc) from exc
+        return {"ok": True}
+
+    @router.get("/projects")
+    def list_projects() -> dict[str, object]:
+        try:
+            return {"projects": chats.list_projects()}
+        except ChatStorageError as exc:
+            raise store_error(exc) from exc
+
+    @router.post("/projects", status_code=201)
+    def create_project(body: ProjectBody) -> ChatProject:
+        try:
+            return chats.create_project(body.name)
+        except (ChatStorageError, ChatStoreError) as exc:
+            raise store_error(exc) from exc
+
+    @router.delete("/projects/{project_id}")
+    def delete_project(project_id: str) -> dict[str, bool]:
+        try:
+            chats.delete_project(project_id)
+        except (ChatStorageError, ChatStoreError) as exc:
+            raise store_error(exc) from exc
+        return {"ok": True}
+
+    @router.post("/sessions/{session_id}/messages")
+    def post_message(session_id: str, body: MessageBody) -> dict[str, object]:
+        session = session_or_404(session_id)
+        content = body.content.strip()
+        if not content:
+            raise HTTPException(status_code=400, detail="message content must not be empty")
+        if len(content) > CHAT_MAX_MESSAGE_CHARS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"message must be at most {CHAT_MAX_MESSAGE_CHARS} characters",
+            )
+        if chat is None:
+            raise HTTPException(
+                status_code=503,
+                detail="chat is not configured; install the agent extra and set a provider key",
+            )
+        try:
+            from .chat import ChatError as ProviderChatError
+            from .chat import ChatUnavailable
+        except ImportError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="chat is not configured; install the agent extra",
+            ) from exc
+
+        book = session["book"]
+        if book is not None:
+            current = reconciler.resolve(book)
+            if current != book and library.find_book(current) is not None:
+                try:
+                    session = chats.update_session(session_id, book=current)
+                except ChatStoreError as exc:
+                    raise HTTPException(status_code=404, detail="chat session not found") from exc
+                except ChatStorageError as exc:
+                    raise store_error(exc) from exc
+                book = current
+
+        try:
+            chats.add_message(session_id, "user", content)
+        except ChatStorageError as exc:
+            raise store_error(exc) from exc
+        except ChatStoreError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        stored = session_or_404(session_id)
+        known_categories = {item["id"] for item in categories.taxonomy()}
+        selected = [item for item in stored["categories"] if item in known_categories]
+        if selected != stored["categories"]:
+            try:
+                stored = chats.update_session(session_id, categories=selected)
+            except (ChatStorageError, ChatStoreError) as exc:
+                raise store_error(exc) from exc
+        history: list[ChatMessage] = [
+            {"role": message["role"], "content": message["content"]}
+            for message in stored["messages"][-50:]
+        ]
+        allowed = allowed_books(selected)
+        book_in_scope = allowed is None or (book is not None and book in allowed)
+        try:
+            result = chat.ask(
+                history,
+                book=book if book_in_scope else None,
+                page=stored["page"] if book_in_scope else None,
+                model=select_model(None, preferences, chat),
+                allowed_books=allowed,
+                scope=scope_label(selected),
+            )
+        except ChatUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except ProviderChatError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+        answer = str(result.get("answer") or "").strip()
+        if not answer:
+            raise HTTPException(status_code=502, detail="chat provider returned an empty answer")
+        answer = answer[:CHAT_MAX_MESSAGE_CHARS]
+        raw_sources = result.get("sources")
+        sources: list[dict[str, object]] = (
+            [dict(item) for item in raw_sources if isinstance(item, dict)]
+            if isinstance(raw_sources, list)
+            else []
+        )
+        try:
+            chats.add_message(
+                session_id,
+                "assistant",
+                answer,
+                sources=sources,
+                provider=str(result.get("provider") or ""),
+                model=str(result.get("model") or ""),
+            )
+        except (ChatStorageError, ChatStoreError) as exc:
+            raise store_error(exc) from exc
+        return {"session": session_or_404(session_id)}
+
+    app.include_router(router)

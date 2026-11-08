@@ -30,10 +30,14 @@ notepad and library-wide search.
   `progress.json` with atomic writes.
 - **Ask the library**: a LangGraph agent answers questions with tools
   (`search_library`, `read_document`, `add_note`) over Mistral, Inception,
-  OpenRouter, or Ollama, falling back down a configurable priority chain. The
-  current page's real text is supplied before it is cited; answers render
-  Markdown and LaTeX with locally vendored KaTeX. The **Options** button picks a
-  specific provider/model at runtime.
+  OpenRouter, or Ollama, falling back down a configurable priority chain. While
+  reading, a resizable side panel sends the current book and page. The home
+  **Ask** opens a full chat workspace at `/ask` with a session sidebar,
+  category-scoped retrieval (all books by default), and chat projects. Sessions
+  persist in `chats.json` and expire after seven days of inactivity unless
+  pinned or saved to a project. Answers render Markdown and LaTeX with locally
+  vendored KaTeX. The **Options** button picks a specific provider/model at
+  runtime.
 - **Auto-organize**: a confirmed background job reads titles, PageIndex section
   headings, and short first-page excerpts and asks Mistral for a flat category
   taxonomy plus one category per document. Categories are virtual, stored by
@@ -187,15 +191,33 @@ uv run python scripts/benchmark_rag.py --library ~/Documents/Books \
 
 ## Chat
 
-The **Ask** button opens a chat panel; the panel sends the current book and
-page as context, and answers link every source back to `book.pdf#p12` or
-`notes.md#L40`. The **Options** button selects `Auto` (the priority chain) or a
-specific `provider:model`; the choice is stored in
-`preferences.json` and applies to later requests.
+There are two Ask surfaces:
+
+- **Reader Ask** (side panel): sends the current book and page as context. Drag
+  the panel's left edge, or focus it and use Arrow/Home/End, to resize it
+  between 300 and 640 px; the width is stored in `localStorage`. Answers link
+  every source back to `book.pdf#p12` or `notes.md#L40`.
+- **Home Ask** (`/ask`): a full chat workspace with a session sidebar,
+  transcript, composer, and project folders. Retrieval is library-wide by
+  default; the **Categories** picker limits searches to selected virtual
+  categories without moving any files. A session remembers its categories and
+  continues its message history across reloads.
+
+Sessions live in `chats.json` and expire seven days after their last change.
+Pinned sessions and sessions assigned to a project are exempt. Deleting a
+project unassigns its chats and refreshes their retention window; it never
+deletes transcripts. Chat project folders are unrelated to library shelves.
 
 - `GET /api/chat/status` — providers, cached models, selected model.
 - `GET/POST /api/chat/options` — list and persist the model choice.
-- `POST /api/chat` — `{"messages": [...], "book": ..., "page": ..., "model": ...}`.
+- `POST /api/chat` — stateless question for the reader side panel.
+- `GET/POST /api/chat/sessions` — list or create persistent sessions.
+- `GET/PATCH/DELETE /api/chat/sessions/{id}` — load, pin/rename/categorize, or
+  delete a session.
+- `POST /api/chat/sessions/{id}/messages` — append a question and answer with
+  scoped RAG and sources.
+- `GET/POST /api/chat/projects` and `DELETE /api/chat/projects/{id}` — chat
+  project folders.
 
 Tool budget is bounded: after four tool rounds (or a tool error) the agent
 answers from the collected evidence without further tool calls, and providers
@@ -229,6 +251,7 @@ Compose additionally reads `BOOKS_DIR` (host path mounted at `/library`) and
 | Route | Purpose |
 | --- | --- |
 | `GET /` | library index + library-wide search |
+| `GET /ask` | persistent library-wide chat workspace |
 | `GET /book/{rel}` | PDF or Markdown reader |
 | `GET /thumb.jpg?path=&width=` | first-page JPEG preview, content-hash cached |
 | `GET /raw/{rel}` | raw library file |
@@ -241,15 +264,20 @@ Compose additionally reads `BOOKS_DIR` (host path mounted at `/library`) and
 | `POST /api/organize` | start categorization (`confirm: true`; virtual shelves) |
 | `GET/POST /api/chat/options` | selectable models and the persisted choice |
 | `GET /api/chat/status` | chat provider chain and selection |
-| `POST /api/chat` | agentic question over the library |
+| `POST /api/chat` | stateless reader-side question |
+| `GET/POST /api/chat/sessions` | persistent chat sessions |
+| `GET/PATCH/DELETE /api/chat/sessions/{id}` | session transcript, pin, project, categories |
+| `POST /api/chat/sessions/{id}/messages` | scoped RAG answer with sources |
+| `GET/POST /api/chat/projects`, `DELETE /api/chat/projects/{id}` | chat project folders |
 | `POST /api/library/reindex` | match moved/renamed books by content and migrate state |
 | `POST /api/index/rebuild` | index the library |
 | `GET /healthz` | container healthcheck |
 
 ## Architecture
 
-A validated component/data-flow diagram is checked in at
-[`docs/book-reader-architecture.html`](docs/book-reader-architecture.html).
+- Component/data flow: [`docs/book-reader-architecture.html`](docs/book-reader-architecture.html)
+- PDF.js reading sequence: [`docs/diagrams/pdfjs-reading-sequence.html`](docs/diagrams/pdfjs-reading-sequence.html)
+- Project-local diagram skin: [`docs/diagram-style-guide.md`](docs/diagram-style-guide.md)
 
 ## Development
 
@@ -276,11 +304,16 @@ src/book_reader/
   preferences.py     persisted UI choices
   reconcile.py       content-hash reindex, state migration, move redirects
   organize.py        content-hash category store, PageIndex signals, Mistral job
+  chats.py           persistent Ask sessions, retention, chat projects
   state_lock.py      one-process state ownership
   statemove.py       simultaneous progress/page/section remaps, including swaps
-  chat.py            LangGraph agent, tools, provider fallback
+  chat.py            LangGraph agent, tools, provider fallback, scoped retrieval
+  chat_config.py     shared chat request limits and model selection
   routes_notepad.py  notepad HTTP routes
-  templates/         index and reader pages
+  routes_chat_sessions.py  persistent chat and project HTTP routes
+  templates/ask.html full chat workspace
+  static/ask.js      session sidebar, category picker, composer
+  static/chat_render.js  shared safe Markdown/LaTeX renderer
   static/notepad.js  notepad drawer, note capture
   static/pdf_reader.js  PDF.js iframe bridge (progress, notes, resize)
   static/vendor/     pinned PDF.js and KaTeX distributions
