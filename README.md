@@ -19,6 +19,10 @@ notepad and library-wide search.
   layout tree offline (no model, no API key).
 - Reading position (page for PDFs, scroll ratio for Markdown) persisted to
   `progress.json` with atomic writes.
+- **Ask the library**: a LangGraph agent answers questions with tools
+  (`search_library`, `read_document`, `add_note`) over Mistral, Inception,
+  OpenRouter, or Ollama, falling back down a configurable priority chain. The
+  **Options** button picks a specific provider/model at runtime.
 
 ## Quickstart (uv)
 
@@ -31,7 +35,18 @@ uv run book-reader --library ~/Documents/Books --port 8765
 Optional extras:
 
 ```bash
-uv sync --extra pageindex   # section trees for PDFs (PageIndex Flash)
+uv sync --extra pageindex --extra agent   # section trees + chat agent
+```
+
+Chat credentials live in a local `.env` (gitignored) and are loaded
+automatically by `book-reader`:
+
+```bash
+MISTRAL_API_KEY=...          # or MISTRAL_API
+INCEPTION_API_KEY=...
+OPENROUTER_API_KEY=...
+OLLAMA_API_KEY=...
+BOOK_READER_CHAT_PRIORITY=mistral:mistral-small-latest,mistral:ministral-8b-latest,mistral:zai-glm-5-3-flash,inception:mercury-3,openrouter:openrouter/free,ollama:gpt-oss:20b
 ```
 
 Default library is `~/Documents/Books`; a missing root exits with status 2.
@@ -93,6 +108,48 @@ Sections for PDF hits and notes come from PageIndex Flash
 The first tree extraction for a book takes a few seconds; every later query
 against that book is a dictionary lookup.
 
+### Hybrid PageIndex retrieval
+
+In-book PDF search is section-aware: the PageIndex tree nominates candidate
+regions (title match strength and depth), page text inside those regions is
+scored with TF-IDF term weights, and section starts receive a deterministic
+boost. When Elasticsearch is also available, section hits are merged ahead of
+BM25 hits so RAG context keeps its section labels.
+
+Measured with `scripts/benchmark_rag.py` on *A survey of recently developed
+metaheuristics* (36 pages, 10 golden questions, page tolerance ±1):
+
+| backend | hit@1 | hit@3 | hit@5 | MRR | section@3 | p50 latency |
+|---|---|---|---|---|---|---|
+| pageindex-hybrid | **1.00** | **1.00** | **1.00** | **0.95** | **1.00** | **9.4 ms** |
+| elasticsearch | 0.90 | 1.00 | 1.00 | 0.78 | 1.00 | 24.3 ms |
+| local page scan | 0.20 | 0.20 | 0.20 | 0.20 | 0.20 | 213 ms |
+
+```bash
+uv run python scripts/benchmark_rag.py --library ~/Documents/Books
+uv run python scripts/benchmark_rag.py --library ~/Documents/Books \
+    --es-url http://127.0.0.1:9200 --es-index book-reader
+```
+
+## Chat
+
+The **Ask** button opens a chat panel; the panel sends the current book and
+page as context, and answers link every source back to `book.pdf#p12` or
+`notes.md#L40`. The **Options** button selects `Auto` (the priority chain) or a
+specific `provider:model`; the choice is stored in
+`preferences.json` and applies to later requests.
+
+- `GET /api/chat/status` — providers, cached models, selected model.
+- `GET/POST /api/chat/options` — list and persist the model choice.
+- `POST /api/chat` — `{"messages": [...], "book": ..., "page": ..., "model": ...}`.
+
+Tool budget is bounded: after four tool rounds (or a tool error) the agent
+answers from the collected evidence without further tool calls, and providers
+that return empty answers fall through to the next one in the chain.
+
+Note: chat sends the selected passages to the configured provider; use Ollama
+locally if documents must not leave the machine.
+
 ## Configuration
 
 | CLI flag | Environment | Default |
@@ -105,6 +162,9 @@ against that book is a dictionary lookup.
 | `--es-index` | `BOOK_READER_ES_INDEX` | `book-reader` |
 | `--search` | `BOOK_READER_SEARCH` | `auto` (`auto`/`elastic`/`pageindex`/`local`) |
 | `--index` / `--force-index` | — | build the index, then exit |
+| — | `BOOK_READER_CHAT_PRIORITY` | Mistral chain → Inception → OpenRouter → Ollama |
+| — | `BOOK_READER_<PROVIDER>_MODEL` | per-provider model override |
+| — | `MISTRAL_API_KEY` / `MISTRAL_API` | Mistral key (alias accepted) |
 
 Compose additionally reads `BOOKS_DIR` (host path mounted at `/library`) and
 `BOOK_READER_PORT` (host port) from `.env`.
@@ -123,6 +183,9 @@ Compose additionally reads `BOOKS_DIR` (host path mounted at `/library`) and
 | `POST /api/progress` | persist `{"path", "page"}` or `{"path", "scroll"}` |
 | `GET/POST/DELETE /api/notepad…` | groups, notes, export |
 | `GET /api/index/status` | search backend status |
+| `GET/POST /api/chat/options` | selectable models and the persisted choice |
+| `GET /api/chat/status` | chat provider chain and selection |
+| `POST /api/chat` | agentic question over the library |
 | `POST /api/index/rebuild` | index the library |
 | `GET /healthz` | container healthcheck |
 
@@ -148,6 +211,8 @@ src/book_reader/
   search.py          Elasticsearch chunk index + local fallback
   notepad.py         groups, notes, AI-context export
   progress.py        reading positions
+  preferences.py     persisted UI choices
+  chat.py            LangGraph agent, tools, provider fallback
   routes_notepad.py  notepad HTTP routes
   templates/         index and reader pages
   static/notepad.js  notepad drawer, note capture
