@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import mimetypes
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
+
+if TYPE_CHECKING:
+    from .chat import ChatService
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -19,10 +23,13 @@ from .mdrender import render_markdown_file
 from .notepad import NotepadStore
 from .pages import PageIndex
 from .pdf import PdfCache
+from .preferences import Preferences
 from .progress import ProgressStore
 from .routes_notepad import register as register_notepad
 from .search import ElasticSearch, Searcher, SearchUnavailable
 from .sections import SectionIndex
+
+logger = logging.getLogger(__name__)
 
 PACKAGE_DIR = Path(__file__).parent
 TEMPLATES = Jinja2Templates(directory=str(PACKAGE_DIR / "templates"))
@@ -39,6 +46,22 @@ class ProgressBody(BaseModel):
     scroll: float | None = None
 
 
+class ChatMessageBody(BaseModel):
+    role: str
+    content: str
+
+
+class ChatBody(BaseModel):
+    messages: list[ChatMessageBody] = []
+    book: str | None = None
+    page: int | None = None
+    model: str | None = None
+
+
+class ModelChoice(BaseModel):
+    model: str
+
+
 @dataclass(frozen=True)
 class Services:
     """Everything the HTTP layer needs, built once per process."""
@@ -52,6 +75,8 @@ class Services:
     sections: SectionIndex
     elastic: ElasticSearch | None
     searcher: Searcher
+    chat: ChatService | None
+    preferences: Preferences
 
 
 def build_services(
@@ -71,16 +96,27 @@ def build_services(
     sections = SectionIndex(state)
     library = Library(root)
     elastic = ElasticSearch(url, index, pdf, sections, state) if url else None
+    searcher = Searcher(library, pdf, sections, elastic, mode)
+    notepad = NotepadStore(state)
+    chat: ChatService | None = None
+    try:
+        from .chat import ChatService
+
+        chat = ChatService(library, searcher, pdf, sections, notepad)
+    except ImportError as exc:
+        logger.info("chat disabled: %s", exc)
     return Services(
         root=root,
         library=library,
         pdf=pdf,
         pages=PageIndex(state, pdf),
         progress=ProgressStore(state),
-        notepad=NotepadStore(state),
+        notepad=notepad,
         sections=sections,
         elastic=elastic,
-        searcher=Searcher(library, pdf, sections, elastic, mode),
+        searcher=searcher,
+        chat=chat,
+        preferences=Preferences(state),
     )
 
 
@@ -91,6 +127,7 @@ def create_app(
     es_url: str | None = None,
     es_index: str | None = None,
     search_mode: str | None = None,
+    chat: ChatService | None = None,
 ) -> FastAPI:
     """Build the app with its own library, caches, and stores."""
     services = build_services(
@@ -108,6 +145,8 @@ def create_app(
     sections = services.sections
     elastic = services.elastic
     searcher = services.searcher
+    chat_service = chat if chat is not None else services.chat
+    preferences = services.preferences
 
     app = FastAPI(title="book-reader", docs_url=None, redoc_url=None)
     app.mount("/static", StaticFiles(directory=str(PACKAGE_DIR / "static")), name="static")
@@ -304,7 +343,7 @@ def create_app(
                 status_code=503,
                 detail="Elasticsearch is not configured; set BOOK_READER_ES_URL",
             )
-        if not elastic.available():
+        if not elastic.reachable():
             raise HTTPException(
                 status_code=503, detail=f"Elasticsearch is not reachable at {elastic.url}"
             )
@@ -319,6 +358,7 @@ def create_app(
                 "url": elastic.url if elastic else None,
                 "index": elastic.index if elastic else None,
                 "available": bool(elastic and elastic.available()),
+                "reachable": bool(elastic and elastic.reachable()),
                 "chunks": elastic.chunk_count() if elastic else None,
                 "job": elastic.rebuild_job.snapshot() if elastic else None,
             },
@@ -330,6 +370,79 @@ def create_app(
             },
             "search_backend": searcher.backend(),
         }
+
+    @app.get("/api/chat/status")
+    def api_chat_status() -> dict[str, object]:
+        selected = preferences.get("chat_model", "auto")
+        if chat_service is None:
+            return {
+                "available": False,
+                "providers": [],
+                "reason": "agent extra not installed",
+                "selected": selected,
+            }
+        return {
+            "available": chat_service.available(),
+            "providers": chat_service.model_options(),
+            "selected": selected,
+        }
+
+    @app.get("/api/chat/options")
+    def api_chat_options() -> dict[str, object]:
+        if chat_service is None:
+            return {"available": False, "models": [], "selected": "auto"}
+        return {
+            "available": chat_service.available(),
+            "models": chat_service.model_options(),
+            "selected": preferences.get("chat_model", "auto"),
+        }
+
+    @app.post("/api/chat/options")
+    def api_chat_options_save(choice: ModelChoice) -> dict[str, object]:
+        model = choice.model.strip() or "auto"
+        if model != "auto":
+            if chat_service is None:
+                raise HTTPException(status_code=503, detail="chat is not configured")
+            known = {option["id"] for option in chat_service.model_options()}
+            if model not in known:
+                raise HTTPException(status_code=400, detail=f"unknown model: {model}")
+        preferences.set("chat_model", model)
+        return {"ok": True, "selected": model}
+
+    @app.post("/api/chat")
+    def api_chat(body: ChatBody) -> dict[str, object]:
+        from .chat import ChatError, ChatMessage, ChatUnavailable
+
+        if chat_service is None:
+            raise HTTPException(
+                status_code=503,
+                detail="chat is not configured; install the agent extra and set a provider key",
+            )
+        if not body.messages:
+            raise HTTPException(status_code=400, detail="messages must not be empty")
+        messages: list[ChatMessage] = []
+        for item in body.messages[:50]:
+            role = item.role.strip()
+            content = item.content.strip()
+            if role not in {"user", "assistant"} or not content:
+                raise HTTPException(
+                    status_code=400,
+                    detail="messages need role user|assistant and non-empty content",
+                )
+            messages.append({"role": role, "content": content[:8000]})
+        if body.book is not None:
+            library.book_file(body.book)
+        selected = body.model or preferences.get("chat_model", "auto") or "auto"
+        if selected != "auto":
+            known = {option["id"] for option in chat_service.model_options()}
+            if selected not in known:
+                raise HTTPException(status_code=400, detail=f"unknown model: {selected}")
+        try:
+            return chat_service.ask(messages, book=body.book, page=body.page, model=selected)
+        except ChatUnavailable as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except ChatError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     @app.get("/healthz")
     def healthz() -> dict[str, bool]:

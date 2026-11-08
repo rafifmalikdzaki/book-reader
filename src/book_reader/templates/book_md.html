@@ -16,6 +16,7 @@
 {% if not error %}
 <script>
 const REL = {{ rel|tojson }};
+window.BookContext = { book: REL };
 const restore = {{ (progress.scroll if progress.scroll is not none else 0.0)|tojson }};
 const article = document.querySelector('article.md');
 const bubble = document.getElementById('note-capture');

@@ -41,7 +41,7 @@
   header .root { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
   #notepad-toggle { margin-left: auto; }
   main { padding: 16px 20px 80px; max-width: 1100px; margin: 0 auto; transition: margin .15s; }
-  body.notepad-open main { margin-right: 392px; }
+  body.notepad-open main, body.chat-open main { margin-right: 392px; }
   main > h1, main > h2, section > h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 6px; }
   a { color: var(--accent); }
   input, select, button, textarea {
@@ -112,14 +112,43 @@
   article.md img { max-width: 100%; }
   .empty { color: var(--muted); }
 
-  /* notepad */
-  #notepad {
+  /* side panels */
+  #notepad, #chat {
     position: fixed; top: 0; right: 0; bottom: 0; width: 380px; max-width: 92vw;
     background: var(--bg); border-left: 1px solid var(--border);
     display: flex; flex-direction: column; z-index: 10;
     box-shadow: -8px 0 24px rgba(0, 0, 0, .12);
   }
-  #notepad[hidden] { display: none; }
+  #notepad[hidden], #chat[hidden] { display: none; }
+  .chat-log {
+    flex: 1; overflow: auto; padding: 10px 12px; display: flex;
+    flex-direction: column; gap: 10px; font-size: 13px;
+  }
+  .chat-log .msg {
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+    background: var(--surface); white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .chat-log .msg.user { background: var(--bg); border-color: var(--accent); }
+  .chat-log .msg.pending { color: var(--muted); }
+  .chat-log .sources {
+    margin-top: 6px; font-size: 11px; display: flex; flex-direction: column; gap: 2px;
+  }
+  #chat-form {
+    border-top: 1px solid var(--border); padding: 8px 12px;
+    display: flex; gap: 6px; align-items: flex-end;
+  }
+  #chat-input { flex: 1; min-height: 38px; resize: vertical; }
+  #chat-button { margin-left: 6px; }
+  #options-dialog {
+    border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+    background: var(--bg); color: var(--fg); width: min(440px, 92vw);
+  }
+  #options-dialog::backdrop { background: rgba(0, 0, 0, .35); }
+  #options-dialog h2 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--muted); margin: 0 0 10px;
+  }
+  #options-model { width: 100%; }
   .notepad-head {
     padding: 10px 12px; border-bottom: 1px solid var(--border);
     display: flex; flex-direction: column; gap: 8px;
@@ -170,8 +199,8 @@
   }
   .bubble[hidden] { display: none; }
   @media (max-width: 900px) {
-    body.notepad-open main { margin-right: auto; }
-    #notepad { width: 100%; max-width: none; }
+    body.notepad-open main, body.chat-open main { margin-right: auto; }
+    #notepad, #chat { width: 100%; max-width: none; }
   }
 </style>
 </head>
@@ -180,6 +209,8 @@
   <a class="brand" href="/">book-reader</a>
   <span class="root">{{ library_root }}</span>
   <button id="notepad-toggle" type="button" aria-expanded="false" aria-controls="notepad">Notes</button>
+  <button id="chat-toggle" type="button" aria-expanded="false" aria-controls="chat">Ask</button>
+  <button id="options-toggle" type="button" aria-haspopup="dialog">Options</button>
 </header>
 <main>{% block body %}{% endblock %}</main>
 <aside id="notepad" hidden aria-label="Researcher notepad">
@@ -211,7 +242,32 @@
     <div id="notepad-body">…</div>
   </div>
 </aside>
+<aside id="chat" hidden aria-label="Library chat">
+  <div class="notepad-head">
+    <div class="top">
+      <strong>Ask the library</strong>
+      <button id="chat-close" type="button" aria-label="Close chat">×</button>
+    </div>
+    <span class="pages" id="chat-status">…</span>
+  </div>
+  <div class="chat-log" id="chat-log"></div>
+  <form id="chat-form" autocomplete="off">
+    <textarea id="chat-input" rows="2" placeholder="Ask about your books… (Enter to send)"></textarea>
+    <button type="submit" id="chat-send">Send</button>
+  </form>
+</aside>
+<dialog id="options-dialog" aria-label="Chat options">
+  <form id="options-form">
+    <h2>Chat model</h2>
+    <select id="options-model" aria-label="Chat model"></select>
+    <div class="compose-actions">
+      <button type="submit">Save</button>
+      <button type="button" id="options-cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
 <script src="/static/notepad.js"></script>
+<script src="/static/chat.js"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

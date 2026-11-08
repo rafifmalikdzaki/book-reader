@@ -18,6 +18,15 @@
     drawer.hidden = !open;
     document.body.classList.toggle("notepad-open", open);
     if (toggle) toggle.setAttribute("aria-expanded", String(open));
+    if (open) {
+      const chat = document.getElementById("chat");
+      if (chat && !chat.hidden) {
+        chat.hidden = true;
+        document.body.classList.remove("chat-open");
+        const chatToggle = document.getElementById("chat-toggle");
+        if (chatToggle) chatToggle.setAttribute("aria-expanded", "false");
+      }
+    }
   }
 
   async function api(path, options) {

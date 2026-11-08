@@ -110,6 +110,7 @@ function show(n, record = true) {
   view.alt = 'Page ' + page;
   cur.textContent = String(page);
   jump.value = String(page);
+  window.BookContext = { book: REL, page: page };
   history.replaceState(null, '', '#p' + page);
   clearBubble();
   loadTextLayer(page);
