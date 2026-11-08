@@ -11,7 +11,7 @@ services:
       BOOK_READER_ES_URL: http://elasticsearch:9200
       BOOK_READER_ES_INDEX: book-reader
     volumes:
-      - "${BOOKS_DIR:-/home/dzakirm/Documents/Books}:/library:ro"
+      - "${BOOKS_DIR:-$HOME/Documents/Books}:/library:ro"
       - reader-state:/state
     depends_on:
       elasticsearch:
