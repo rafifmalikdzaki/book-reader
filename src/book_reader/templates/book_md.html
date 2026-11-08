@@ -55,6 +55,14 @@ function sectionPath(node) {
     .join(' › ');
 }
 
+function paragraphIndex(node) {
+  const blocks = Array.from(article.querySelectorAll('p, li, pre, table, blockquote'));
+  const element = node.nodeType === 1 ? node : node.parentElement;
+  const block = element && element.closest('p, li, pre, table, blockquote');
+  const index = block ? blocks.indexOf(block) : -1;
+  return index >= 0 ? index + 1 : null;
+}
+
 document.addEventListener('mouseup', () => {
   const selection = window.getSelection();
   if (!selection || selection.isCollapsed || !selection.rangeCount) {
@@ -80,6 +88,7 @@ document.addEventListener('mouseup', () => {
     kind: 'md',
     quote: quote,
     section: sectionPath(range.commonAncestorContainer),
+    paragraph: paragraphIndex(range.commonAncestorContainer),
   };
   bubble.hidden = false;
   bubble.style.left = Math.max(8, rect.left) + 'px';

@@ -169,6 +169,7 @@ class NotepadStore:
         char_end: int | None = None,
         line_start: int | None = None,
         line_end: int | None = None,
+        paragraph: int | None = None,
         comment: str = "",
     ) -> Note:
         text = quote.strip()
@@ -204,6 +205,7 @@ class NotepadStore:
                 "char_end": char_end,
                 "line_start": line_start,
                 "line_end": line_end,
+                "paragraph": paragraph,
                 "comment": comment.strip(),
                 "created": now,
                 "updated": now,
@@ -295,6 +297,9 @@ def _note_markdown(note: Note) -> list[str]:
         source = book
     if section:
         anchor += f" · §{section}"
+    paragraph = note.get("paragraph")
+    if paragraph is not None:
+        anchor += f" · ¶{paragraph}"
 
     quote = " ".join(str(note.get("quote") or "").split())
     lines = [

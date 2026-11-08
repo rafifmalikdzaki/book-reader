@@ -30,6 +30,7 @@ class NoteBody(BaseModel):
     word_end: int | None = None
     char_start: int | None = None
     char_end: int | None = None
+    paragraph: int | None = None
     comment: str = Field(default="", max_length=MAX_COMMENT)
 
 
@@ -103,6 +104,7 @@ def register(app: FastAPI, *, notepad: NotepadStore, library: Library, pdf: PdfC
                 char_end=char_end,
                 line_start=line_start,
                 line_end=line_end,
+                paragraph=body.paragraph,
                 comment=body.comment,
             )
         except NotepadError as exc:
