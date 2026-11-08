@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}book-reader{% endblock %}</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --fg: #1b1b1f;
+    --bg: #fbfbfd;
+    --muted: #6b6b76;
+    --border: #d9d9e0;
+    --accent: #2f6fd0;
+    --surface: #f1f1f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e7e7ec;
+      --bg: #14151a;
+      --muted: #9a9aa8;
+      --border: #2c2d36;
+      --accent: #7cb0ff;
+      --surface: #1d1e25;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+  }
+  header {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg); z-index: 5;
+  }
+  header .brand { font-weight: 650; text-decoration: none; color: var(--fg); }
+  header .root { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+  #notepad-toggle { margin-left: auto; }
+  main { padding: 16px 20px 80px; max-width: 1100px; margin: 0 auto; transition: margin .15s; }
+  body.notepad-open main { margin-right: 392px; }
+  main > h1, main > h2, section > h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 18px 0 6px; }
+  a { color: var(--accent); }
+  input, select, button, textarea {
+    font: inherit; color: var(--fg); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  #filter { width: 100%; max-width: 420px; padding: 6px 10px; margin: 10px 0; }
+  details { border-bottom: 1px solid var(--border); padding: 4px 0; }
+  summary { cursor: pointer; padding: 4px 0; color: var(--muted); }
+  .row { display: flex; align-items: baseline; gap: 10px; padding: 3px 0 3px 14px; }
+  .row[hidden] { display: none; }
+  .row .book { flex: 1; text-decoration: none; color: var(--fg); }
+  .row .book:hover { color: var(--accent); }
+  .kind {
+    font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px;
+  }
+  .pages { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .recent { list-style: none; padding: 0; margin: 0; }
+  .recent li { display: flex; gap: 10px; align-items: baseline; padding: 2px 0; }
+  .toolbar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 0 12px; border-bottom: 1px solid var(--border);
+  }
+  .toolbar .title { margin-left: 4px; margin-right: 8px; font-weight: 600; }
+  .toolbar #q { margin-left: auto; min-width: 200px; }
+  .error {
+    padding: 10px 12px; border: 1px solid var(--border); border-left: 3px solid #d0453f;
+    border-radius: 6px; background: var(--surface);
+  }
+  .reader { display: flex; gap: 20px; align-items: flex-start; padding-top: 14px; }
+  .reader .toc { flex: 0 0 240px; max-height: 80vh; overflow: auto; font-size: 13px; }
+  .reader .toc ul { list-style: none; padding: 0; margin: 0; }
+  .reader .toc li { padding-left: calc(var(--level, 1) * 10px); }
+  .reader .toc a { text-decoration: none; display: block; padding: 1px 0; }
+  .pagewrap { flex: 1; min-width: 0; position: relative; }
+  img.page {
+    display: block; max-width: 100%; height: auto; margin: 0 auto;
+    border: 1px solid var(--border); background: #fff;
+  }
+  .stack { position: relative; margin: 0 auto; max-width: 100%; }
+  .stack img.page { width: 100%; }
+  .textlayer { position: absolute; inset: 0; overflow: hidden; font-size: 0; }
+  .textlayer span {
+    position: absolute; color: transparent; white-space: pre; font-size: 0;
+    user-select: text; cursor: text;
+  }
+  .textlayer span::selection { background: rgba(47, 111, 208, .35); }
+  .hits { list-style: none; padding: 0; margin: 14px 0 0; font-size: 13px; }
+  .hits li { padding: 3px 0; border-bottom: 1px solid var(--border); }
+  .hits .muted { color: var(--muted); }
+  article.md { max-width: 760px; margin: 0 auto; line-height: 1.65; }
+  article.md h1 { font-size: 1.8em; margin: .4em 0 .5em; }
+  article.md h2 { font-size: 1.4em; margin: 1.4em 0 .4em; }
+  article.md h3 { font-size: 1.15em; margin: 1.2em 0 .3em; }
+  article.md pre {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 12px; overflow: auto; font-size: 13px;
+  }
+  article.md code { font-size: 13px; }
+  article.md table { border-collapse: collapse; }
+  article.md th, article.md td { border: 1px solid var(--border); padding: 4px 8px; }
+  article.md img { max-width: 100%; }
+  .empty { color: var(--muted); }
+
+  /* notepad */
+  #notepad {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 380px; max-width: 92vw;
+    background: var(--bg); border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; z-index: 10;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, .12);
+  }
+  #notepad[hidden] { display: none; }
+  .notepad-head {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .notepad-head .top { display: flex; align-items: center; gap: 8px; }
+  .notepad-head .top strong { flex: 1; }
+  #group-form { display: flex; gap: 6px; }
+  #group-form input { flex: 1; min-width: 0; }
+  .notepad-links { display: flex; gap: 12px; font-size: 12px; }
+  .notepad-body { flex: 1; overflow: auto; padding: 10px 12px; font-size: 13px; }
+  .note-group { margin-bottom: 14px; }
+  .note-group header { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .note-group h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--muted); margin: 6px 0;
+  }
+  .note {
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px;
+    margin-bottom: 8px; background: var(--surface);
+  }
+  .note blockquote {
+    margin: 0 0 6px; padding-left: 8px; border-left: 2px solid var(--accent);
+    max-height: 108px; overflow: auto;
+  }
+  .note .locator { color: var(--muted); font-size: 11px; display: block; margin-bottom: 6px; }
+  .note textarea, #compose textarea {
+    width: 100%; min-height: 40px; resize: vertical;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px;
+    padding: 4px 6px;
+  }
+  .note .note-actions { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+  .note .note-actions .danger { color: #d0453f; }
+  #compose {
+    border: 1px solid var(--accent); border-radius: 6px; padding: 8px;
+    margin-bottom: 12px; background: var(--surface);
+  }
+  #compose[hidden] { display: none; }
+  #compose blockquote {
+    margin: 4px 0 6px; padding-left: 8px; border-left: 2px solid var(--accent);
+    max-height: 96px; overflow: auto;
+  }
+  #compose .compose-actions { display: flex; gap: 6px; margin-top: 6px; }
+  #compose .compose-actions select { flex: 1; min-width: 0; }
+  .bubble {
+    position: absolute; z-index: 20; padding: 4px 10px; border-radius: 999px;
+    background: var(--accent); color: #fff; border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .25); font-size: 13px;
+  }
+  .bubble[hidden] { display: none; }
+  @media (max-width: 900px) {
+    body.notepad-open main { margin-right: auto; }
+    #notepad { width: 100%; max-width: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <a class="brand" href="/">book-reader</a>
+  <span class="root">{{ library_root }}</span>
+  <button id="notepad-toggle" type="button" aria-expanded="false" aria-controls="notepad">Notes</button>
+</header>
+<main>{% block body %}{% endblock %}</main>
+<aside id="notepad" hidden aria-label="Researcher notepad">
+  <div class="notepad-head">
+    <div class="top">
+      <strong>Notepad</strong>
+      <button id="notepad-close" type="button" aria-label="Close notepad">×</button>
+    </div>
+    <form id="group-form" autocomplete="off">
+      <input id="group-name" placeholder="New group…" maxlength="120" aria-label="New group name">
+      <button type="submit">Add group</button>
+    </form>
+    <div class="notepad-links">
+      <a href="/api/notepad/export?format=markdown" download>Export AI context (Markdown)</a>
+      <a href="/api/notepad/export?format=json" download>JSON</a>
+    </div>
+  </div>
+  <div class="notepad-body">
+    <section id="compose" hidden>
+      <div class="locator" id="compose-locator"></div>
+      <blockquote id="compose-quote"></blockquote>
+      <textarea id="compose-comment" placeholder="Why does this matter? (optional)"></textarea>
+      <div class="compose-actions">
+        <select id="compose-group" aria-label="Group"></select>
+        <button id="compose-save" type="button">Save note</button>
+        <button id="compose-cancel" type="button">Cancel</button>
+      </div>
+    </section>
+    <div id="notepad-body">…</div>
+  </div>
+</aside>
+<script src="/static/notepad.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

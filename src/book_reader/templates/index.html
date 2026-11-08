@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Library — book-reader{% endblock %}
+{% block body %}
+<div class="searchbar">
+  <input id="library-search" type="search" placeholder="Search the library…" aria-label="Search the library">
+  <span class="pages">search: {{ search_backend }}</span>
+</div>
+<ul id="library-hits" class="hits"></ul>
+<input id="filter" type="search" placeholder="Filter {{ book_count }} books…" autofocus>
+{% if recent %}
+<section>
+  <h2>Continue reading</h2>
+  <ul class="recent">
+    {% for item in recent %}
+    <li>
+      <a href="/book/{{ item.rel|urlencode }}{% if item.page %}#p{{ item.page }}{% endif %}">{{ item.title }}</a>
+      {% if item.page %}<span class="pages">page {{ item.page }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% for group, books in groups %}
+<details open>
+  <summary>{{ group }} <span class="pages">{{ books|length }}</span></summary>
+  {% for b in books %}
+  <div class="row">
+    <a class="book" href="/book/{{ b.rel|urlencode }}">{{ b.title }}</a>
+    <span class="kind">{{ b.kind }}</span>
+    <span class="pages" data-rel="{{ b.rel }}">…</span>
+  </div>
+  {% endfor %}
+</details>
+{% else %}
+<p class="empty">No PDFs or Markdown files found in {{ library_root }}.</p>
+{% endfor %}
+{% endblock %}
+{% block scripts %}
+<script>
+const filter = document.getElementById('filter');
+filter.addEventListener('input', () => {
+  const q = filter.value.trim().toLowerCase();
+  for (const row of document.querySelectorAll('.row')) {
+    row.hidden = q.length > 0 && !row.textContent.toLowerCase().includes(q);
+  }
+});
+fetch('/api/pages').then(r => r.json()).then(({ counts }) => {
+  for (const el of document.querySelectorAll('[data-rel]')) {
+    const n = counts[el.dataset.rel];
+    el.textContent = (n == null) ? '—' : (n + ' pages');
+  }
+}).catch(() => {});
+
+function bookHref(hit) {
+  const base = '/book/' + String(hit.book || '').split('/').map(encodeURIComponent).join('/');
+  if (hit.kind === 'pdf' && hit.page) return base + '#p' + hit.page;
+  if (hit.line) return base + '#L' + hit.line;
+  return base;
+}
+
+function locatorText(hit) {
+  const parts = [];
+  if (hit.page) parts.push('p.' + hit.page);
+  else if (hit.line) parts.push('lines ' + hit.line + (hit.line_end && hit.line_end !== hit.line ? '–' + hit.line_end : ''));
+  if (hit.section) parts.push('§ ' + hit.section);
+  return parts.join(' · ');
+}
+
+const librarySearch = document.getElementById('library-search');
+const libraryHits = document.getElementById('library-hits');
+let searchTimer = null;
+librarySearch.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const term = librarySearch.value.trim();
+    libraryHits.replaceChildren();
+    if (!term) return;
+    try {
+      const response = await fetch('/api/search?q=' + encodeURIComponent(term));
+      const data = await response.json();
+      if (!response.ok) {
+        const item = document.createElement('li');
+        item.className = 'muted';
+        item.textContent = data.detail || 'search unavailable';
+        libraryHits.append(item);
+        return;
+      }
+      for (const hit of data.hits) {
+        const item = document.createElement('li');
+        const link = document.createElement('a');
+        link.href = bookHref(hit);
+        link.textContent = String(hit.book || '').split('/').pop();
+        const where = document.createElement('span');
+        where.className = 'pages';
+        where.textContent = ' ' + locatorText(hit) + ' ';
+        const snippet = document.createElement('span');
+        snippet.textContent = String(hit.snippet || '').slice(0, 220);
+        item.append(link, where, snippet);
+        libraryHits.append(item);
+      }
+      if (!data.hits.length) {
+        const item = document.createElement('li');
+        item.className = 'muted';
+        item.textContent = 'no matches';
+        libraryHits.append(item);
+      }
+    } catch (error) {
+      const item = document.createElement('li');
+      item.className = 'muted';
+      item.textContent = 'search failed';
+      libraryHits.append(item);
+    }
+  }, 300);
+});
+</script>
+{% endblock %}
