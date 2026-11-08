@@ -28,6 +28,8 @@ class PdfCache:
         self._lock = threading.RLock()
         self._docs: OrderedDict[tuple[str, float], pymupdf.Document] = OrderedDict()
         self._word_cache: OrderedDict[tuple[str, float, int], dict[str, object]] = OrderedDict()
+        self._text_max = 64
+        self._text_cache: OrderedDict[tuple[str, float, int], str] = OrderedDict()
 
     def _doc(self, path: Path) -> pymupdf.Document:
         key = (str(path), path.stat().st_mtime)
@@ -60,11 +62,20 @@ class PdfCache:
             return bytes(pixmap.tobytes("png"))
 
     def page_text(self, path: Path, page: int) -> str:
+        key = (str(path), path.stat().st_mtime, page)
         with self._lock:
+            cached = self._text_cache.get(key)
+            if cached is not None:
+                self._text_cache.move_to_end(key)
+                return cached
             doc = self._doc(path)
             if not 1 <= page <= doc.page_count:
                 raise ValueError(f"page out of range: {page}")
-            return str(doc.load_page(page - 1).get_text("text"))
+            text = str(doc.load_page(page - 1).get_text("text"))
+            self._text_cache[key] = text
+            while len(self._text_cache) > self._text_max:
+                self._text_cache.popitem(last=False)
+            return text
 
     def page_words(self, path: Path, page: int) -> dict[str, object]:
         """Words with bounding boxes, block, and line numbers for the text layer."""

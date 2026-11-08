@@ -16,6 +16,7 @@ class Section(TypedDict):
     title: str
     start_page: int
     end_page: int
+    depth: int
 
 
 class SectionIndex:
@@ -142,20 +143,26 @@ def _coerce_section(node: object) -> Section | None:
     title = node.get("title")
     start = node.get("start_page")
     end = node.get("end_page")
+    depth = node.get("depth", 0)
     if not isinstance(title, str) or not isinstance(start, int) or not isinstance(end, int):
         return None
-    return {"title": title, "start_page": start, "end_page": end}
+    return {
+        "title": title,
+        "start_page": start,
+        "end_page": end,
+        "depth": depth if isinstance(depth, int) else 0,
+    }
 
 
-def _flatten(structure: list[dict[str, object]]) -> list[Section]:
+def _flatten(structure: list[dict[str, object]], depth: int = 0) -> list[Section]:
     sections: list[Section] = []
     for node in structure:
         title = str(node.get("title") or "").strip()
         start = node.get("start_index")
         end = node.get("end_index")
         if title and isinstance(start, int) and isinstance(end, int) and end >= start:
-            sections.append({"title": title, "start_page": start, "end_page": end})
+            sections.append({"title": title, "start_page": start, "end_page": end, "depth": depth})
         children = node.get("nodes")
         if isinstance(children, list):
-            sections.extend(_flatten(children))
+            sections.extend(_flatten(children, depth + 1))
     return sections
