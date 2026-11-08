@@ -71,6 +71,7 @@ def register(app: FastAPI, *, notepad: NotepadStore, library: Library, pdf: PdfC
         char_start, char_end = body.char_start, body.char_end
         line_start: int | None = None
         line_end: int | None = None
+        paragraph = body.paragraph
         if kind == "pdf":
             if body.page is None:
                 raise HTTPException(status_code=400, detail="pdf notes need a page number")
@@ -86,7 +87,18 @@ def register(app: FastAPI, *, notepad: NotepadStore, library: Library, pdf: PdfC
                 and body.word_start is not None
                 and body.word_end is not None
             ):
-                offsets = _word_offsets(words, body.word_start, body.word_end)
+                start = min(body.word_start, body.word_end)
+                end = max(body.word_start, body.word_end)
+                if 0 <= start <= end < len(words):
+                    first = words[start]
+                    last = words[end]
+                    if isinstance(first, dict) and isinstance(first.get("b"), int):
+                        paragraph = first["b"]
+                    if isinstance(first, dict) and isinstance(first.get("l"), int):
+                        line_start = first["l"]
+                        if isinstance(last, dict) and isinstance(last.get("l"), int):
+                            line_end = last["l"]
+                offsets = _word_offsets(words, start, end)
                 if offsets is not None:
                     char_start, char_end = offsets
         else:
@@ -104,7 +116,7 @@ def register(app: FastAPI, *, notepad: NotepadStore, library: Library, pdf: PdfC
                 char_end=char_end,
                 line_start=line_start,
                 line_end=line_end,
-                paragraph=body.paragraph,
+                paragraph=paragraph,
                 comment=body.comment,
             )
         except NotepadError as exc:
@@ -154,13 +166,16 @@ def _word_offsets(words: list[dict[str, object]], start: int, end: int) -> tuple
 
 
 _INLINE_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
-_INLINE_MARKS = re.compile(r"[*_`]+")
+# Only strip emphasis/code markers at word boundaries so `snake_case` survives.
+_INLINE_MARKS = re.compile(r"(?<![0-9A-Za-z])[*_`]+|[*_`]+(?![0-9A-Za-z])")
+_LIST_MARKER = re.compile(r"^(?:[-+*]|\d+[.)])\s+")
 
 
 def _plain_markdown_line(line: str) -> str:
     """Approximate the rendered text of one Markdown source line."""
     line = _INLINE_LINK.sub(r"\1", line)
     line = _INLINE_MARKS.sub("", line)
+    line = _LIST_MARKER.sub("", line)
     line = line.lstrip("#> ").strip()
     return " ".join(line.split())
 

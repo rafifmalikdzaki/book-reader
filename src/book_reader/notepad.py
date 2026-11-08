@@ -289,6 +289,10 @@ def _note_markdown(note: Note) -> list[str]:
     if kind == "pdf" and page is not None:
         anchor = f"p.{page}"
         source = f"{book}#p{page}"
+        if line_start is not None:
+            anchor += f" · lines {line_start}"
+            if line_end is not None and line_end != line_start:
+                anchor += f"-{line_end}"
     elif line_start is not None:
         anchor = f"lines {line_start}" + (f"-{line_end}" if line_end != line_start else "")
         source = f"{book}#L{line_start}"

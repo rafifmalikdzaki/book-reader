@@ -22,10 +22,12 @@ class PdfCache:
     the lock rather than relying on the event loop.
     """
 
-    def __init__(self, max_open: int = 3) -> None:
+    def __init__(self, max_open: int = 3, max_word_pages: int = 16) -> None:
         self._max_open = max(1, max_open)
+        self._words_max = max(1, max_word_pages)
         self._lock = threading.RLock()
         self._docs: OrderedDict[tuple[str, float], pymupdf.Document] = OrderedDict()
+        self._word_cache: OrderedDict[tuple[str, float, int], dict[str, object]] = OrderedDict()
 
     def _doc(self, path: Path) -> pymupdf.Document:
         key = (str(path), path.stat().st_mtime)
@@ -65,8 +67,13 @@ class PdfCache:
             return str(doc.load_page(page - 1).get_text("text"))
 
     def page_words(self, path: Path, page: int) -> dict[str, object]:
-        """Words with bounding boxes for the selectable text layer."""
+        """Words with bounding boxes, block, and line numbers for the text layer."""
+        key = (str(path), path.stat().st_mtime, page)
         with self._lock:
+            cached = self._word_cache.get(key)
+            if cached is not None:
+                self._word_cache.move_to_end(key)
+                return cached
             doc = self._doc(path)
             if not 1 <= page <= doc.page_count:
                 raise ValueError(f"page out of range: {page}")
@@ -81,10 +88,22 @@ class PdfCache:
                 "y0": float(word[1]),
                 "x1": float(word[2]),
                 "y1": float(word[3]),
+                "b": int(word[5]) + 1,
+                "l": int(word[6]) + 1,
             }
             for word in raw_words
         ]
-        return {"page": page, "width": width, "height": height, "words": words}
+        layer: dict[str, object] = {
+            "page": page,
+            "width": width,
+            "height": height,
+            "words": words,
+        }
+        with self._lock:
+            self._word_cache[key] = layer
+            while len(self._word_cache) > self._words_max:
+                self._word_cache.popitem(last=False)
+        return layer
 
     def toc(self, path: Path) -> list[tuple[int, str, int]]:
         try:
