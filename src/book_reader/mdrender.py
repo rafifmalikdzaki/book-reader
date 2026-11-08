@@ -57,6 +57,15 @@ def search_markdown(path: Path, query: str, limit: int = 200) -> list[dict[str, 
     return hits
 
 
+_ANCHORED_TOKENS = {
+    "paragraph_open",
+    "heading_open",
+    "list_item_open",
+    "blockquote_open",
+    "table_open",
+}
+
+
 def render_markdown(text: str, *, file_rel: str) -> str:
     """Render CommonMark to HTML; HTML passthrough stays disabled for safety."""
     md = MarkdownIt("commonmark", {"html": False, "linkify": False, "highlight": _highlight})
@@ -64,6 +73,9 @@ def render_markdown(text: str, *, file_rel: str) -> str:
     tokens = md.parse(text)
     base_dir = posixpath.dirname(file_rel)
     _rewrite_all(tokens, base_dir)
+    for token in tokens:
+        if token.type in _ANCHORED_TOKENS and token.map:
+            token.attrSet("id", f"L{token.map[0] + 1}")
     return str(md.renderer.render(tokens, md.options, {}))
 
 

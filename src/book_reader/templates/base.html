@@ -51,6 +51,9 @@
   button { cursor: pointer; }
   button:hover { border-color: var(--accent); }
   #filter { width: 100%; max-width: 420px; padding: 6px 10px; margin: 10px 0; }
+  .searchbar { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+  #library-search { flex: 1; min-width: 0; padding: 6px 10px; }
+  article.md [id^="L"] { scroll-margin-top: 72px; }
   details { border-bottom: 1px solid var(--border); padding: 4px 0; }
   summary { cursor: pointer; padding: 4px 0; color: var(--muted); }
   .row { display: flex; align-items: baseline; gap: 10px; padding: 3px 0 3px 14px; }
@@ -161,7 +164,7 @@
   #compose .compose-actions { display: flex; gap: 6px; margin-top: 6px; }
   #compose .compose-actions select { flex: 1; min-width: 0; }
   .bubble {
-    position: absolute; z-index: 20; padding: 4px 10px; border-radius: 999px;
+    position: fixed; z-index: 20; padding: 4px 10px; border-radius: 999px;
     background: var(--accent); color: #fff; border: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, .25); font-size: 13px;
   }

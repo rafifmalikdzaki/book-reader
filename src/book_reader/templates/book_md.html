@@ -33,6 +33,17 @@ if (restore > 0) {
   });
 }
 
+const lineHash = window.location.hash.match(/#L(\d+)/);
+if (lineHash) {
+  const target = parseInt(lineHash[1], 10);
+  let best = null;
+  for (const element of article.querySelectorAll('[id^="L"]')) {
+    const line = parseInt(element.id.slice(1), 10);
+    if (!Number.isNaN(line) && line <= target) best = element;
+  }
+  if (best) best.scrollIntoView();
+}
+
 let scrollTimer = null;
 window.addEventListener('scroll', () => {
   clearTimeout(scrollTimer);
