@@ -15,7 +15,7 @@ services:
       - reader-state:/state
     depends_on:
       elasticsearch:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/healthz').read()"]
       interval: 30s
