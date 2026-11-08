@@ -238,6 +238,7 @@ def create_app(
             layer = pdf.page_words(target, page_number)
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"cannot read page text: {exc}") from exc
+        layer = dict(pdf.page_words(target, page_number))
         layer["section"] = sections.section_for_page(rel, target, page_number)
         return layer
 
@@ -251,8 +252,10 @@ def create_app(
             target = library.book_file(rel)
             try:
                 hits, backend = searcher.in_book(rel, target, q, limit)
-            except OSError as exc:
-                raise HTTPException(status_code=400, detail=f"cannot read {rel}") from exc
+            except HTTPException:
+                raise
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail=f"search failed: {exc}") from exc
             kind = "md" if target.suffix.lower() == ".md" else "pdf"
             return {"kind": kind, "backend": backend, "hits": hits}
         if not q.strip():
@@ -278,8 +281,21 @@ def create_app(
     @app.get("/api/pages")
     def api_pages() -> dict[str, object]:
         books = library.scan()
-        counts = pages.counts((book.rel, root / book.rel) for book in books if book.kind == "pdf")
-        return {"counts": {book.rel: counts.get(book.rel) for book in books}}
+        items: list[tuple[str, Path]] = []
+        for book in books:
+            if book.kind != "pdf":
+                continue
+            path = library.find_book(book.rel)
+            if path is not None:
+                items.append((book.rel, path))
+        counts = pages.counts(items)
+        response: dict[str, int | None] = {}
+        for book in books:
+            if book.kind != "pdf":
+                response[book.rel] = None
+            elif book.rel in counts:
+                response[book.rel] = counts[book.rel]
+        return {"counts": response}
 
     @app.post("/api/index/rebuild")
     def api_index_rebuild(force: bool = False) -> dict[str, object]:
@@ -292,19 +308,26 @@ def create_app(
             raise HTTPException(
                 status_code=503, detail=f"Elasticsearch is not reachable at {elastic.url}"
             )
-        stats = elastic.rebuild(library, force=force)
-        return {"ok": True, **stats, "chunks": elastic.chunk_count()}
+        started = elastic.rebuild_job.start(lambda: elastic.rebuild(library, force=force))
+        return {"ok": True, "started": started, "job": elastic.rebuild_job.snapshot()}
 
     @app.get("/api/index/status")
     def api_index_status() -> dict[str, object]:
+        present_books = {book.rel for book in library.scan()}
         return {
             "elasticsearch": {
                 "url": elastic.url if elastic else None,
                 "index": elastic.index if elastic else None,
                 "available": bool(elastic and elastic.available()),
                 "chunks": elastic.chunk_count() if elastic else None,
+                "job": elastic.rebuild_job.snapshot() if elastic else None,
             },
-            "pageindex": sections.available(),
+            "pageindex": {
+                "available": sections.available(),
+                "cached_books": len(
+                    [rel for rel in sections.cached_books() if rel in present_books]
+                ),
+            },
             "search_backend": searcher.backend(),
         }
 

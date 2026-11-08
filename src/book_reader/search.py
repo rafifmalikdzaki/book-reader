@@ -7,7 +7,8 @@ import logging
 import os
 import re
 import threading
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import TypedDict
 
@@ -39,6 +40,56 @@ class SearchUnavailable(RuntimeError):
     """Raised when a search needs Elasticsearch and it is not reachable."""
 
 
+class RebuildJob:
+    """Tracks a library index rebuild running in a background thread."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.running = False
+        self.stats: dict[str, int] | None = None
+        self.error: str | None = None
+        self.started_at: float | None = None
+        self.finished_at: float | None = None
+
+    def snapshot(self) -> dict[str, object]:
+        with self._lock:
+            return {
+                "running": self.running,
+                "stats": dict(self.stats) if self.stats is not None else None,
+                "error": self.error,
+                "started_at": self.started_at,
+                "finished_at": self.finished_at,
+            }
+
+    def start(self, task: Callable[[], dict[str, int]]) -> bool:
+        with self._lock:
+            if self.running:
+                return False
+            self.running = True
+            self.stats = None
+            self.error = None
+            self.started_at = time.time()
+            self.finished_at = None
+        thread = threading.Thread(target=self._run, args=(task,), daemon=True)
+        thread.start()
+        return True
+
+    def _run(self, task: Callable[[], dict[str, int]]) -> None:
+        try:
+            stats = task()
+        except Exception as exc:
+            logger.warning("index rebuild failed: %s", exc)
+            with self._lock:
+                self.error = str(exc)
+        else:
+            with self._lock:
+                self.stats = stats
+        finally:
+            with self._lock:
+                self.running = False
+                self.finished_at = time.time()
+
+
 class ElasticSearch:
     """Chunk index in Elasticsearch: one document per PDF page or Markdown block."""
 
@@ -59,6 +110,7 @@ class ElasticSearch:
         self._lock = threading.Lock()
         self._client = client or Elasticsearch(url)
         self._state: dict[str, dict[str, object]] | None = None
+        self.rebuild_job = RebuildJob()
 
     def available(self) -> bool:
         try:
@@ -150,11 +202,36 @@ class ElasticSearch:
                 "chunks": indexed_chunks,
             }
             self._save_state()
+        current = {book.rel for book in library.scan()}
+        removed = [rel for rel in state if rel not in current]
+        for rel in removed:
+            del state[rel]
+        if removed:
+            logger.info("pruned %d books no longer in the library", len(removed))
+            self._save_state()
+        self._prune(current)
         try:
             self._client.indices.refresh(index=self.index)
         except Exception as exc:
             logger.warning("cannot refresh %s: %s", self.index, exc)
         return {"indexed": indexed, "skipped": skipped, "chunks": chunks}
+
+    def _prune(self, current: set[str]) -> None:
+        """Remove documents for books that are no longer under the library root."""
+        query: dict[str, object] = (
+            {"bool": {"must_not": {"terms": {"book": sorted(current)}}}}
+            if current
+            else {"match_all": {}}
+        )
+        try:
+            self._client.delete_by_query(
+                index=self.index,
+                query=query,
+                refresh=False,
+                conflicts="proceed",
+            )
+        except Exception as exc:
+            logger.warning("cannot prune stale chunks: %s", exc)
 
     def _index_book(self, book: Book, path: Path) -> int:
         try:
@@ -322,7 +399,8 @@ class PageIndexSearch:
                     return []
                 self._sections.sections(book, path)
         else:
-            candidates = self._sections.cached_books()
+            present = {book.rel for book in self._library.scan()}
+            candidates = [rel for rel in self._sections.cached_books() if rel in present]
 
         rows: list[tuple[int, str, int, int, str]] = []
         for rel in candidates:
@@ -391,7 +469,7 @@ class Searcher:
             hits = self._elastic.search(query, limit=limit, book=rel)
             if hits:
                 return hits, "elasticsearch"
-        if target.suffix.lower() == ".pdf" and self._mode in {"auto", "pageindex", "elastic"}:
+        if target.suffix.lower() == ".pdf" and self._mode in {"auto", "pageindex"}:
             hits = self._tree.search(query, limit=limit, book=rel)
             if hits:
                 return hits, "pageindex"
@@ -425,6 +503,11 @@ class Searcher:
         if self._elastic_ready() and self._elastic is not None:
             return self._elastic.search(query, limit=limit)
         if self._mode in {"auto", "pageindex"} and self._sections.available():
+            if not self._sections.cached_books():
+                raise SearchUnavailable(
+                    "no cached PageIndex section trees yet; open a book to build one, "
+                    "or configure Elasticsearch"
+                )
             return self._tree.search(query, limit=limit)
         raise SearchUnavailable(
             "library-wide search needs Elasticsearch (BOOK_READER_ES_URL) "

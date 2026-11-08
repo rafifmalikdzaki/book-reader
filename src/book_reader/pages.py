@@ -53,34 +53,35 @@ class PageIndex:
 
     def counts(self, items: Iterable[tuple[str, Path]]) -> dict[str, int | None]:
         """Page counts for ``(rel, path)`` pairs, writing the index at most once."""
-        entries = self._load()
-        result: dict[str, int | None] = {}
-        dirty = False
-        for rel, path in items:
-            try:
-                stat = path.stat()
-            except OSError:
-                result[rel] = None
-                continue
-            entry = entries.get(rel)
-            if (
-                entry is not None
-                and entry.get("mtime") == stat.st_mtime
-                and entry.get("size") == stat.st_size
-            ):
-                pages = entry.get("pages")
-                result[rel] = pages if isinstance(pages, int) else None
-                continue
-            result[rel] = self._open(rel, path)
-            entries[rel] = {
-                "mtime": stat.st_mtime,
-                "size": stat.st_size,
-                "pages": result[rel],
-            }
-            dirty = True
-        if dirty:
-            self._write(entries)
-        return result
+        with self._lock:
+            entries = self._load()
+            result: dict[str, int | None] = {}
+            dirty = False
+            for rel, path in items:
+                try:
+                    stat = path.stat()
+                except OSError:
+                    result[rel] = None
+                    continue
+                entry = entries.get(rel)
+                if (
+                    entry is not None
+                    and entry.get("mtime") == stat.st_mtime
+                    and entry.get("size") == stat.st_size
+                ):
+                    pages = entry.get("pages")
+                    result[rel] = pages if isinstance(pages, int) else None
+                    continue
+                result[rel] = self._open(rel, path)
+                entries[rel] = {
+                    "mtime": stat.st_mtime,
+                    "size": stat.st_size,
+                    "pages": result[rel],
+                }
+                dirty = True
+            if dirty:
+                self._write(entries)
+            return result
 
     def _open(self, rel: str, path: Path) -> int | None:
         try:
