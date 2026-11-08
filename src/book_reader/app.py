@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
 if TYPE_CHECKING:
-    from .chat import ChatService
+    from .chat import ChatMessage, ChatService
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -411,7 +411,13 @@ def create_app(
 
     @app.post("/api/chat")
     def api_chat(body: ChatBody) -> dict[str, object]:
-        from .chat import ChatError, ChatMessage, ChatUnavailable
+        try:
+            from .chat import ChatError, ChatUnavailable
+        except ImportError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="chat is not configured; install the agent extra",
+            ) from exc
 
         if chat_service is None:
             raise HTTPException(
@@ -421,7 +427,7 @@ def create_app(
         if not body.messages:
             raise HTTPException(status_code=400, detail="messages must not be empty")
         messages: list[ChatMessage] = []
-        for item in body.messages[:50]:
+        for item in body.messages[-50:]:
             role = item.role.strip()
             content = item.content.strip()
             if role not in {"user", "assistant"} or not content:
@@ -432,11 +438,15 @@ def create_app(
             messages.append({"role": role, "content": content[:8000]})
         if body.book is not None:
             library.book_file(body.book)
-        selected = body.model or preferences.get("chat_model", "auto") or "auto"
+        explicit = body.model
+        selected = explicit or preferences.get("chat_model", "auto") or "auto"
         if selected != "auto":
             known = {option["id"] for option in chat_service.model_options()}
             if selected not in known:
-                raise HTTPException(status_code=400, detail=f"unknown model: {selected}")
+                if explicit:
+                    raise HTTPException(status_code=400, detail=f"unknown model: {selected}")
+                logger.warning("stored chat model %s is unavailable; using auto", selected)
+                selected = "auto"
         try:
             return chat_service.ask(messages, book=body.book, page=body.page, model=selected)
         except ChatUnavailable as exc:

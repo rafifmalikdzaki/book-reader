@@ -192,3 +192,137 @@ def test_default_priority_offers_free_openrouter_models() -> None:
         ("openrouter", "openrouter/free"),
         ("openrouter", "nvidia/nemotron-3-ultra-550b-a55b:free"),
     ]
+
+
+class RecordingChat(StubChat):
+    def __init__(self, options: list[dict[str, str]] | None = None) -> None:
+        self.seen: list[list[dict[str, str]]] = []
+        self.models: list[str | None] = []
+        self.options = options or [{"id": "stub:m", "provider": "stub", "model": "m"}]
+
+    def model_options(self) -> list[dict[str, str]]:
+        return self.options
+
+    def ask(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        book: str | None = None,
+        page: int | None = None,
+        model: str | None = None,
+    ) -> dict[str, object]:
+        self.seen.append([dict(message) for message in messages])
+        self.models.append(model)
+        return {
+            "answer": "ok",
+            "sources": [],
+            "provider": "stub",
+            "model": model or "m",
+        }
+
+
+def test_chat_keeps_the_newest_messages(library: Path, tmp_path: Path) -> None:
+    chat = RecordingChat()
+    app = create_app(library, tmp_path / "state", chat=cast(ChatService, chat))
+    with TestClient(app) as client:
+        messages = [{"role": "user", "content": f"m{index}"} for index in range(60)]
+        assert client.post("/api/chat", json={"messages": messages}).status_code == 200
+    received = chat.seen[-1]
+    assert len(received) == 50
+    assert received[0]["content"] == "m10"
+    assert received[-1]["content"] == "m59"
+
+
+def test_stale_saved_model_falls_back_to_auto(library: Path, tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    first = RecordingChat()
+    app = create_app(library, state, chat=cast(ChatService, first))
+    with TestClient(app) as client:
+        assert client.post("/api/chat/options", json={"model": "stub:m"}).status_code == 200
+
+    second = RecordingChat([{"id": "other:x", "provider": "other", "model": "x"}])
+    app = create_app(library, state, chat=cast(ChatService, second))
+    with TestClient(app) as client:
+        response = client.post("/api/chat", json={"messages": [{"role": "user", "content": "hi"}]})
+        assert response.status_code == 200
+        assert second.models[-1] == "auto"
+        explicit = client.post(
+            "/api/chat",
+            json={"messages": [{"role": "user", "content": "hi"}], "model": "stub:m"},
+        )
+        assert explicit.status_code == 400
+
+
+def test_chat_returns_503_without_the_agent_extra(
+    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import sys
+
+    monkeypatch.setitem(sys.modules, "book_reader.chat", None)
+    app = create_app(library, tmp_path / "state")
+    with TestClient(app) as client:
+        response = client.post("/api/chat", json={"messages": [{"role": "user", "content": "hi"}]})
+    assert response.status_code == 503
+
+
+def test_ask_falls_through_when_a_provider_returns_no_answer(
+    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from book_reader.chat import ChatError, ChatMessage, ProviderConfig
+
+    chat = build_chat(library, tmp_path)
+    first = chat.providers()[0]
+    backup = ProviderConfig(
+        name="backup",
+        base_url=first.base_url,
+        model=first.model,
+        api_key=first.api_key,
+    )
+    monkeypatch.setattr(chat, "_providers", [first, backup])
+    calls: list[str] = []
+
+    def fake_run(
+        provider: ProviderConfig,
+        messages: list[ChatMessage],
+        *,
+        book: str | None,
+        page: int | None,
+    ) -> dict[str, object]:
+        calls.append(provider.name)
+        if provider.name == "test":
+            raise RuntimeError("provider returned an empty answer")
+        return {
+            "answer": "second",
+            "sources": [],
+            "provider": provider.name,
+            "model": provider.model,
+        }
+
+    monkeypatch.setattr(chat, "_run", fake_run)
+    result = chat.ask([{"role": "user", "content": "hi"}])
+    assert result["answer"] == "second"
+    assert calls == ["test", "backup"]
+
+    def always_fail(*args: object, **kwargs: object) -> dict[str, object]:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(chat, "_run", always_fail)
+    with pytest.raises(ChatError):
+        chat.ask([{"role": "user", "content": "hi"}])
+
+
+def test_empty_final_answer_triggers_provider_fallback(
+    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from langchain_core.messages import AIMessage
+
+    from book_reader.chat import ChatError
+
+    class EmptyGraph:
+        def invoke(self, state: object, config: object) -> dict[str, list[object]]:
+            return {"messages": [AIMessage(content="")]}
+
+    chat = build_chat(library, tmp_path)
+    monkeypatch.setattr(chat, "_graph", lambda *args, **kwargs: EmptyGraph())
+    with pytest.raises(ChatError, match="empty answer"):
+        chat.ask([{"role": "user", "content": "hi"}])
