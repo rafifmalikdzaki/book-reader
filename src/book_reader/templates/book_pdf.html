@@ -73,12 +73,14 @@ function clearBubble() {
 async function loadTextLayer(n) {
   try {
     const response = await fetch('/api/text?path=' + encodeURIComponent(REL) + '&page=' + n);
+    if (n !== page) return;
     if (!response.ok) {
       layer.replaceChildren();
       words = [];
       return;
     }
     const data = await response.json();
+    if (n !== page) return;
     words = data.words || [];
     layerSection = data.section || '';
     const width = data.width || 1;
@@ -128,10 +130,23 @@ function currentSection() {
   return section;
 }
 
-function wordIndexAt(node) {
-  const element = node.nodeType === 1 ? node : node.parentElement;
-  const span = element && element.closest('#textlayer span[data-i]');
-  return span ? parseInt(span.dataset.i, 10) : null;
+function wordIndexAt(node, offset, forward) {
+  if (node.nodeType === 1) {
+    const span = node.closest('#textlayer span[data-i]');
+    if (span) return parseInt(span.dataset.i, 10);
+  }
+  if (node.nodeType === 3 && node.parentElement && node.parentElement !== layer) {
+    const span = node.parentElement.closest('#textlayer span[data-i]');
+    if (span) return parseInt(span.dataset.i, 10);
+  }
+  let current = node === layer ? layer.childNodes[forward ? offset : offset - 1] : node;
+  while (current && !(current.nodeType === 1 && current.dataset && current.dataset.i)) {
+    current = forward ? current.nextSibling : current.previousSibling;
+  }
+  if (current) return parseInt(current.dataset.i, 10);
+  const spans = layer.querySelectorAll('span[data-i]');
+  if (!spans.length) return null;
+  return parseInt((forward ? spans[spans.length - 1] : spans[0]).dataset.i, 10);
 }
 
 document.getElementById('prev').addEventListener('click', () => show(page - 1));
@@ -184,8 +199,8 @@ document.addEventListener('mouseup', () => {
     clearBubble();
     return;
   }
-  const start = wordIndexAt(range.startContainer);
-  const end = wordIndexAt(range.endContainer);
+  const start = wordIndexAt(range.startContainer, range.startOffset, true);
+  const end = wordIndexAt(range.endContainer, range.endOffset, false);
   if (start === null || end === null) {
     clearBubble();
     return;
