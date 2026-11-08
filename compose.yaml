@@ -4,6 +4,9 @@ services:
     image: book-reader:local
     ports:
       - "127.0.0.1:${BOOK_READER_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false
     environment:
       BOOK_READER_LIBRARY: /library
       BOOK_READER_STATE_DIR: /state
