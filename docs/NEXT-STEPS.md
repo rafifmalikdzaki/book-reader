@@ -2,9 +2,11 @@
 
 ## Checkpoint
 
-- Last verified commit: `989a2ac` (OpenRouter free models tested; gate green locally;
-  CI for this commit is the push that delivered this plan).
-- Gate: `./scripts/ci.sh` → 46 tests, ruff clean, mypy strict clean.
+- The React SPA cutover is complete in the working tree (uncommitted): FastAPI serves
+  only `static/app`, and the Jinja templates/legacy scripts are gone.
+- Gate: `./scripts/ci.sh` → 171 Python tests, 187 Vitest tests, ruff/mypy clean;
+  wheel packaging and the Docker Node build were verified.
+- A source checkout must run `scripts/build_frontend.sh` before `uv run book-reader`.
 - Chat providers verified end to end: `mistral-small-latest`, `ministral-8b-latest`,
   `zai-glm-5-3-flash` (Mistral API), `mercury-3`, `gpt-oss:20b` (Ollama), and
   OpenRouter free models (`openrouter/free` 31 s, `nvidia/nemotron-3-ultra-550b-a55b:free`
@@ -20,10 +22,7 @@
    events and answer deltas; the panel renders partial text and a "searching …" line.
    Acceptance: first token under 2 s p50 on `mistral-small-latest`; sources arrive last;
    the non-streaming route stays for API clients.
-2. **Conversation persistence.** Store transcripts in `chat_sessions.json`, restore on
-   reload, add a "New chat" control, and cap history at 50 messages server-side.
-   Acceptance: reload restores the transcript byte-for-byte; the cap truncates oldest turns.
-3. **Cancel in flight.** AbortController in the panel, request cancellation server-side.
+2. **Cancel in flight.** AbortController in the panel, request cancellation server-side.
    Acceptance: aborted request writes no partial answer and does not record progress.
 
 ## Phase 2 — RAG quality (P1)

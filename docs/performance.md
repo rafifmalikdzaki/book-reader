@@ -12,6 +12,29 @@ Measured on the running local preview, 1440×900, loopback, warm server unless n
 | Title resolution | every PDF opened on every index request | page count passed into `_display_title`; warm index TTFB 60–84 ms, ~90 ms CPU | keep |
 | Library-wide search fallback | 503 when no PageIndex cache/Elasticsearch | local page/line scan returns results | keep |
 
-Browser lab: index LCP/FCP 140 ms, TTFB ~74 ms, CLS 0, no long tasks observed on the tile library. INP was not collected with a reliable trace; interactions were exercised manually. PDF.js first page and math rendering were verified in the browser; their paint times were not separately traced.
+## React cutover web-vitals audit (2026-11-08)
 
-Reverted/not kept: none of the measured changes were neutral; all six were retained after re-measuring the transfer sizes or resource directories.
+Measured with headless Chromium at 1440×1000, loopback, against the 2-book fixture
+(3-page PDF + Markdown), after the SPA cutover. Cold and warm are separate reloads.
+
+| Metric | Cold | Warm | Rating |
+| --- | --- | --- | --- |
+| LCP | 476 ms | 360 ms | Good |
+| FCP | 412 ms | 340 ms | Good |
+| TTFB | 20 ms | 2 ms | Good |
+| CLS | 0 | 0 | Good |
+| INP | — | 16 ms (two UI interactions) | Good; small sample, not RUM |
+| Long tasks | 0 | 0 | Good |
+
+- Initial transfer: **131 KB gzip JS** (index 78 + UI 49 + library route 5), **8 KB gzip CSS**,
+  **149 KB fonts**, and a **2.4 KB** LCP thumbnail. The shell HTML is 328 bytes gzip.
+- `GET /api/library` took 7 ms; thumbnails and fonts were served from the local server with
+  immutable/cache headers.
+- LCP is the first tile thumbnail, not text or a layout element; CLS is 0.
+
+**Verdict:** no optimization change was made. The measured user-facing metrics are already
+in the Good band and the initial JS/CSS transfer is under the 200/50 KB budgets. There is no
+Lighthouse/RUM budget gate for this localhost single-user app; the measurements above are the
+recorded baseline for any future change.
+
+Reverted/not kept: none of the measured changes were neutral; all were retained after re-measuring the transfer sizes or resource directories.
