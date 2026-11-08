@@ -421,28 +421,25 @@ class ChatService:
     def _search_library(self, query: str, book: str | None = None, limit: int = 5) -> str:
         text = query.strip()
         if not text:
-            return json.dumps({"error": "query must not be empty"})
+            return _tool_error("query must not be empty")
         limit = max(1, min(20, int(limit or 5)))
         if book:
             target = self._library.find_book(book)
             if target is None:
-                return json.dumps({"error": f"unknown book: {book}"})
+                return _tool_error(f"unknown book: {book}")
             try:
                 hits, backend = self._searcher.in_book(book, target, text, limit)
             except Exception as exc:
-                return json.dumps({"error": f"search failed: {exc}"})
+                return _tool_error(f"search failed: {exc}")
             return json.dumps({"backend": backend, "sources": [_hit_source(hit) for hit in hits]})
         try:
             hits = self._searcher.library_wide(text, limit)
         except SearchUnavailable as exc:
-            return json.dumps(
-                {
-                    "error": str(exc),
-                    "hint": "pass book=<library path> to search inside a single book",
-                }
+            return _tool_error(
+                str(exc), hint="pass book=<library path> to search inside a single book"
             )
         except Exception as exc:
-            return json.dumps({"error": f"search failed: {exc}"})
+            return _tool_error(f"search failed: {exc}")
         return json.dumps(
             {"backend": self._searcher.backend(), "sources": [_hit_source(hit) for hit in hits]}
         )
@@ -456,13 +453,13 @@ class ChatService:
     ) -> str:
         target = self._library.find_book(book)
         if target is None:
-            return json.dumps({"error": f"unknown book: {book}"})
+            return _tool_error(f"unknown book: {book}")
         count = max(1, min(5, int(count or 1)))
         if target.suffix.lower() == ".pdf":
             try:
                 pages = self._pdf.page_count(target)
             except Exception as exc:
-                return json.dumps({"error": f"cannot open PDF: {exc}"})
+                return _tool_error(f"cannot open PDF: {exc}")
             start = max(1, min(pages, int(page or 1)))
             end = max(start, min(pages, start + count - 1))
             sources = []
@@ -471,7 +468,7 @@ class ChatService:
                 try:
                     text = " ".join(self._pdf.page_text(target, number).split())
                 except Exception as exc:
-                    return json.dumps({"error": f"cannot read page {number}: {exc}"})
+                    return _tool_error(f"cannot read page {number}: {exc}")
                 section = self._sections.section_for_page(book, target, number)
                 sources.append({"book": book, "page": number, "section": section})
                 chunks.append(
@@ -481,7 +478,7 @@ class ChatService:
         try:
             lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
         except OSError as exc:
-            return json.dumps({"error": f"cannot read {book}: {exc}"})
+            return _tool_error(f"cannot read {book}: {exc}")
         start = max(1, min(len(lines), int(line or 1)))
         end = min(len(lines), start + count * 20 - 1)
         excerpt = "\n".join(lines[start - 1 : end])
@@ -502,10 +499,10 @@ class ChatService:
     ) -> str:
         target = self._library.find_book(book)
         if target is None:
-            return json.dumps({"error": f"unknown book: {book}"})
+            return _tool_error(f"unknown book: {book}")
         kind = "md" if target.suffix.lower() == ".md" else "pdf"
         if kind == "pdf" and page is None:
-            return json.dumps({"error": "pdf notes need a page number"})
+            return _tool_error("pdf notes need a page number")
         if page is not None:
             page = max(1, int(page))
         try:
@@ -518,7 +515,7 @@ class ChatService:
                 comment=comment,
             )
         except NotepadError as exc:
-            return json.dumps({"error": str(exc)})
+            return _tool_error(str(exc))
         return json.dumps(
             {
                 "saved": True,
@@ -564,6 +561,11 @@ def collect_sources(messages: Sequence[BaseMessage]) -> list[dict[str, object]]:
             seen.add(key)
             sources.append(dict(item))
     return sources[:20]
+
+
+def _tool_error(message: str, **extra: object) -> str:
+    """Uniform JSON error payload for tool results."""
+    return json.dumps({"error": message, **extra})
 
 
 def _message_text(content: object) -> str:
