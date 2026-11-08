@@ -184,3 +184,11 @@ def test_mistral_priority_entries() -> None:
         ("mistral", "ministral-8b-latest"),
         ("mistral", "zai-glm-5-3-flash"),
     ]
+
+
+def test_default_priority_offers_free_openrouter_models() -> None:
+    providers = resolve_providers({"OPENROUTER_API_KEY": "key"})
+    assert [(provider.name, provider.model) for provider in providers] == [
+        ("openrouter", "openrouter/free"),
+        ("openrouter", "nvidia/nemotron-3-ultra-550b-a55b:free"),
+    ]

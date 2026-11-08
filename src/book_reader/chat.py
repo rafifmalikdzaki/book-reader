@@ -37,6 +37,7 @@ DEFAULT_PRIORITY = (
     "mistral:zai-glm-5-3-flash,"
     "inception:mercury-3,"
     "openrouter:openrouter/free,"
+    "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,"
     "ollama:gpt-oss:20b"
 )
 MAX_STEPS = 32
