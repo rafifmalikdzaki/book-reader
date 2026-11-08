@@ -339,13 +339,17 @@ def test_elastic_search_maps_hits_and_filters(tmp_path: Path) -> None:
     assert calls["index"] == "test-index"
 
 
-def test_library_search_requires_elastic(library: Path, tmp_path: Path) -> None:
-    pdf = PdfCache()
-    sections = SectionIndex(tmp_path)
-    searcher = Searcher(Library(library), pdf, sections, None)
-    assert searcher.backend() == "local"
+def test_library_search_without_elastic_uses_tree_when_available(
+    library: Path, tmp_path: Path
+) -> None:
+    tree = Searcher(Library(library), PdfCache(), SectionIndex(tmp_path), None, "pageindex")
+    assert tree.backend() == "pageindex"
+    assert tree.library_wide("title", 10) == []
+
+    strict = Searcher(Library(library), PdfCache(), SectionIndex(tmp_path), None, "local")
+    assert strict.backend() == "local"
     with pytest.raises(SearchUnavailable):
-        searcher.library_wide("title", 10)
+        strict.library_wide("title", 10)
 
 
 def test_find_book_rejects_symlink_escape(library: Path, tmp_path: Path) -> None:
@@ -356,3 +360,31 @@ def test_find_book_rejects_symlink_escape(library: Path, tmp_path: Path) -> None
     catalogue = Library(library)
     assert catalogue.find_book("escape.pdf") is None
     assert catalogue.find_book("sub/a.pdf") == (library / "sub" / "a.pdf").resolve()
+
+
+def test_pageindex_tree_search_uses_cached_sections(library: Path, tmp_path: Path) -> None:
+    state = tmp_path / "state"
+    state.mkdir()
+    path = library / "sub" / "a.pdf"
+    stat = path.stat()
+    cache = {
+        "version": 1,
+        "books": {
+            "sub/a.pdf": {
+                "mtime": stat.st_mtime,
+                "size": stat.st_size,
+                "sections": [
+                    {"title": "Retrieval", "start_page": 1, "end_page": 2},
+                    {"title": "Vector similarity", "start_page": 2, "end_page": 3},
+                ],
+            }
+        },
+    }
+    (state / "sections.json").write_text(json.dumps(cache), encoding="utf-8")
+    searcher = Searcher(Library(library), PdfCache(), SectionIndex(state), None, "pageindex")
+    assert searcher.backend() == "pageindex"
+    hits, backend = searcher.in_book("sub/a.pdf", path, "retrieval", 10)
+    assert backend == "pageindex"
+    assert [(hit["section"], hit["page"]) for hit in hits] == [("Retrieval", 1)]
+    library_hits = searcher.library_wide("vector", 10)
+    assert [hit["section"] for hit in library_hits] == ["Vector similarity"]

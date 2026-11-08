@@ -112,6 +112,22 @@ class SectionIndex:
         self._write()
         return sections
 
+    def cached(self, rel: str) -> list[Section]:
+        """Sections already on disk for ``rel``, without running extraction."""
+        entry = self._load().get(rel)
+        cached = entry.get("sections") if entry is not None else None
+        if not isinstance(cached, list):
+            return []
+        return [
+            section for section in (_coerce_section(item) for item in cached) if section is not None
+        ]
+
+    def cached_books(self) -> list[str]:
+        return sorted(
+            (rel for rel, entry in self._load().items() if entry.get("sections")),
+            key=str.casefold,
+        )
+
     def section_for_page(self, rel: str, path: Path, page: int) -> str:
         match = ""
         for section in self.sections(rel, path):

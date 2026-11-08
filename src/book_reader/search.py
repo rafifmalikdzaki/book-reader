@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 from collections.abc import Iterator
 from pathlib import Path
@@ -297,8 +298,60 @@ class ElasticSearch:
         return hits
 
 
+class PageIndexSearch:
+    """Vectorless tree search: match query terms against PageIndex section titles.
+
+    Section trees are layout-derived and cached per file, so a query never
+    triggers a PDF parse for books that have not been indexed yet.
+    """
+
+    def __init__(self, library: Library, sections: SectionIndex) -> None:
+        self._library = library
+        self._sections = sections
+
+    def search(self, query: str, *, limit: int = 50, book: str | None = None) -> list[SearchHit]:
+        terms = _terms(query)
+        if not terms or not self._sections.available():
+            return []
+        candidates: list[str]
+        if book is not None:
+            candidates = [book]
+            if not self._sections.cached(book):
+                path = self._library.find_book(book)
+                if path is None:
+                    return []
+                self._sections.sections(book, path)
+        else:
+            candidates = self._sections.cached_books()
+
+        rows: list[tuple[int, str, int, int, str]] = []
+        for rel in candidates:
+            for section in self._sections.cached(rel):
+                score = _title_score(section["title"], terms)
+                if score:
+                    rows.append(
+                        (score, rel, section["start_page"], section["end_page"], section["title"])
+                    )
+        rows.sort(key=lambda row: (-row[0], row[1].casefold(), row[2]))
+        return [
+            SearchHit(
+                book=rel,
+                kind="pdf",
+                page=start,
+                line=None,
+                line_end=None,
+                section=title,
+                snippet=f"pp. {start}-{end} · {title}",
+            )
+            for _score, rel, start, end, title in rows[:limit]
+        ]
+
+
+SEARCH_MODES = {"auto", "elastic", "pageindex", "local"}
+
+
 class Searcher:
-    """In-book and library-wide search with a local fallback."""
+    """In-book and library-wide search across the configured backends."""
 
     def __init__(
         self,
@@ -306,24 +359,42 @@ class Searcher:
         pdf: PdfCache,
         sections: SectionIndex,
         elastic: ElasticSearch | None,
+        mode: str = "auto",
     ) -> None:
         self._library = library
         self._pdf = pdf
         self._sections = sections
         self._elastic = elastic
+        self._mode = mode if mode in SEARCH_MODES else "auto"
+        self._tree = PageIndexSearch(library, sections)
+
+    def _elastic_ready(self) -> bool:
+        return (
+            self._mode in {"auto", "elastic"}
+            and self._elastic is not None
+            and self._elastic.available()
+        )
 
     def backend(self) -> str:
-        if self._elastic is not None and self._elastic.available():
+        if self._elastic_ready():
             return "elasticsearch"
+        if self._mode in {"auto", "pageindex"} and self._sections.available():
+            return "pageindex"
         return "local"
 
-    def in_book(self, rel: str, target: Path, query: str, limit: int) -> list[SearchHit]:
+    def in_book(
+        self, rel: str, target: Path, query: str, limit: int
+    ) -> tuple[list[SearchHit], str]:
         if not query.strip():
-            return []
-        if self._elastic is not None and self._elastic.available():
+            return [], "local"
+        if self._elastic_ready() and self._elastic is not None:
             hits = self._elastic.search(query, limit=limit, book=rel)
             if hits:
-                return hits
+                return hits, "elasticsearch"
+        if target.suffix.lower() == ".pdf" and self._mode in {"auto", "pageindex", "elastic"}:
+            hits = self._tree.search(query, limit=limit, book=rel)
+            if hits:
+                return hits, "pageindex"
         if target.suffix.lower() == ".md":
             return [
                 SearchHit(
@@ -336,7 +407,7 @@ class Searcher:
                     snippet=str(hit["snippet"]),
                 )
                 for hit in search_markdown(target, query, limit)
-            ]
+            ], "local"
         return [
             SearchHit(
                 book=rel,
@@ -348,16 +419,30 @@ class Searcher:
                 snippet=str(hit["snippet"]),
             )
             for hit in self._pdf.search(target, query, limit)
-        ]
+        ], "local"
 
     def library_wide(self, query: str, limit: int) -> list[SearchHit]:
-        if self._elastic is None:
-            raise SearchUnavailable(
-                "library-wide search needs Elasticsearch; set BOOK_READER_ES_URL"
-            )
-        if not self._elastic.available():
-            raise SearchUnavailable(f"Elasticsearch is not reachable at {self._elastic.url}")
-        return self._elastic.search(query, limit=limit)
+        if self._elastic_ready() and self._elastic is not None:
+            return self._elastic.search(query, limit=limit)
+        if self._mode in {"auto", "pageindex"} and self._sections.available():
+            return self._tree.search(query, limit=limit)
+        raise SearchUnavailable(
+            "library-wide search needs Elasticsearch (BOOK_READER_ES_URL) "
+            "or the pageindex extra with cached section trees"
+        )
+
+
+def _terms(query: str) -> list[str]:
+    return [term for term in re.split(r"[^0-9a-z]+", query.casefold()) if len(term) > 1]
+
+
+def _title_score(title: str, terms: list[str]) -> int:
+    tokens = [token for token in re.split(r"[^0-9a-z]+", title.casefold()) if len(token) > 2]
+    return sum(
+        1
+        for term in terms
+        if any(token.startswith(term) or term.startswith(token) for token in tokens)
+    )
 
 
 def _markdown_document(

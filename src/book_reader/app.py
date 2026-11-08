@@ -60,11 +60,13 @@ def build_services(
     *,
     es_url: str | None = None,
     es_index: str | None = None,
+    search_mode: str | None = None,
 ) -> Services:
     root = Path(library_root).resolve()
     state = Path(state_dir)
     url = es_url if es_url is not None else os.environ.get("BOOK_READER_ES_URL", "")
     index = es_index or os.environ.get("BOOK_READER_ES_INDEX", DEFAULT_ES_INDEX)
+    mode = search_mode or os.environ.get("BOOK_READER_SEARCH", "auto")
     pdf = PdfCache()
     sections = SectionIndex(state)
     library = Library(root)
@@ -78,7 +80,7 @@ def build_services(
         notepad=NotepadStore(state),
         sections=sections,
         elastic=elastic,
-        searcher=Searcher(library, pdf, sections, elastic),
+        searcher=Searcher(library, pdf, sections, elastic, mode),
     )
 
 
@@ -88,9 +90,16 @@ def create_app(
     *,
     es_url: str | None = None,
     es_index: str | None = None,
+    search_mode: str | None = None,
 ) -> FastAPI:
     """Build the app with its own library, caches, and stores."""
-    services = build_services(library_root, state_dir, es_url=es_url, es_index=es_index)
+    services = build_services(
+        library_root,
+        state_dir,
+        es_url=es_url,
+        es_index=es_index,
+        search_mode=search_mode,
+    )
     root = services.root
     library = services.library
     pdf = services.pdf
@@ -241,18 +250,18 @@ def create_app(
         if rel is not None:
             target = library.book_file(rel)
             try:
-                hits = searcher.in_book(rel, target, q, limit)
+                hits, backend = searcher.in_book(rel, target, q, limit)
             except OSError as exc:
                 raise HTTPException(status_code=400, detail=f"cannot read {rel}") from exc
             kind = "md" if target.suffix.lower() == ".md" else "pdf"
-            return {"kind": kind, "backend": searcher.backend(), "hits": hits}
+            return {"kind": kind, "backend": backend, "hits": hits}
         if not q.strip():
             return {"kind": "library", "backend": searcher.backend(), "hits": []}
         try:
             hits = searcher.library_wide(q, limit)
         except SearchUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        return {"kind": "library", "backend": "elasticsearch", "hits": hits}
+        return {"kind": "library", "backend": searcher.backend(), "hits": hits}
 
     @app.post("/api/progress")
     def api_progress(body: ProgressBody) -> dict[str, bool]:

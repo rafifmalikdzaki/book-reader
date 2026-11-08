@@ -58,6 +58,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Elasticsearch index name (default: %(default)s)",
     )
     parser.add_argument(
+        "--search",
+        choices=["auto", "elastic", "pageindex", "local"],
+        default=os.environ.get("BOOK_READER_SEARCH", "auto"),
+        help="search backend preference (default: %(default)s)",
+    )
+    parser.add_argument(
         "--index",
         action="store_true",
         help="build or update the Elasticsearch index, then exit",
@@ -80,7 +86,11 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.index or args.force_index:
         services = build_services(
-            library_root, state_dir, es_url=args.es_url, es_index=args.es_index
+            library_root,
+            state_dir,
+            es_url=args.es_url,
+            es_index=args.es_index,
+            search_mode=args.search,
         )
         if services.elastic is None:
             print(
@@ -109,7 +119,13 @@ def main(argv: list[str] | None = None) -> None:
 
     print(f"book-reader: {library_root} → http://{args.host}:{args.port}", flush=True)
     uvicorn.run(
-        create_app(library_root, state_dir, es_url=args.es_url, es_index=args.es_index),
+        create_app(
+            library_root,
+            state_dir,
+            es_url=args.es_url,
+            es_index=args.es_index,
+            search_mode=args.search,
+        ),
         host=args.host,
         port=args.port,
         log_level="info",
