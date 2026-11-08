@@ -413,7 +413,16 @@ class PageIndexSearch:
     """
 
     MAX_SCAN_PAGES = 240
+    MAX_SECTION_SPAN = 40
+    MAX_TERM_FREQUENCY = 5
     SNIPPET_RADIUS = 90
+    CONTENT_SCORE_CAP = 6.0
+    TITLE_START_BASE = 6.0
+    TITLE_START_WEIGHT = 16.0
+    TITLE_PAGE_BONUS = 2.0
+    PHRASE_BONUS = 4.0
+    SECTION_BONUS = 3.0
+    DEPTH_WEIGHT = 0.02
 
     def __init__(self, library: Library, sections: SectionIndex, pdf: PdfCache) -> None:
         self._library = library
@@ -431,6 +440,23 @@ class PageIndexSearch:
                 break
         scored.sort(key=lambda item: (-item[0], item[1]["book"], item[1]["page"] or 0))
         return [hit for _score, hit in scored[:limit]]
+
+    def _candidate_pages(self, total: int, title_pages: set[int]) -> list[int]:
+        if total <= self.MAX_SCAN_PAGES:
+            return list(range(1, total + 1))
+        ranked = sorted(number for number in title_pages if 1 <= number <= total)
+        budget = max(0, self.MAX_SCAN_PAGES - len(ranked))
+        extra = [number for number in range(1, total + 1) if number not in title_pages][:budget]
+        return sorted(set(ranked + extra))[: self.MAX_SCAN_PAGES]
+
+    def _page_texts(self, path: Path, page_numbers: list[int]) -> dict[int, str]:
+        texts: dict[int, str] = {}
+        for number in page_numbers:
+            try:
+                texts[number] = " ".join(self._pdf.page_text(path, number).split())
+            except Exception:
+                continue
+        return texts
 
     def _books(self, book: str | None) -> list[tuple[str, Path]]:
         if book is not None:
@@ -465,29 +491,17 @@ class PageIndexSearch:
         for match in title_matches:
             strength = _title_score(match["title"], terms) / max(1, len(terms))
             depth = float(match.get("depth", 0))
-            candidate = (match["title"], strength + depth * 0.02)
+            candidate = (match["title"], strength + depth * self.DEPTH_WEIGHT)
             previous = title_starts.get(match["start_page"])
             if previous is None or candidate[1] > previous[1]:
                 title_starts[match["start_page"]] = candidate
             title_pages.update(
-                range(match["start_page"], min(match["end_page"], match["start_page"] + 40) + 1)
+                range(
+                    match["start_page"],
+                    min(match["end_page"], match["start_page"] + self.MAX_SECTION_SPAN) + 1,
+                )
             )
-        page_numbers = sorted(number for number in title_pages if 1 <= number <= total)
-        if total <= self.MAX_SCAN_PAGES:
-            page_numbers = list(range(1, total + 1))
-        else:
-            budget = max(0, self.MAX_SCAN_PAGES - len(page_numbers))
-            page_numbers += [number for number in range(1, total + 1) if number not in title_pages][
-                :budget
-            ]
-        page_numbers = sorted(set(page_numbers))[: self.MAX_SCAN_PAGES]
-
-        texts: dict[int, str] = {}
-        for number in page_numbers:
-            try:
-                texts[number] = " ".join(self._pdf.page_text(path, number).split())
-            except Exception:
-                continue
+        texts = self._page_texts(path, self._candidate_pages(total, title_pages))
         folded_pages = {number: text.casefold() for number, text in texts.items()}
         scanned = max(1, len(folded_pages))
         document_frequency = {
@@ -499,7 +513,7 @@ class PageIndexSearch:
             folded = folded_pages[number]
             content = 0.0
             for term in terms:
-                frequency = min(folded.count(term), 5)
+                frequency = min(folded.count(term), self.MAX_TERM_FREQUENCY)
                 if frequency:
                     content += frequency * (
                         1.0 + math.log(scanned / max(1, document_frequency[term]))
@@ -507,20 +521,20 @@ class PageIndexSearch:
             title_entry = title_starts.get(number)
             if not content and title_entry is None:
                 continue
-            score = min(content, 6.0)
+            score = min(content, self.CONTENT_SCORE_CAP)
             if title_entry is not None:
-                score += 6 + 16 * title_entry[1]
+                score += self.TITLE_START_BASE + self.TITLE_START_WEIGHT * title_entry[1]
             if number in title_pages:
-                score += 2
+                score += self.TITLE_PAGE_BONUS
             if len(terms) > 1 and " ".join(terms) in folded:
-                score += 4
+                score += self.PHRASE_BONUS
             section = (
                 title_entry[0]
                 if title_entry is not None
                 else self._sections.section_for_page(rel, path, number)
             )
             if section and _title_score(section, terms):
-                score += 3
+                score += self.SECTION_BONUS
             if any(term in folded for term in terms):
                 snippet = _snippet(text, terms, self.SNIPPET_RADIUS)
             else:
