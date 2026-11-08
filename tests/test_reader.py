@@ -1,10 +1,8 @@
 import json
 import os
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Self, cast
 
-import pymupdf
 import pytest
 from elasticsearch import Elasticsearch
 from fastapi.testclient import TestClient
@@ -18,37 +16,6 @@ from book_reader.sections import SectionIndex
 
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 Client = tuple[TestClient, Path]
-
-
-@pytest.fixture
-def library(tmp_path: Path) -> Path:
-    root = tmp_path / "library"
-    (root / "sub").mkdir(parents=True)
-    (root / ".hidden").mkdir()
-
-    doc = pymupdf.open()
-    doc.new_page().insert_text((72, 72), "hello-search-needle")
-    doc.new_page()
-    doc.new_page()
-    doc.save(root / "sub" / "a.pdf")
-    doc.close()
-
-    (root / "note.md").write_text(
-        "# Title\n\nsee [a](sub/a.pdf)\n\n![pic](sub/pic%20one.png)\n\n"
-        "```python\nprint(1)\n```\n\nUse snake_case names.\n",
-        encoding="utf-8",
-    )
-    (root / "sub" / "pic one.png").write_bytes(PNG_MAGIC + b"\x00")
-    (root / ".hidden" / "secret.md").write_text("# secret", encoding="utf-8")
-    (root / "img.bin").write_bytes(b"\x00\x01")
-    return root
-
-
-@pytest.fixture
-def client(library: Path, tmp_path: Path) -> Iterator[Client]:
-    state = tmp_path / "state"
-    with TestClient(create_app(library, state)) as test_client:
-        yield test_client, state
 
 
 def test_index_lists_books_and_skips_hidden_dirs(client: Client) -> None:
@@ -340,6 +307,32 @@ def test_elastic_search_maps_hits_and_filters(tmp_path: Path) -> None:
         "filter": [{"term": {"book": "a.pdf"}}],
     }
     assert calls["index"] == "test-index"
+
+
+def test_elastic_requires_existing_index(tmp_path: Path) -> None:
+    class MissingIndex:
+        def exists(self, **_kwargs: object) -> bool:
+            return False
+
+    class IndexlessClient:
+        indices = MissingIndex()
+
+        def options(self, **_kwargs: object) -> Self:
+            return self
+
+        def info(self) -> dict[str, object]:
+            return {"version": {"number": "9.5.5"}}
+
+    elastic = ElasticSearch(
+        "http://localhost:9200",
+        "missing",
+        PdfCache(),
+        SectionIndex(tmp_path),
+        tmp_path,
+        client=cast(Elasticsearch, IndexlessClient()),
+    )
+    assert elastic.reachable() is True
+    assert elastic.available() is False
 
 
 def test_library_search_without_elastic_uses_tree_when_available(
