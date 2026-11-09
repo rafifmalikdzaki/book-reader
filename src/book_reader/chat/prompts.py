@@ -14,7 +14,9 @@ _PACKAGE_DIR = Path(__file__).resolve().parent.parent
 _SOCRATIC_SKILL_PATH = _PACKAGE_DIR / "skills" / "socratic_tutor.md"
 # Generated from frontend/src/features/chat-render/openui/library.tsx by `just gen-prompt`.
 _OPENUI_LANG_PROMPT_PATH = _PACKAGE_DIR / "prompts" / "openui_prompt.txt"
-DEFAULT_OPENUI_FORMAT = "lang"
+# `lang` failed the live gate (ADR-008): fallback models wrote named arguments instead of
+# positional ones, so JSON stays the default until a model-compatible prompt is found.
+DEFAULT_OPENUI_FORMAT = "json"
 
 _SOCRATIC_TRIGGERS = re.compile(
     r"\b(?:"

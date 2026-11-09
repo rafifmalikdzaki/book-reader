@@ -9,7 +9,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 import book_reader.chat.model as chat_mod
-from book_reader.chat import ChatService, ProviderConfig
+from book_reader.chat import ChatService, ProviderConfig, openui_format
 from book_reader.evals import (
     DEFAULT_EVAL_SUITE,
     OfflineEvalModel,
@@ -142,7 +142,7 @@ def main() -> int:
             providers=providers,
         )
         orig_chat_openai = chat_mod.ChatOpenAI
-        chat_mod.ChatOpenAI = lambda **_kw: OfflineEvalModel()  # type: ignore[misc,assignment]
+        chat_mod.ChatOpenAI = lambda **_kw: OfflineEvalModel(openui_format())  # type: ignore[misc,assignment]
         try:
             results = run_eval_suite(chat, DEFAULT_EVAL_SUITE, library=catalogue)
         finally:

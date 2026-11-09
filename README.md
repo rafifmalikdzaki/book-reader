@@ -57,7 +57,7 @@ Instead of passive skimming or shallow RAG summaries that truncate after 500 tok
 
 ## 🎨 Interactive Generative UI (OpenUI)
 
-Instead of dense walls of raw text, responses render tailored components from a typed library, written by the model in [OpenUI Lang](https://github.com/thesysdev/openui) and rendered progressively by the official `@openuidev/react-lang` Renderer while the answer streams. The component library (`frontend/src/features/chat-render/openui/library.tsx`) is the single source of truth: the system prompt is generated from it (`just gen-prompt`) and committed, so a Python-only install needs no Node. Answers stored before the migration (JSON `openui` blocks) still render. Set `BOOK_READER_OPENUI_FORMAT=json` to make the model emit the legacy JSON blocks instead.
+Instead of dense walls of raw text, responses render tailored components from a typed library, written by the model in [OpenUI Lang](https://github.com/thesysdev/openui) and rendered progressively by the official `@openuidev/react-lang` Renderer while the answer streams. The component library (`frontend/src/features/chat-render/openui/library.tsx`) is the single source of truth: the system prompt is generated from it (`just gen-prompt`) and committed, so a Python-only install needs no Node. Answers stored before the migration (JSON `openui` blocks) still render. The model still emits the JSON block format by default; set `BOOK_READER_OPENUI_FORMAT=lang` to have it write OpenUI Lang instead (see [ADR-008](docs/decisions/ADR-008-openui-native.md) for why that is opt-in).
 
 | Question / Task Type | Rendered Component | Key Affordances |
 | :--- | :--- | :--- |
