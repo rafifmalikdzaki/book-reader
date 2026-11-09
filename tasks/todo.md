@@ -44,7 +44,8 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
 
 - [x] Task 9: Extract `api/security.py`, `api/errors.py`; decouple domain errors.
       api/{security,errors}.py; library/errors.py (InvalidPath, PathNotFound); chat/config.UnknownModel; no fastapi in domain packages; pytest 224 passed; ruff + mypy clean.
-- [ ] Task 10: Extract library/reading/search routes and views.
+- [x] Task 10: Extract library/reading/search routes and views.
+      api/views.py + api/routes/{library,reading,search}.py; OpenAPI path/method table identical before/after (34 paths); pytest 224 passed; ruff + mypy clean.
 - [ ] Task 11: Extract organize/chat/system routes; move remaining routes.
 - [ ] Task 12: Slim `app.py`; move `Services`/`build_services` to `services.py`.
 

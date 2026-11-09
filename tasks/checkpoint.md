@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 9 done. Task 10: extract library/reading/search routes + shared views into api/routes/ and api/views.py.
+Task 10 done. Task 11: extract organize/chat/system routes; move routes_notepad, routes_chat_sessions, routes_spa into api/routes/.
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 9 done. Task 10: extract library/reading/search routes + shared views into 
 
 ## Next action
 
-Task 10: extract library/reading/search routes + shared views into api/routes/ and api/views.py.
+Task 11: extract organize/chat/system routes; move routes_notepad, routes_chat_sessions, routes_spa into api/routes/.
 
 ## Blockers
 

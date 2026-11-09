@@ -12,23 +12,20 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
 from urllib.parse import quote, urlencode
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import HTTPException
 
-from .library.errors import PathNotFound
-from .library.scan import Library
-from .notes.store import NotepadStore
-from .organize.categories import CategoryStore
-from .organize.service import LibraryOrganizer
-from .reading.markdown import render_markdown_file
-from .reading.pages import PageIndex
-from .reading.pdf import PdfCache
-from .reading.progress import ProgressStore
-from .reading.sections import SectionIndex
-from .reindex.reconciler import LibraryReconciler, ReindexReport
-from .reindex.redirects import moved_book_target
+from ..library.scan import Library
+from ..notes.store import NotepadStore
+from ..organize.categories import CategoryStore
+from ..organize.service import LibraryOrganizer
+from ..reading.markdown import render_markdown_file
+from ..reading.pages import PageIndex
+from ..reading.pdf import PdfCache
+from ..reading.progress import ProgressStore
+from ..reading.sections import SectionIndex
+from ..reindex.reconciler import LibraryReconciler, ReindexReport
 
 logger = logging.getLogger(__name__)
 
@@ -436,44 +433,3 @@ class LibraryViews:
                 "error": None,
             }
         return self.pdf_view(rel, target, requested_page)
-
-
-def register(
-    app: FastAPI,
-    *,
-    views: LibraryViews,
-    library: Library,
-    reconciler: LibraryReconciler,
-) -> None:
-    """Attach the read-only library/book JSON routes."""
-
-    @app.get("/api/library")
-    def api_library() -> dict[str, object]:
-        return views.index()
-
-    @app.get("/api/book")
-    def api_book(
-        rel: Annotated[str, Query(alias="path")],
-        page: str | None = None,
-    ) -> dict[str, object]:
-        try:
-            target = library.book_file(rel)
-        except PathNotFound:
-            moved = moved_book_target(rel, library=library, reconciler=reconciler)
-            if moved is not None:
-                # 200, not 307: a fetch() would follow a 307 into the HTML shell.
-                return {"redirect": moved}
-            raise
-        return views.book_detail(rel, target, page)
-
-    @app.get("/api/book/markdown")
-    def api_book_markdown(rel: Annotated[str, Query(alias="path")]) -> dict[str, object]:
-        target = library.book_file(rel)
-        if target.suffix.lower() != ".md":
-            raise HTTPException(status_code=400, detail="not a Markdown file")
-        return views.markdown_view(rel, target)
-
-    @app.get("/api/progress")
-    def api_progress_get(rel: Annotated[str, Query(alias="path")]) -> dict[str, object]:
-        library.book_file(rel)
-        return {"path": rel, **views.stored_progress(rel)}
