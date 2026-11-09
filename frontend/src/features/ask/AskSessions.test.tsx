@@ -75,6 +75,43 @@ describe('Ask: session controls', () => {
     expect(screen.getByRole('log').scrollTop).toBe(1000);
   });
 
+  it('renames any chat from the header; Escape and an empty title leave it alone', async () => {
+    const server = installServer();
+    server.sessions.push(
+      makeSession({ id: 's1', title: 'First chat' }),
+      makeSession({ id: 's2', title: 'Second chat' }),
+    );
+    const user = renderAsk('/ask?chat=s1');
+    await screen.findByRole('heading', { level: 1, name: 'First chat' });
+
+    await user.click(screen.getByRole('button', { name: 'Rename' }));
+    await user.type(screen.getByRole('textbox', { name: 'Chat title' }), '{Escape}');
+    expect(endpoints.updateChatSession).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { level: 1, name: 'First chat' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Rename' }));
+    await user.clear(screen.getByRole('textbox', { name: 'Chat title' }));
+    await user.type(screen.getByRole('textbox', { name: 'Chat title' }), '   {Enter}');
+    expect(endpoints.updateChatSession).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Rename' }));
+    const box = screen.getByRole('textbox', { name: 'Chat title' });
+    expect(box).toHaveValue('First chat');
+    await user.clear(box);
+    await user.type(box, '  Tensor basics {Enter}');
+    expect(endpoints.updateChatSession).toHaveBeenCalledWith('s1', { title: 'Tensor basics' });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tensor basics' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Tensor basics/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^Second chat/ }));
+    await screen.findByRole('heading', { level: 1, name: 'Second chat' });
+    await user.click(screen.getByRole('button', { name: 'Rename' }));
+    await user.clear(screen.getByRole('textbox', { name: 'Chat title' }));
+    await user.type(screen.getByRole('textbox', { name: 'Chat title' }), 'Matrices');
+    await user.tab();
+    expect(endpoints.updateChatSession).toHaveBeenLastCalledWith('s2', { title: 'Matrices' });
+  });
+
   it('pins and deletes a chat after confirmation', async () => {
     const server = installServer();
     server.sessions.push(makeSession({ id: 's9', title: 'Open' }));

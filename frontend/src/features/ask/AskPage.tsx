@@ -100,6 +100,7 @@ export default function AskPage() {
           projects={data.projects}
           locked={locked}
           onTogglePin={actions.togglePin}
+          onRename={actions.rename}
           onProject={actions.setProject}
           onDelete={() => session && setTarget({ kind: 'chat', id: session.id })}
         />

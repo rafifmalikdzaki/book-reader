@@ -38,6 +38,20 @@
   white-space: nowrap;
 }
 
+.titleInput {
+  width: 100%;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 2px solid var(--brass);
+  background: transparent;
+  color: var(--ink);
+  font: 600 18px/1.25 var(--serif);
+}
+
+.titleInput:focus-visible {
+  outline: none;
+}
+
 .titleWrap p {
   margin: 1px 0 0;
   overflow: hidden;

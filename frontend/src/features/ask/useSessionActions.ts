@@ -14,7 +14,7 @@ interface Args {
   onError: (message: string) => void;
 }
 
-/** Pin / project / category patches plus project and chat deletion (ask.js handlers). */
+/** Rename / pin / project / category patches plus project and chat deletion (ask.js handlers). */
 export function useSessionActions({ session, onError }: Args) {
   const client = useQueryClient();
   const refreshList = () => client.invalidateQueries({ queryKey: SESSIONS_KEY });
@@ -37,6 +37,7 @@ export function useSessionActions({ session, onError }: Args) {
     /** Only a category change locks the controls, like ask.js `scopeBusy`. */
     scopeBusy: patch.isPending && patch.variables !== undefined && 'categories' in patch.variables.body,
     setCategories: (categories: string[]) => update({ categories }),
+    rename: (title: string) => update({ title }),
     togglePin: () => session && update({ pinned: !session.pinned }),
     setProject: (projectId: string) => update({ project_id: projectId || null }),
     async addProject(name: string): Promise<boolean> {
