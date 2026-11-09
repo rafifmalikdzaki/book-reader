@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -582,3 +584,60 @@ def test_persisted_steps_come_from_the_callbacks_not_the_result(tmp_path: Path) 
 def test_blank_and_repeated_callback_steps_are_dropped(tmp_path: Path) -> None:
     harness = make_harness(tmp_path, chat=CallbackChat())
     assert last_message_steps(harness) == ["Searching library…", "Searching…", "Reading"]
+
+
+class FoundChat(StubChat):
+    """Reports found documents only once a live subscriber is attached."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.subscribed = threading.Event()
+
+    def ask(
+        self,
+        messages: list[ChatMessage],
+        options: AskOptions | None = None,
+        callbacks: AskCallbacks | None = None,
+    ) -> dict[str, object]:
+        assert callbacks is not None and callbacks.on_found is not None
+        assert self.subscribed.wait(5)
+        callbacks.on_found([{"book": "sub/a.pdf", "page": 1, "snippet": "needle"}])
+        callbacks.on_found([{"book": "sub/a.pdf", "page": 1}, {"book": "b.md", "line": 4}])
+        return super().ask(messages, options, callbacks)
+
+
+def test_found_documents_stream_cumulatively_and_deduplicated(tmp_path: Path) -> None:
+    chat = FoundChat()
+    harness = make_harness(tmp_path, chat=chat)
+    session = create_session(harness)
+    sid = str(session["id"])
+    sender = threading.Thread(
+        target=lambda: harness.client.post(
+            f"/api/chat/sessions/{sid}/messages", json={"content": "q"}
+        )
+    )
+    sender.start()
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        stored = harness.chats.get_session(sid)
+        if stored is not None and stored["status"] == "thinking":
+            break
+        time.sleep(0.02)
+    found: list[dict[str, object]] = []
+    with harness.client.stream("GET", f"/api/chat/sessions/{sid}/events") as response:
+        lines = response.iter_lines()
+        assert json.loads(next(lines).removeprefix("data: "))["status"] == "thinking"
+        chat.subscribed.set()
+        for line in lines:
+            if not line.startswith("data: "):
+                continue
+            event = json.loads(line.removeprefix("data: "))
+            if event["type"] == "found":
+                found = event["found"]
+            if event["type"] == "done":
+                break
+    sender.join(5)
+    assert found == [
+        {"book": "sub/a.pdf", "page": 1, "snippet": "needle"},
+        {"book": "b.md", "line": 4},
+    ]

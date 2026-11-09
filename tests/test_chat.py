@@ -574,3 +574,14 @@ def test_chat_options_validate_effort(library: Path, tmp_path: Path) -> None:
         both = client.post("/api/chat/options", json={"model": "stub:m", "effort": "extreme"})
         assert both.status_code == 400
         assert client.get("/api/chat/options").json()["selected"] == "auto"
+
+
+def test_tools_report_found_documents(library: Path, tmp_path: Path) -> None:
+    chat = build_chat(library, tmp_path)
+    found: list[list[dict[str, object]]] = []
+    tools = chat.tool_map(on_found=found.append)
+    tools["search_library"].invoke({"query": "hello-search-needle", "book": "sub/a.pdf"})
+    tools["list_books"].invoke({})
+    assert found[0][0]["book"] == "sub/a.pdf" and found[0][0]["page"] == 1
+    assert "needle" in str(found[0][0]["snippet"])
+    assert {item["book"] for item in found[1]} >= {"sub/a.pdf"}

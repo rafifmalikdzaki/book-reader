@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { ApiError } from '../../api/client';
+import type { ChatSource } from '../../api/types';
 import {
   cancelChatSession,
   getChatSession,
@@ -16,7 +17,12 @@ import { SESSIONS_KEY, sessionKey } from './keys';
  * Server state for /ask: the sessions index, chat status, and the open session. A failed
  * session load (404 = expired or deleted) drops `?chat=` and leaves a notice behind.
  */
-export function useAskData(chatId: string | null, expired: boolean, select: (id: null) => void) {
+export function useAskData(
+  chatId: string | null,
+  expired: boolean,
+  select: (id: null) => void,
+  sending = false,
+) {
   const list = useQuery({
     queryKey: SESSIONS_KEY,
     queryFn: () => listChatSessions(),
@@ -25,81 +31,93 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
   const client = useQueryClient();
   const [liveStep, setLiveStep] = useState<string>('');
   const [liveSteps, setLiveSteps] = useState<string[]>([]);
+  const [liveFound, setLiveFound] = useState<ChatSource[]>([]);
   const [liveThought, setLiveThought] = useState<string>('');
   const [liveElapsed, setLiveElapsed] = useState<number>(0);
   const [streamingText, setStreamingText] = useState<string>('');
   const status = useQuery({ queryKey: CHAT_STATUS_KEY, queryFn: () => getChatStatus() });
+  // The POST that starts a run blocks until the answer is done, so the cached session is still
+  // idle while it runs; `sending` is what tells us to poll and subscribe to live events.
   const detail = useQuery({
     queryKey: sessionKey(chatId ?? ''),
     queryFn: () => getChatSession(chatId ?? ''),
     enabled: chatId !== null,
     staleTime: 30_000,
-    refetchInterval: (q) => (q.state.data?.status === 'thinking' ? 1000 : false),
+    refetchInterval: (q) => (sending || q.state.data?.status === 'thinking' ? 1000 : false),
   });
+  const live = sending || detail.data?.status === 'thinking';
 
   useEffect(() => {
-    if (!chatId || detail.data?.status !== 'thinking') {
+    if (!chatId || !live) {
       return;
     }
     if (typeof EventSource === 'undefined') return;
-    const source = new EventSource(`/api/chat/sessions/${encodeURIComponent(chatId)}/events`);
-    source.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === 'step') {
-          const step = String(payload.step || '');
-          if (step) setLiveStep(step);
-          if (Array.isArray(payload.steps)) {
-            setLiveSteps(payload.steps.map(String));
-          } else if (step) {
-            setLiveSteps((prev) => (prev.includes(step) ? prev : [...prev, step]));
-          }
-          if (typeof payload.elapsed === 'number') {
-            setLiveElapsed(payload.elapsed);
-          }
-        } else if (payload.type === 'thought') {
-          const delta = String(payload.delta || '');
-          if (delta) {
-            setLiveThought((prev) => prev + delta);
-          }
-        } else if (payload.type === 'delta') {
-          const delta = String(payload.delta || '');
-          if (delta) {
-            setStreamingText((prev) => prev + delta);
-          }
-        } else if (payload.type === 'done') {
-          client.setQueryData(sessionKey(chatId), payload.session);
-          void client.invalidateQueries({ queryKey: SESSIONS_KEY });
-          setLiveStep('');
-          setLiveSteps([]);
-          setLiveThought('');
-          setLiveElapsed(0);
-          setStreamingText('');
-          source.close();
-        } else if (payload.type === 'error') {
-          setLiveStep('');
-          setLiveSteps([]);
-          setLiveThought('');
-          setLiveElapsed(0);
-          setStreamingText('');
-          source.close();
-        }
-      } catch {
-        // ignore
-      }
-    };
-    source.onerror = () => {
-      source.close();
-    };
-    return () => {
-      source.close();
+    const reset = () => {
       setLiveStep('');
       setLiveSteps([]);
+      setLiveFound([]);
       setLiveThought('');
       setLiveElapsed(0);
       setStreamingText('');
     };
-  }, [chatId, detail.data?.status, client]);
+    let source: EventSource | null = null;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let finished = false;
+    const connect = () => {
+      const next = new EventSource(`/api/chat/sessions/${encodeURIComponent(chatId)}/events`);
+      source = next;
+      next.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === 'step') {
+            const step = String(payload.step || '');
+            if (step) setLiveStep(step);
+            if (Array.isArray(payload.steps)) {
+              setLiveSteps(payload.steps.map(String));
+            } else if (step) {
+              setLiveSteps((prev) => (prev.includes(step) ? prev : [...prev, step]));
+            }
+            if (typeof payload.elapsed === 'number') {
+              setLiveElapsed(payload.elapsed);
+            }
+          } else if (payload.type === 'found') {
+            if (Array.isArray(payload.found)) setLiveFound(payload.found as ChatSource[]);
+          } else if (payload.type === 'thought') {
+            const delta = String(payload.delta || '');
+            if (delta) setLiveThought((prev) => prev + delta);
+          } else if (payload.type === 'delta') {
+            const delta = String(payload.delta || '');
+            if (delta) setStreamingText((prev) => prev + delta);
+          } else if (payload.type === 'done') {
+            finished = true;
+            client.setQueryData(sessionKey(chatId), payload.session);
+            void client.invalidateQueries({ queryKey: SESSIONS_KEY });
+            reset();
+            next.close();
+          } else if (payload.type === 'error') {
+            finished = true;
+            reset();
+            next.close();
+          }
+        } catch {
+          // ignore malformed events
+        }
+      };
+      // The server ends the stream at once when no run has started yet (the POST can land
+      // after this connect), so retry while the run is still live instead of giving up.
+      next.onerror = () => {
+        next.close();
+        if (!finished) retry = setTimeout(connect, 500);
+      };
+    };
+    connect();
+    return () => {
+      finished = true;
+      clearTimeout(retry);
+      source?.close();
+      reset();
+    };
+  }, [chatId, live, client]);
 
   async function cancelGeneration() {
     if (!chatId) return;
@@ -112,6 +130,7 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
     } finally {
       setLiveStep('');
       setLiveSteps([]);
+      setLiveFound([]);
       setLiveThought('');
       setLiveElapsed(0);
       setStreamingText('');
@@ -148,6 +167,7 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
     sessionStatus: detail.data?.status ?? 'idle',
     thoughtStep: liveStep || detail.data?.thought_step || '',
     liveSteps,
+    liveFound,
     liveThought,
     liveElapsed,
     streamingText,

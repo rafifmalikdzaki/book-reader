@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Sequence
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from langchain_core.messages import (
@@ -129,37 +128,6 @@ class GraphMixin(ServiceState):
                 return "finish"
             last = state["messages"][-1]
             if isinstance(last, AIMessage) and last.tool_calls:
-                if on_step:
-                    steps = []
-                    for call in last.tool_calls:
-                        name = call.get("name")
-                        args = call.get("args") or {}
-                        if name == "search_library":
-                            q = args.get("query", "")
-                            b = args.get("book")
-                            target = f" in {Path(b).name}" if b else ""
-                            steps.append(f"Searching library for “{q}”{target}")
-                        elif name == "list_books":
-                            q = args.get("query") or args.get("category") or "catalog"
-                            steps.append(f"Browsing library catalog ({q})")
-                        elif name == "get_book_outline":
-                            b = args.get("book", "")
-                            steps.append(f"Inspecting outline of {Path(b).name}")
-                        elif name == "read_section":
-                            b = args.get("book", "")
-                            s = args.get("section", "")
-                            steps.append(f"Reading section “{s}” in {Path(b).name}")
-                        elif name == "read_document":
-                            b = args.get("book", "")
-                            p = args.get("page")
-                            page_str = f" page {p}" if p else ""
-                            steps.append(f"Reading {Path(b).name}{page_str}")
-                        elif name == "read_notes":
-                            steps.append("Checking researcher notepad")
-                        elif name == "add_note":
-                            steps.append("Saving note")
-                    if steps:
-                        on_step(" · ".join(steps) + "…")
                 return "tools"
             return END
 

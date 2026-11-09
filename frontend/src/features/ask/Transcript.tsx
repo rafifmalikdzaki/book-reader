@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 
-import type { StoredMessage } from '../../api/types';
+import type { ChatSource, StoredMessage } from '../../api/types';
 import { EmptyState } from '../../ui';
 import { ChatMessageView } from '../chat-render';
 import styles from './AskPage.module.css';
+import { ProcessCard } from './ProcessCard';
 import { BOOK_PROMPTS, LIBRARY_PROMPTS, OPENUI_SHOWCASE, tourPrompt } from './prompts';
 import type { PendingTurn } from './useSendMessage';
 
@@ -15,6 +16,7 @@ interface Props {
   notice: string;
   thoughtStep?: string;
   liveSteps?: string[];
+  liveFound?: ChatSource[];
   liveThought?: string;
   liveElapsed?: number;
   streamingText?: string;
@@ -32,6 +34,7 @@ export function Transcript({
   notice,
   thoughtStep,
   liveSteps = [],
+  liveFound = [],
   liveThought = '',
   liveElapsed = 0,
   streamingText = '',
@@ -49,7 +52,7 @@ export function Transcript({
 
   useEffect(() => {
     if (box.current) box.current.scrollTop = box.current.scrollHeight;
-  }, [messages.length, showOptimisticUser, isThinking, thoughtStep, liveSteps.length, liveThought, streamingText]);
+  }, [messages.length, showOptimisticUser, isThinking, thoughtStep, liveSteps.length, liveFound.length, liveThought, streamingText]);
 
   const blank = messages.length === 0 && !showOptimisticUser && !isThinking && !loading;
   return (
@@ -116,46 +119,13 @@ export function Transcript({
         />
       ) : null}
       {isThinking ? (
-        <div className={styles.processCard} role="status" aria-live="polite">
-          <div className={styles.processHeader}>
-            <span className={styles.processSpinner} aria-hidden="true" />
-            <div className={styles.processHeaderTitle}>
-              <strong>{thoughtStep || 'Searching the library…'}</strong>
-              <span className={styles.processSubtitle}>
-                {liveSteps.length > 0
-                  ? `${liveSteps.length} step${liveSteps.length === 1 ? '' : 's'} executed`
-                  : 'Agent active'}
-              </span>
-            </div>
-            {liveElapsed > 0 ? (
-              <span className={styles.processElapsed}>{liveElapsed.toFixed(1)}s</span>
-            ) : null}
-          </div>
-          {liveSteps.length > 0 ? (
-            <div className={styles.processSteps}>
-              {liveSteps.map((step, idx) => {
-                const isCurrent = idx === liveSteps.length - 1;
-                return (
-                  <div
-                    key={idx}
-                    className={isCurrent ? styles.processStepCurrent : styles.processStepDone}
-                  >
-                    <span className={styles.processStepIcon} aria-hidden="true">
-                      {isCurrent ? '●' : '✓'}
-                    </span>
-                    <span className={styles.processStepText}>{step}</span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-          {liveThought ? (
-            <div className={styles.processThoughtStream}>
-              <div className={styles.processThoughtHeader}>Model Reasoning Stream</div>
-              <div className={styles.processThoughtBody}>{liveThought}</div>
-            </div>
-          ) : null}
-        </div>
+        <ProcessCard
+          step={thoughtStep}
+          steps={liveSteps}
+          found={liveFound}
+          thought={liveThought}
+          elapsed={liveElapsed}
+        />
       ) : null}
     </div>
   );

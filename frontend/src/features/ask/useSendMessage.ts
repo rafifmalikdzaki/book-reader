@@ -19,10 +19,20 @@ interface Args {
   setText: (update: (current: string) => string) => void;
   onError: (message: string) => void;
   select: (id: string) => void;
+  /** Fires true when a send starts and false when it settles. */
+  onSendingChange?: (sending: boolean) => void;
 }
 
 /** Port of ask.js `sendMessage`: optimistic append, lazy session creation, restore on failure. */
-export function useSendMessage({ session, draft, canSend, setText, onError, select }: Args) {
+export function useSendMessage({
+  session,
+  draft,
+  canSend,
+  setText,
+  onError,
+  select,
+  onSendingChange,
+}: Args) {
   const client = useQueryClient();
   const [pending, setPending] = useState<PendingTurn | null>(null);
   const inFlight = useRef(false);
@@ -47,6 +57,7 @@ export function useSendMessage({ session, draft, canSend, setText, onError, sele
         id = created.id;
         select(id);
       }
+      onSendingChange?.(true);
       const data =
         mode && mode !== 'teacher'
           ? await postMessage(id, text, { mode })
@@ -71,6 +82,7 @@ export function useSendMessage({ session, draft, canSend, setText, onError, sele
       if (id) await client.invalidateQueries({ queryKey: sessionKey(id) });
     } finally {
       inFlight.current = false;
+      onSendingChange?.(false);
       setPending(null);
     }
   }

@@ -63,6 +63,10 @@ class ProjectBody(BaseModel):
     name: str
 
 
+#: Cap on documents listed in the live view of one run.
+MAX_FOUND = 40
+
+
 class SessionTaskHub:
     """Coordinates background research tasks and SSE subscribers per chat session."""
 
@@ -377,6 +381,25 @@ def register(
                     },
                 )
 
+            found_seen: set[tuple[object, ...]] = set()
+            found_all: list[dict[str, object]] = []
+
+            def on_found(items: list[dict[str, object]]) -> None:
+                for item in items:
+                    key = (
+                        item.get("book"),
+                        item.get("page"),
+                        item.get("line"),
+                        item.get("section"),
+                    )
+                    if key not in found_seen and len(found_all) < MAX_FOUND:
+                        found_seen.add(key)
+                        found_all.append(item)
+                # Cumulative, so a subscriber that connected late still gets everything.
+                loop.call_soon_threadsafe(
+                    hub.emit, session_id, {"type": "found", "found": list(found_all)}
+                )
+
             def on_thought(delta: str) -> None:
                 loop.call_soon_threadsafe(hub.emit, session_id, {"type": "thought", "delta": delta})
 
@@ -398,7 +421,9 @@ def register(
                     mode=body.mode or None,
                     effort=selected_effort,
                 )
-                callbacks = AskCallbacks(on_step=on_step, on_token=on_token, on_thought=on_thought)
+                callbacks = AskCallbacks(
+                    on_step=on_step, on_token=on_token, on_thought=on_thought, on_found=on_found
+                )
                 result = chat.ask(history, options, callbacks)
             except Exception as exc:
                 chats.set_session_status(session_id, "error", thought_step="", last_error=str(exc))

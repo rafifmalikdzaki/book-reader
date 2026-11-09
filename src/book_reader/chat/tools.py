@@ -108,6 +108,34 @@ class NoteArgs(BaseModel):
     group: str = Field(default="", description="Notepad group id; empty means Inbox.")
 
 
+_FOUND_LIMIT = 8
+_SNIPPET_CHARS = 160
+
+
+def _found_documents(result: str) -> list[dict[str, object]]:
+    """Locators a tool result names (hits, catalog rows, an opened book), for the live view."""
+    try:
+        payload = json.loads(result)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(payload, dict):
+        return []
+    items: list[dict[str, object]] = []
+    for hit in payload.get("sources") or []:
+        if isinstance(hit, dict) and hit.get("book"):
+            item = {key: hit[key] for key in ("book", "page", "line", "section") if hit.get(key)}
+            snippet = " ".join(str(hit.get("snippet") or "").split())
+            if snippet:
+                item["snippet"] = snippet[:_SNIPPET_CHARS]
+            items.append(item)
+    for row in payload.get("books") or []:
+        if isinstance(row, dict) and row.get("book"):
+            items.append({"book": row["book"], "title": row.get("title") or ""})
+    if not items and payload.get("book"):
+        items.append({"book": payload["book"], "title": payload.get("title") or ""})
+    return items[:_FOUND_LIMIT]
+
+
 class ToolsMixin(ContextMixin):
     """The agent tools: list, outline, read, search, notes."""
 
@@ -116,28 +144,36 @@ class ToolsMixin(ContextMixin):
         *,
         allowed_books: set[str] | None = None,
         on_step: Callable[[str], None] | None = None,
+        on_found: Callable[[list[dict[str, object]]], None] | None = None,
     ) -> dict[str, BaseTool]:
+        def found(result: str) -> str:
+            if on_found:
+                items = _found_documents(result)
+                if items:
+                    on_found(items)
+            return result
+
         def search(query: str, book: str | None = None, limit: int = 5) -> str:
             if on_step:
                 target = f" in {Path(book).name}" if book else ""
                 on_step(f"Searching library for “{query}”{target}…")
-            return self._search_library(query, book, limit, allowed_books=allowed_books)
+            return found(self._search_library(query, book, limit, allowed_books=allowed_books))
 
         def list_books(query: str = "", category: str = "", limit: int = 30) -> str:
             if on_step:
                 label = query or category or "all books"
                 on_step(f"Browsing library catalog ({label})…")
-            return self._list_books(query, category, limit, allowed_books=allowed_books)
+            return found(self._list_books(query, category, limit, allowed_books=allowed_books))
 
         def get_book_outline(book: str) -> str:
             if on_step:
                 on_step(f"Inspecting outline of {Path(book).name}…")
-            return self._get_book_outline(book, allowed_books=allowed_books)
+            return found(self._get_book_outline(book, allowed_books=allowed_books))
 
         def read_section(book: str, section: str, max_pages: int = 6) -> str:
             if on_step:
                 on_step(f"Reading section “{section}” in {Path(book).name}…")
-            return self._read_section(book, section, max_pages, allowed_books=allowed_books)
+            return found(self._read_section(book, section, max_pages, allowed_books=allowed_books))
 
         def read_document(
             book: str,
@@ -148,7 +184,7 @@ class ToolsMixin(ContextMixin):
             if on_step:
                 page_str = f" page {page}" if page else ""
                 on_step(f"Reading {Path(book).name}{page_str}…")
-            return self._read_document(book, page, line, count, allowed_books=allowed_books)
+            return found(self._read_document(book, page, line, count, allowed_books=allowed_books))
 
         def read_notes(book: str | None = None, query: str = "") -> str:
             if on_step:

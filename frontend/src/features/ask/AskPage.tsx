@@ -21,7 +21,8 @@ import { useSessionActions } from './useSessionActions';
 export default function AskPage() {
   useStage('ask');
   const url = useAskUrl();
-  const data = useAskData(url.chatId, url.expired, url.select);
+  const [sending, setSending] = useState(false);
+  const data = useAskData(url.chatId, url.expired, url.select, sending);
   const { session } = data;
   const drawer = useDrawer();
   const input = useRef<HTMLTextAreaElement>(null);
@@ -39,6 +40,7 @@ export default function AskPage() {
     setText,
     onError: setError,
     select: url.select,
+    onSendingChange: setSending,
   });
   const isAgentThinking = sender.busy || data.sessionStatus === 'thinking';
   const locked = isAgentThinking || actions.scopeBusy;
@@ -118,6 +120,7 @@ export default function AskPage() {
           notice={data.notice}
           thoughtStep={data.thoughtStep}
           liveSteps={data.liveSteps}
+          liveFound={data.liveFound}
           liveThought={data.liveThought}
           liveElapsed={data.liveElapsed}
           streamingText={data.streamingText}

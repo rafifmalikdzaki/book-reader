@@ -149,7 +149,13 @@ class ChatService(ToolsMixin, GraphMixin):
                 callbacks.on_step(clean)
 
         step_tracker("Starting research agent…")
-        tools = list(self.tool_map(allowed_books=allowed_books, on_step=step_tracker).values())
+        tools = list(
+            self.tool_map(
+                allowed_books=allowed_books,
+                on_step=step_tracker,
+                on_found=callbacks.on_found,
+            ).values()
+        )
         key = provider_key(provider)
         accepts_effort = model_info(key).reasoning_effort is not False
         effort = options.effort if accepts_effort and key not in self._effort_rejected else None

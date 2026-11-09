@@ -48,6 +48,8 @@ class AskCallbacks:
     on_step: Callable[[str], None] | None = None
     on_token: Callable[[str], None] | None = None
     on_thought: Callable[[str], None] | None = None
+    #: Documents a tool just found (book/page/section/snippet dicts), once per tool call.
+    on_found: Callable[[list[dict[str, object]]], None] | None = None
 
 
 class ChatBackend(Protocol):
