@@ -12,7 +12,7 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from .chat_config import CHAT_MAX_MESSAGE_CHARS, select_model
+from .chat_config import CHAT_MAX_MESSAGE_CHARS, DEFAULT_CHAT_EFFORT, select_model
 from .chat_types import (
     AskCallbacks,
     AskOptions,
@@ -388,7 +388,7 @@ def register(
 
             try:
                 selected_model = select_model(body.model, preferences, chat)
-                selected_effort = body.effort or preferences.get("chat_effort", "medium")
+                selected_effort = body.effort or preferences.get("chat_effort", DEFAULT_CHAT_EFFORT)
                 options = AskOptions(
                     book=book if book_in_scope else None,
                     page=stored["page"] if book_in_scope else None,

@@ -8,7 +8,8 @@ import styles from './ModelEffortBar.module.css';
 const CHAT_OPTIONS_KEY = ['chat', 'options'] as const;
 const CHAT_KEY = ['chat'] as const;
 
-export type EffortLevel = 'low' | 'medium' | 'high';
+/** `default` sends no reasoning effort, which every provider accepts. */
+export type EffortLevel = 'default' | 'low' | 'medium' | 'high';
 
 interface Props {
   variant?: 'bar' | 'compact';
@@ -30,7 +31,7 @@ export function ModelEffortBar({ variant = 'bar', className }: Props) {
   });
 
   const selectedModel = options.data?.selected ?? 'auto';
-  const selectedEffort = (options.data?.effort ?? 'medium').toLowerCase() as EffortLevel;
+  const selectedEffort = (options.data?.effort ?? 'default').toLowerCase() as EffortLevel;
 
   const isSaving = save.isPending;
 
@@ -95,6 +96,7 @@ export function ModelEffortBar({ variant = 'bar', className }: Props) {
               disabled={isSaving}
               onChange={handleEffortSelect}
             >
+              <option value="default">Default</option>
               <option value="low">Low (Fastest)</option>
               <option value="medium">Medium</option>
               <option value="high">High (Deep)</option>
@@ -105,6 +107,16 @@ export function ModelEffortBar({ variant = 'bar', className }: Props) {
           </div>
         ) : (
           <div className={styles.effortGroup} role="group" aria-labelledby="effort-label">
+            <button
+              type="button"
+              className={styles.effortBtn}
+              aria-pressed={selectedEffort === 'default'}
+              disabled={isSaving}
+              onClick={() => handleEffortChange('default')}
+              title="Default: let the model decide, works with every provider"
+            >
+              Default
+            </button>
             <button
               type="button"
               className={styles.effortBtn}

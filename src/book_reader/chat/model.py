@@ -33,6 +33,10 @@ def _chat_model(provider: ProviderConfig, effort: str | None = None) -> ChatOpen
     return ChatOpenAI(**kwargs)
 
 
+def provider_key(provider: ProviderConfig) -> str:
+    return f"{provider.name}:{provider.model}"
+
+
 def _rejects_reasoning_effort(exc: Exception) -> bool:
     """True when a provider refused the request because it does not accept reasoning_effort."""
     return "reasoning_effort" in str(exc)

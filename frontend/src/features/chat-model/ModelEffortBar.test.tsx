@@ -79,4 +79,30 @@ describe('ModelEffortBar', () => {
     await user.selectOptions(modelSelect, 'inception:mercury-3');
     expect(endpoints.setChatOptions).toHaveBeenCalledWith({ model: 'inception:mercury-3' });
   });
+
+  it('treats an unset effort as Default and only sends a level once picked', async () => {
+    const user = userEvent.setup();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    vi.mocked(endpoints.getChatOptions).mockResolvedValue({
+      available: true,
+      models: [],
+      selected: 'auto',
+      effort: 'default',
+    });
+    vi.mocked(endpoints.setChatOptions).mockResolvedValue({ ok: true, selected: 'auto' });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ModelEffortBar />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Default' })).toHaveAttribute('aria-pressed', 'true');
+    for (const name of ['Low', 'Medium', 'High']) {
+      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
+    }
+    await user.click(screen.getByRole('button', { name: 'Medium' }));
+    expect(endpoints.setChatOptions).toHaveBeenCalledWith({ effort: 'medium' });
+  });
 });

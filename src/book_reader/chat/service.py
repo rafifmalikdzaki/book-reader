@@ -28,7 +28,7 @@ from ..search import Searcher
 from ..sections import SectionIndex
 from .graph import GraphMixin
 from .limits import MAX_STEPS
-from .model import _chat_model, _extractive_answer, _message_text
+from .model import _chat_model, _extractive_answer, _message_text, provider_key
 from .prompts import _is_socratic_request
 from .sources import _with_context_source, collect_sources
 from .tools import ToolsMixin
@@ -66,6 +66,7 @@ class ChatService(ToolsMixin, GraphMixin):
         self._categories = categories
         self._reconciler = reconciler
         self._providers = providers if providers is not None else resolve_providers()
+        self._effort_rejected = set()
 
     def providers(self) -> list[ProviderConfig]:
         return list(self._providers)
@@ -139,8 +140,9 @@ class ChatService(ToolsMixin, GraphMixin):
 
         step_tracker("Starting research agent…")
         tools = list(self.tool_map(allowed_books=allowed_books, on_step=step_tracker).values())
+        effort = None if provider_key(provider) in self._effort_rejected else options.effort
         try:
-            model = _chat_model(provider, options.effort)
+            model = _chat_model(provider, effort)
         except Exception:
             model = _chat_model(provider)
         bound = model.bind_tools(tools)

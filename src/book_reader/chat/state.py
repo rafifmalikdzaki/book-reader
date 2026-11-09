@@ -34,3 +34,5 @@ class ServiceState:
     _categories: CategoryStore | None
     _reconciler: LibraryReconciler | None
     _providers: list[ProviderConfig]
+    # "provider:model" keys whose API rejected reasoning_effort; it is not sent to them again.
+    _effort_rejected: set[str]

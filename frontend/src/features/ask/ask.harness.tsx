@@ -70,7 +70,7 @@ export function installServer(over: Partial<Server> = {}): Server {
     available: true,
     models: [{ id: 'inception:mercury-3', provider: 'inception', model: 'mercury-3' }],
     selected: 'auto',
-    effort: 'medium',
+    effort: 'default',
   }));
   vi.mocked(endpoints.getChatSession).mockImplementation(async (id) => copy(find(id)));
   vi.mocked(endpoints.createChatSession).mockImplementation(async (body = {}) => {

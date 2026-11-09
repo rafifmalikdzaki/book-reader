@@ -496,12 +496,40 @@ def test_reasoning_effort_rejection_retries_without_it(
         assert bound.invokes <= 1
     assert len(built) == 2
     assert all("reasoning_effort" not in kwargs for kwargs in built)
+    assert "test:m" in chat._effort_rejected
+
+
+def test_effort_is_not_sent_again_to_a_provider_that_rejected_it(
+    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    built: list[dict[str, object]] = []
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs: object) -> None:
+            built.append(kwargs)
+
+        def invoke(self, _msgs: object) -> AIMessage:
+            return AIMessage(content="ok")
+
+        def bind_tools(self, _tools: object) -> "FakeChatOpenAI":
+            return self
+
+    monkeypatch.setattr("book_reader.chat.model.ChatOpenAI", FakeChatOpenAI)
+    chat = build_chat(library, tmp_path)
+    provider = ProviderConfig(name="test", base_url="http://localhost", model="m", api_key="k")
+    messages: list[ChatMessage] = [{"role": "user", "content": "hi"}]
+
+    chat._run(provider, messages, AskOptions(effort="high"), AskCallbacks())
+    chat._effort_rejected.add("test:m")
+    chat._run(provider, messages, AskOptions(effort="high"), AskCallbacks())
+
+    assert [kwargs.get("reasoning_effort") for kwargs in built] == ["high", None]
 
 
 def test_chat_options_validate_effort(library: Path, tmp_path: Path) -> None:
     app = create_app(library, tmp_path / "state", chat=cast(ChatService, StubChat()))
     with TestClient(app) as client:
-        assert client.get("/api/chat/options").json()["effort"] == "medium"
+        assert client.get("/api/chat/options").json()["effort"] == "default"
 
         saved = client.post("/api/chat/options", json={"effort": " HIGH "})
         assert saved.json() == {"ok": True, "effort": "high"}

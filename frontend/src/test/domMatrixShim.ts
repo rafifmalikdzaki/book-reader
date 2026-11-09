@@ -1,6 +1,6 @@
 /**
- * Minimal DOMMatrix polyfill for headless test environments (jsdom) where `pdfjs-dist`
- * checks for `globalThis.DOMMatrix` at module initialization time.
+ * Minimal DOMMatrix polyfill for jsdom, where `pdfjs-dist` checks for `globalThis.DOMMatrix`
+ * at module initialization time. Loaded by src/test/setup.ts only, never by the app bundle.
  */
 if (typeof globalThis.DOMMatrix === 'undefined') {
   class DOMMatrixShim {

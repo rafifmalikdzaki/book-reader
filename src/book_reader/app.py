@@ -27,6 +27,7 @@ from .chat_config import (
     CHAT_EFFORTS,
     CHAT_MAX_MESSAGE_CHARS,
     CHAT_MAX_MESSAGES,
+    DEFAULT_CHAT_EFFORT,
     chat_model_ids,
     select_model,
 )
@@ -564,12 +565,17 @@ def create_app(
     @app.get("/api/chat/options")
     def api_chat_options() -> dict[str, object]:
         if chat_service is None:
-            return {"available": False, "models": [], "selected": "auto", "effort": "medium"}
+            return {
+                "available": False,
+                "models": [],
+                "selected": "auto",
+                "effort": DEFAULT_CHAT_EFFORT,
+            }
         return {
             "available": chat_service.available(),
             "models": chat_service.model_options(),
             "selected": preferences.get("chat_model", "auto"),
-            "effort": preferences.get("chat_effort", "medium"),
+            "effort": preferences.get("chat_effort", DEFAULT_CHAT_EFFORT),
         }
 
     @app.post("/api/chat/options")
@@ -607,7 +613,7 @@ def create_app(
         if body.book is not None:
             library.book_file(body.book)
         selected = select_model(body.model, preferences, chat_service)
-        selected_effort = body.effort or preferences.get("chat_effort", "medium")
+        selected_effort = body.effort or preferences.get("chat_effort", DEFAULT_CHAT_EFFORT)
         try:
             options = AskOptions(
                 book=body.book,

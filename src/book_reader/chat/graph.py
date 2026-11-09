@@ -23,7 +23,7 @@ from ..chat_types import (
     ProviderConfig,
 )
 from .limits import MAX_TOOL_ROUNDS
-from .model import _chat_model, _chunk_text, _rejects_reasoning_effort
+from .model import _chat_model, _chunk_text, _rejects_reasoning_effort, provider_key
 from .state import ServiceState
 
 if TYPE_CHECKING:
@@ -92,6 +92,7 @@ class GraphMixin(ServiceState):
             except Exception as exc:
                 if provider is None or not _rejects_reasoning_effort(exc):
                     raise
+                self._effort_rejected.add(provider_key(provider))
             plain = _chat_model(provider)
             return (plain.bind_tools(tools) if runnable is bound else plain).invoke(msgs)
 
