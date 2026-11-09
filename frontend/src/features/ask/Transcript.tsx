@@ -1,7 +1,5 @@
-import { useEffect, useRef } from 'react';
-
 import type { ChatSource, StoredMessage } from '../../api/types';
-import { EmptyState } from '../../ui';
+import { EmptyState, useStickToBottom } from '../../ui';
 import { ChatMessageView } from '../chat-render';
 import styles from './AskPage.module.css';
 import { ProcessCard } from './ProcessCard';
@@ -42,7 +40,6 @@ export function Transcript({
   onPrompt,
   onActionPrompt,
 }: Props) {
-  const box = useRef<HTMLDivElement>(null);
   const lastMessage = messages[messages.length - 1];
   const lastIsUser = lastMessage?.role === 'user';
   const showOptimisticUser =
@@ -50,13 +47,21 @@ export function Transcript({
   const isThinking = pending !== null || sessionStatus === 'thinking';
   const handleTurnPrompt = onActionPrompt ?? onPrompt;
 
-  useEffect(() => {
-    if (box.current) box.current.scrollTop = box.current.scrollHeight;
-  }, [messages.length, showOptimisticUser, isThinking, thoughtStep, liveSteps.length, liveFound.length, liveThought, streamingText]);
+  const { ref: box, onScroll } = useStickToBottom<HTMLDivElement>(
+    `${messages.length}|${isThinking}|${thoughtStep}|${liveSteps.length}|${liveFound.length}|${liveThought.length}|${streamingText.length}`,
+    showOptimisticUser ? pending?.text : null,
+  );
 
   const blank = messages.length === 0 && !showOptimisticUser && !isThinking && !loading;
   return (
-    <div ref={box} className={styles.thread} role="log" aria-live="polite" aria-busy={loading || isThinking}>
+    <div
+      ref={box}
+      onScroll={onScroll}
+      className={styles.thread}
+      role="log"
+      aria-live="polite"
+      aria-busy={loading || isThinking}
+    >
       {blank ? (
         <div className={styles.heroWrap}>
           <EmptyState

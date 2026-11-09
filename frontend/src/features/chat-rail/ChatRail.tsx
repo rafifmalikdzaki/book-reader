@@ -1,11 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { getChatStatus } from '../../api/endpoints';
 import type { ChatMode } from '../../api/types';
 import { ModelEffortBar } from '../chat-model';
 import { ChatMessageView, SmartLink, ensureKatex } from '../chat-render';
-import { Rail, RailResizeHandle, usePanel, useRailResize } from '../../ui';
+import { Rail, RailResizeHandle, useStickToBottom, usePanel, useRailResize } from '../../ui';
 
 import { useBookContext } from './bookContext';
 import { ChatForm } from './ChatForm';
@@ -23,7 +23,6 @@ export function ChatRail() {
   const queryClient = useQueryClient();
   const context = useBookContext();
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const logRef = useRef<HTMLDivElement>(null);
   const resize = useRailResize();
   const [mode, setMode] = useState<ChatMode>('teacher');
   const status = useQuery({
@@ -47,10 +46,10 @@ export function ChatRail() {
     }),
   );
 
-  useEffect(() => {
-    const node = logRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
-  }, [thread.log]);
+  const { ref: logRef, onScroll: onLogScroll } = useStickToBottom<HTMLDivElement>(
+    thread.log,
+    thread.busy,
+  );
 
   const line =
     answered && answered.stamp === status.dataUpdatedAt
@@ -107,7 +106,7 @@ export function ChatRail() {
       <div className={styles.error} role="alert">
         {thread.error}
       </div>
-      <div ref={logRef} className={styles.log} role="log" aria-live="polite">
+      <div ref={logRef} onScroll={onLogScroll} className={styles.log} role="log" aria-live="polite">
         {thread.log.map((entry) => (
           <ChatMessageView
             key={entry.id}

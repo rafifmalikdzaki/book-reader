@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
@@ -41,5 +41,26 @@ describe('ProcessCard', () => {
     expect(screen.getByRole('link', { name: 'Notes on MCMC' })).toBeInTheDocument();
     expect(screen.getByText('draw samples from p(x)')).toBeInTheDocument();
     expect(screen.getByText('Need the sampling chapter.')).toBeInTheDocument();
+  });
+
+  it('collapses and re-expands the body from the header toggle', () => {
+    renderCard({
+      step: 'Reading a.pdf page 4…',
+      steps: ['Reading a.pdf page 4…'],
+      found: [{ book: 'a.pdf', page: 4 }],
+      thought: 'Need the sampling chapter.',
+    });
+    const toggle = screen.getByRole('button', { name: 'Hide agent process' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(toggle);
+    expect(screen.getByRole('button', { name: 'Show agent process' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    expect(screen.queryByRole('list', { name: 'Steps taken' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Need the sampling chapter.')).not.toBeInTheDocument();
+    expect(screen.getByText('1 step · 1 passage found')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show agent process' }));
+    expect(screen.getByRole('list', { name: 'Steps taken' })).toBeInTheDocument();
   });
 });

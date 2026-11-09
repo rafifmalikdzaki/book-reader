@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import type { ChatSource } from '../../api/types';
 import { SmartLink, bookHref, sourceLabel } from '../chat-render';
 import styles from './AskPage.module.css';
@@ -13,9 +15,16 @@ interface Props {
 
 /** Live view of one agent run: tool steps, the documents they found, and model reasoning. */
 export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
+  const [open, setOpen] = useState(true);
   return (
     <div className={styles.processCard} role="status" aria-live="polite">
-      <div className={styles.processHeader}>
+      <button
+        type="button"
+        className={styles.processHeader}
+        aria-expanded={open}
+        aria-label={open ? 'Hide agent process' : 'Show agent process'}
+        onClick={() => setOpen((v) => !v)}
+      >
         <span className={styles.processSpinner} aria-hidden="true" />
         <div className={styles.processHeaderTitle}>
           <strong>{step || 'Searching the library…'}</strong>
@@ -28,8 +37,11 @@ export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
           </span>
         </div>
         {elapsed > 0 ? <span className={styles.processElapsed}>{elapsed.toFixed(1)}s</span> : null}
-      </div>
-      {steps.length > 0 ? (
+        <span className={styles.processChevron} data-open={open} aria-hidden="true">
+          ▾
+        </span>
+      </button>
+      {open && steps.length > 0 ? (
         <ol className={styles.processSteps} aria-label="Steps taken">
           {steps.map((text, idx) => {
             const current = idx === steps.length - 1;
@@ -44,7 +56,7 @@ export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
           })}
         </ol>
       ) : null}
-      {found.length > 0 ? (
+      {open && found.length > 0 ? (
         <div className={styles.processFound}>
           <div className={styles.processThoughtHeader}>Found in your library</div>
           <ul className={styles.processFoundList}>
@@ -65,7 +77,7 @@ export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
           </ul>
         </div>
       ) : null}
-      {thought ? (
+      {open && thought ? (
         <div className={styles.processThoughtStream}>
           <div className={styles.processThoughtHeader}>Model reasoning</div>
           <div className={styles.processThoughtBody}>{thought}</div>

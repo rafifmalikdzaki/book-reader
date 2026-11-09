@@ -41,3 +41,4 @@ export type { RailResize, RailResizeHandleProps, UseRailResizeOptions } from './
 export { useToast } from './useToast';
 export type { ToastApi } from './useToast';
 export { VisuallyHidden } from './VisuallyHidden';
+export { useStickToBottom } from './useStickToBottom';
