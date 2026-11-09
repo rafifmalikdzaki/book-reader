@@ -51,6 +51,20 @@ describe('Button', () => {
     render(<a href="/ask" className={buttonClassName('ghost', 'sm')}>Ask</a>);
     expect(screen.getByRole('link', { name: 'Ask' }).className).toContain('button');
   });
+
+  it('handles loading state with aria-busy, spinner, and disabled clicks', async () => {
+    const onClick = vi.fn();
+    render(
+      <Button loading onClick={onClick}>
+        Saving
+      </Button>,
+    );
+    const button = screen.getByRole('button', { name: 'Saving' });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    await userEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
 });
 
 describe('LinkButton', () => {

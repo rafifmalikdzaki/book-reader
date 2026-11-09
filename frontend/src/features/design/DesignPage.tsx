@@ -52,6 +52,7 @@ function ButtonsDemo() {
         <Button variant="danger">Danger</Button>
         <Button size="sm">Small</Button>
         <Button size="lg">Large</Button>
+        <Button loading>Loading…</Button>
         <Button disabled>Disabled</Button>
         <Button aria-expanded="true">Expanded</Button>
       </div>

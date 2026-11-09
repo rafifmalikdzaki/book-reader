@@ -21,6 +21,10 @@
   --rule-soft: #e8dfcc;
   --amber: #a8621b;
   --danger: #8c2f1f;
+  --indicator-amber: #f0a83e;
+  --indicator-emerald: #7ecba5;
+  --ink-on-dark: #f6f1e4;
+  --on-dark-lit: #fffdf6;
   --focus: #7e5f2e; /* 5.23:1 on paper */
   --focus-on-dark: #c7a15c; /* 5.42:1 on baize */
   --field-line: #8f7f62; /* 3.84:1 on paper-lit, 3.26:1 on paper-edge */
@@ -99,4 +103,60 @@
   :root {
     --mast-h: 104px;
   }
+}
+
+/* ---- Atmosphere: Midnight Baize (Nocturnal Dark Reading Mode) ---- */
+:root[data-atmosphere='midnight'],
+body[data-atmosphere='midnight'],
+body.atmosphere-midnight {
+  color-scheme: dark;
+
+  /* Surfaces & canvas in midnight baize */
+  --paper: #141f19;
+  --paper-lit: #1a2821;
+  --paper-edge: #111a14;
+  --paper-shade: #0b120e;
+  --code-bg: #0e1611;
+
+  /* Ink & typography: soft warm parchment */
+  --ink: #f3eee3;
+  --ink-on-dark: #f3eee3;
+  --on-dark-lit: #f8f4eb;
+  --ink-soft: #d5cbba;
+  --ink-softer: #b0a592;
+  --muted: #9e937e;
+  --placeholder: #6b756e;
+  --on-brass: #141f19;
+  --wood-ink: #0e1611;
+
+  /* Rules & borders */
+  --rule: #2a3c33;
+  --rule-soft: #1e2e26;
+  --field-line: #455c50;
+  --danger-line: #633229;
+  --masthead-bg: #0d1611;
+  --midnight-gradient-start: #18261f;
+  --midnight-gradient-mid: #131d17;
+  --midnight-gradient-end: #0d1410;
+
+  /* Accents & focus */
+  --brass: #d8b26c;
+  --brass-lit: #f3d38e;
+  --brass-deep: #d8b26c;
+  --focus: #d8b26c;
+  --focus-on-dark: #f3d38e;
+  --amber: #d9852c;
+  --danger: #e26d5c;
+
+  /* Translucency & shadows */
+  --veil: #000000b3;
+  --selection: #d8b26c44;
+  --brass-wash: #d8b26c3d;
+  --brass-halo: #d8b26c33;
+  --on-light-hover: #ffffff14;
+  --on-dark-hover: #ffffff18;
+  --on-dark-hover-faint: #ffffff10;
+  --shadow-plate: 0 16px 30px -26px #000000ee;
+  --shadow-cover: 0 14px 26px -24px #000000fa;
+  --shadow-dialog: 0 30px 60px -30px #000000ff;
 }

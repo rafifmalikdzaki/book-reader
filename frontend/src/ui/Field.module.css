@@ -10,6 +10,11 @@
   font: 600 11px/1.2 var(--sans);
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.field:focus-within .label {
+  color: var(--ink);
 }
 
 .hidden {

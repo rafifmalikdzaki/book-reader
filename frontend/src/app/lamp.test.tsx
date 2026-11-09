@@ -50,4 +50,36 @@ describe('Lamp', () => {
     expect(document.body).toHaveClass('lamp-off');
     vi.restoreAllMocks();
   });
+
+  it('switches between Daylit, Amber Study, and Midnight Baize atmospheres', async () => {
+    const user = userEvent.setup();
+    const first = renderShell('/');
+
+    // Open atmosphere dropdown
+    const menuTrigger = screen.getByRole('button', { name: /Select atmosphere/i });
+    await user.click(menuTrigger);
+    expect(screen.getByRole('menu', { name: 'Reading atmosphere' })).toBeInTheDocument();
+
+    // Select Midnight Baize
+    const midnightBtn = screen.getByRole('menuitemradio', { name: /Midnight Baize/i });
+    await user.click(midnightBtn);
+
+    expect(document.body).toHaveClass('lamp-off', 'atmosphere-midnight');
+    expect(document.body).toHaveAttribute('data-atmosphere', 'midnight');
+    expect(window.localStorage.getItem('br-lamp')).toBe('midnight');
+    first.unmount();
+
+    // Fresh load restores midnight preference
+    renderShell('/');
+    expect(document.body).toHaveClass('lamp-off', 'atmosphere-midnight');
+    expect(document.body).toHaveAttribute('data-atmosphere', 'midnight');
+
+    // Click menu trigger and select Daylit Paper
+    await user.click(screen.getByRole('button', { name: /Select atmosphere/i }));
+    await user.click(screen.getByRole('menuitemradio', { name: /Daylit Paper/i }));
+    expect(document.body).not.toHaveClass('lamp-off');
+    expect(document.body).not.toHaveClass('atmosphere-midnight');
+    expect(document.body).toHaveAttribute('data-atmosphere', 'daylight');
+    expect(window.localStorage.getItem('br-lamp')).toBe('off');
+  });
 });

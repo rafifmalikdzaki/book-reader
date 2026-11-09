@@ -12,7 +12,7 @@
   padding: 9px 12px;
   border-radius: 10px 10px 2px 10px;
   background: var(--baize);
-  color: var(--paper-lit);
+  color: var(--on-dark-lit);
 }
 
 .assistant {

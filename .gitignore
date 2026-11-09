@@ -11,6 +11,12 @@ __pycache__/
 # Local design/architecture work products
 .archify/
 .impeccable/
+.playwright-mcp/
+
+# Local agent skill installs (tooling, not project source)
+.agents/
+.claude/
+skills-lock.json
 
 # React frontend (frontend/): dependencies and the Vite build output
 frontend/node_modules/

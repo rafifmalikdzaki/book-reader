@@ -25,7 +25,13 @@
 .option[aria-pressed='true'] {
   --focus: var(--focus-on-dark);
   background: var(--baize);
-  color: var(--paper);
+  color: var(--ink-on-dark);
+}
+
+:global(body[data-atmosphere='midnight']) .option[aria-pressed='true'],
+:global(body.atmosphere-midnight) .option[aria-pressed='true'] {
+  background: var(--rule);
+  color: var(--ink-on-dark);
 }
 
 /* Inside the overflow clip the default outside ring would be cut off. */

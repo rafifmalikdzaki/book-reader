@@ -27,7 +27,7 @@ export function OptionsDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Which mind answers?"
-      description="Applies to Ask. Auto walks the provider chain."
+      description="Research intelligence for Ask, plus library index maintenance."
     >
       {/* Mounted only while open, so every open starts with fresh form state. */}
       <OptionsContent onClose={() => onOpenChange(false)} />
@@ -101,25 +101,27 @@ function OptionsContent({ onClose }: { onClose: () => void }) {
           </p>
         ) : null}
         <DialogActions>
-          <Button type="submit" disabled={save.isPending || options.isPending}>
-            Save
-          </Button>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
+          <Button type="submit" loading={save.isPending} disabled={options.isPending}>
+            Save
+          </Button>
         </DialogActions>
       </form>
-      <DialogSection title="Library">
+      <DialogSection title="Library Maintenance">
         <p className={styles.copy}>
-          Move or rename books freely. Reindex follows the file content, not its name, so notes
-          and places stay attached.
+          Move or rename books freely. Reindex follows file content hashes, not names, so notes
+          and reading progress stay intact across relocations.
         </p>
-        <Button variant="ghost" disabled={reindex.isPending} onClick={() => reindex.mutate()}>
-          Reindex library
-        </Button>
-        <span className={styles.status} role="status">
-          {reindexStatus}
-        </span>
+        <div className={styles.reindexRow}>
+          <Button variant="ghost" loading={reindex.isPending} onClick={() => reindex.mutate()}>
+            Reindex library
+          </Button>
+          <span className={styles.status} role="status">
+            {reindexStatus}
+          </span>
+        </div>
       </DialogSection>
     </>
   );

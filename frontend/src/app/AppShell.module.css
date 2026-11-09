@@ -26,6 +26,16 @@
   );
 }
 
+:global(body[data-atmosphere='midnight']) .workspace,
+:global(body.atmosphere-midnight) .workspace {
+  background: radial-gradient(
+    140% 90% at 50% 0%,
+    var(--midnight-gradient-start) 0%,
+    var(--midnight-gradient-mid) 65%,
+    var(--midnight-gradient-end) 100%
+  );
+}
+
 /* Left-hand rails (Markdown outline) portal in here as direct flex children. */
 .contentsHost {
   display: contents;
@@ -37,8 +47,13 @@
   padding: 26px 28px 90px;
 }
 
-.stage:focus {
+.stage:focus:not(:focus-visible) {
   outline: none;
+}
+
+.stage:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 
 :global(body.lamp-off) .stage {

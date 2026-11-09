@@ -5,6 +5,23 @@
   background: none;
   font-size: 12.5px;
   letter-spacing: 0.02em;
+  transition: color var(--dur-fast) var(--ease),
+              opacity var(--dur-fast) var(--ease);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.link:active:not(:disabled) {
+  opacity: 0.75;
+}
+
+.link:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: none;
 }
 
 .link:hover:not(:disabled) {

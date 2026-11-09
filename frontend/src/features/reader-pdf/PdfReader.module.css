@@ -41,7 +41,7 @@
   padding: 7px 12px;
   border-radius: var(--radius-pill);
   background: var(--baize);
-  color: var(--paper-lit);
+  color: var(--on-dark-lit);
   border: 1px solid var(--brass);
   box-shadow: var(--shadow-bubble);
   font: 500 13px/1 var(--sans);

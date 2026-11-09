@@ -1,5 +1,7 @@
 export { Button, buttonClassName } from './Button';
 export type { ButtonProps, ButtonSize, ButtonVariant } from './Button';
+export { ConfirmDialog } from './ConfirmDialog';
+export type { ConfirmDialogProps } from './ConfirmDialog';
 export { Dialog, DialogActions, DialogSection } from './Dialog';
 export type { DialogProps } from './Dialog';
 export { EmptyState } from './EmptyState';

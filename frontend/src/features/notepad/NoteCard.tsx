@@ -1,10 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { deleteNote, updateNote } from '../../api/endpoints';
+import { createNote, deleteNote, updateNote } from '../../api/endpoints';
 import type { NotepadGroup, NotepadNote, NotepadSnapshot } from '../../api/types';
-import { LinkButton, Select, Textarea, useToast } from '../../ui';
+import { ConfirmDialog, LinkButton, Select, Textarea, useToast } from '../../ui';
 import { bookFileName, locatorText, sourceHref } from './locators';
 import styles from './Notepad.module.css';
 import { NOTEPAD_KEY } from './NotepadProvider';
@@ -15,13 +15,16 @@ export const AUTOSAVE_MS = 700;
 export function NoteCard({ note, groups }: { note: NotepadNote; groups: NotepadGroup[] }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const latest = useRef(note.comment);
   const saved = useRef(note.comment);
+  const deleted = useRef(false);
   const timer = useRef<number | null>(null);
 
   const save = useCallback(() => {
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = null;
+    if (deleted.current) return;
     const comment = latest.current;
     if (comment === saved.current) return;
     const previous = saved.current;
@@ -86,19 +89,56 @@ export function NoteCard({ note, groups }: { note: NotepadNote; groups: NotepadG
         <LinkButton
           tone="danger"
           aria-label="Delete note"
-          onClick={() => {
-            if (!window.confirm('Delete this note?')) return;
-            deleteNote(note.id)
-              .then(() => {
-                toast('Note deleted.');
-                return refetch();
-              })
-              .catch(() => toast('Could not delete the note.'));
-          }}
+          onClick={() => setConfirmDeleteOpen(true)}
         >
           Delete
         </LinkButton>
       </div>
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete this note?"
+        description="This excerpt and annotation will be removed from your notepad."
+        confirmLabel="Delete note"
+        onConfirm={() => {
+          deleted.current = true;
+          if (timer.current !== null) window.clearTimeout(timer.current);
+          timer.current = null;
+          const latestComment = latest.current;
+          deleteNote(note.id)
+            .then(() => {
+              toast('Note deleted.', {
+                action: {
+                  label: 'Undo',
+                  onClick: () => {
+                    createNote({
+                      book: note.book,
+                      kind: note.kind,
+                      quote: note.quote,
+                      group: note.group,
+                      page: note.page,
+                      section: note.section,
+                      char_start: note.char_start,
+                      char_end: note.char_end,
+                      paragraph: note.paragraph,
+                      comment: latestComment,
+                    })
+                      .then(() => {
+                        toast('Note restored.');
+                        return refetch();
+                      })
+                      .catch(() => toast('Could not restore note.'));
+                  },
+                },
+              });
+              return refetch();
+            })
+            .catch(() => {
+              deleted.current = false;
+              toast('Could not delete the note.');
+            });
+        }}
+      />
     </div>
   );
 }

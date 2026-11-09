@@ -64,13 +64,61 @@ button {
 
 button:disabled {
   opacity: 0.55;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 h1,
 h2,
-h3 {
+h3,
+h4,
+h5,
+h6 {
   margin: 0;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+input,
+textarea {
+  caret-color: var(--brass-deep);
+}
+
+/* Themed browser scrollbars: bespoke scholarly palette instead of generic browser grey */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border-radius: var(--radius-pill);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--brass-deep);
 }
 
 @media (pointer: coarse) {

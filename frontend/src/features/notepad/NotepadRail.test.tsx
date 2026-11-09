@@ -120,18 +120,22 @@ describe('Notepad notes and groups', () => {
       groups: [{ id: 'inbox', name: 'Inbox', created: 0 }, IDEAS],
       notes: [makeNote({ id: 'a', quote: 'in inbox' }), makeNote({ id: 'b', group: 'g1', quote: 'in ideas' })],
     });
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValue(true);
     const user = userEvent.setup();
     renderShell('/');
     await openNotes(user);
     await screen.findByText('in ideas');
     expect(screen.queryByRole('button', { name: 'Delete group Inbox' })).not.toBeInTheDocument();
 
+    // Cancel in confirmation dialog
     await user.click(screen.getByRole('button', { name: 'Delete group Ideas' }));
+    expect(await screen.findByRole('dialog', { name: 'Delete group “Ideas”?' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByText('in ideas')).toBeInTheDocument();
+
+    // Confirm in confirmation dialog
     await user.click(screen.getByRole('button', { name: 'Delete group Ideas' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete group' }));
     await waitFor(() => expect(screen.queryByText('in ideas')).not.toBeInTheDocument());
-    expect(confirm).toHaveBeenLastCalledWith('Delete group "Ideas" and its 1 notes?');
     expect(screen.getByText('in inbox')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /Ideas/ })).not.toBeInTheDocument();
     expect(api.calls.filter((call) => call.method === 'DELETE')).toHaveLength(1);
@@ -139,7 +143,6 @@ describe('Notepad notes and groups', () => {
 
   it('moves and deletes a note', async () => {
     installFakeApi({ groups: [{ id: 'inbox', name: 'Inbox', created: 0 }, IDEAS], notes: [makeNote()] });
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = userEvent.setup();
     renderShell('/');
     await openNotes(user);
@@ -148,6 +151,8 @@ describe('Notepad notes and groups', () => {
     expect(screen.getByRole('heading', { name: 'Inbox (0)' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Delete note' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this note?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete note' }));
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Annotation' })).not.toBeInTheDocument());
   });
 

@@ -47,8 +47,12 @@
   aspect-ratio: 3 / 4;
   overflow: hidden;
   border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
   background: var(--paper-lit);
   box-shadow: var(--shadow-cover);
+  transition: transform var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
 }
 
 .cover img {
@@ -59,22 +63,32 @@
 }
 
 .md {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
   height: 100%;
   color: var(--brass-deep);
-  font: 600 26px/1 var(--serif);
-  letter-spacing: 0.08em;
+  background: radial-gradient(circle at 50% 30%, var(--paper-lit) 0%, var(--paper-edge) 100%);
+  border: 1px solid var(--rule-soft);
+  box-shadow: inset 2px 0 0 var(--brass), inset 0 0 12px var(--paper-shade);
+  font: 600 22px/1 var(--serif);
+  letter-spacing: 0.12em;
 }
 
 .tile:hover .cover {
   border-color: var(--brass);
+  box-shadow: 0 14px 28px -18px var(--brass-deep);
+  transform: translateY(-2px);
 }
 
 .title {
   display: -webkit-box;
   overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
   font: 400 14px/1.35 var(--serif);
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;

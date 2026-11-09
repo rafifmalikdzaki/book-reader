@@ -46,7 +46,7 @@ export function ChatForm({ busy, inputRef, onSend }: Props) {
           }
         }}
       />
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" loading={busy} disabled={busy}>
         Send
       </Button>
     </form>

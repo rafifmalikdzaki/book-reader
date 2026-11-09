@@ -2,6 +2,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   font-family: var(--sans);
@@ -9,11 +10,45 @@
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
 }
 
 .button:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--paper-lit), 0 0 0 4px var(--focus);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+}
+
+.loading {
+  cursor: wait;
+}
+
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: button-spin 0.6s linear infinite;
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .sm {
@@ -71,11 +106,12 @@
 .ghost[aria-expanded='true'] {
   background: var(--oak);
   border-color: var(--oak);
-  color: var(--paper);
+  color: var(--ink-on-dark);
 }
 
 /* Masthead `.ghost-btn`: after the size classes so its metrics win. */
 .onDark {
+  --focus: var(--focus-on-dark);
   height: var(--field-h);
   padding: 0 12px;
   background: transparent;
@@ -86,9 +122,14 @@
   letter-spacing: 0.02em;
 }
 
+.onDark:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--baize-deep), 0 0 0 4px var(--focus-on-dark);
+}
+
 .onDark:hover:not(:disabled) {
   background: var(--on-dark-hover-faint);
-  color: var(--paper-lit);
+  color: var(--on-dark-lit);
 }
 
 .onDark[aria-pressed='true'],

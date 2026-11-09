@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
 
 import { createNotepadGroup, deleteNotepadGroup, getNotepad, notepadExportUrl } from '../../api/endpoints';
-import { Button, EmptyState, Input, LinkButton, Rail, RailBody, usePanel, useToast } from '../../ui';
+import { Button, ConfirmDialog, EmptyState, Input, LinkButton, Rail, RailBody, usePanel, useToast } from '../../ui';
 import { ComposeForm } from './ComposeForm';
 import { NoteCard } from './NoteCard';
 import styles from './Notepad.module.css';
@@ -16,6 +16,7 @@ export function NotepadRail() {
   const { draft } = useNotepadDraft();
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const [name, setName] = useState('');
+  const [groupToDelete, setGroupToDelete] = useState<{ id: string; name: string; count: number } | null>(null);
 
   const snapshot = useQuery({ queryKey: NOTEPAD_KEY, queryFn: () => getNotepad() });
   const refetch = () => queryClient.invalidateQueries({ queryKey: NOTEPAD_KEY });
@@ -61,10 +62,7 @@ export function NotepadRail() {
                 tone="danger"
                 className={styles.groupDelete}
                 aria-label={`Delete group ${group.name}`}
-                onClick={() => {
-                  if (!window.confirm(`Delete group "${group.name}" and its ${own.length} notes?`)) return;
-                  removeGroup.mutate(group.id);
-                }}
+                onClick={() => setGroupToDelete({ id: group.id, name: group.name, count: own.length })}
               >
                 Delete
               </LinkButton>
@@ -113,6 +111,23 @@ export function NotepadRail() {
           </a>
         </div>
       </RailBody>
+      <ConfirmDialog
+        open={groupToDelete !== null}
+        onOpenChange={(open) => !open && setGroupToDelete(null)}
+        title={groupToDelete ? `Delete group “${groupToDelete.name}”?` : 'Delete group?'}
+        description={
+          groupToDelete
+            ? `This will permanently remove the group and its ${groupToDelete.count} ${groupToDelete.count === 1 ? 'note' : 'notes'}.`
+            : ''
+        }
+        confirmLabel="Delete group"
+        onConfirm={() => {
+          if (groupToDelete) {
+            removeGroup.mutate(groupToDelete.id);
+            setGroupToDelete(null);
+          }
+        }}
+      />
     </Rail>
   );
 }

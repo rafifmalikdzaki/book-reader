@@ -7,15 +7,21 @@ import styles from './Sidebar.module.css';
 export function ProjectCreate({ onCreate }: { onCreate: (name: string) => Promise<boolean> }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const field = useRef<HTMLInputElement>(null);
 
   async function submit(event: { preventDefault: () => void }) {
     event.preventDefault();
     const value = name.trim();
-    if (!value) return;
-    if (await onCreate(value)) {
-      setName('');
-      setOpen(false);
+    if (!value || submitting) return;
+    setSubmitting(true);
+    try {
+      if (await onCreate(value)) {
+        setName('');
+        setOpen(false);
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -36,12 +42,13 @@ export function ProjectCreate({ onCreate }: { onCreate: (name: string) => Promis
           maxLength={60}
           placeholder="Project name"
           aria-label="Project name"
+          disabled={submitting}
           onChange={(event) => setName(event.target.value)}
         />
-        <Button type="submit" size="sm">
+        <Button type="submit" size="sm" loading={submitting} disabled={submitting || !name.trim()}>
           Add
         </Button>
-        <LinkButton tone="muted" onClick={() => setOpen(false)}>
+        <LinkButton tone="muted" disabled={submitting} onClick={() => setOpen(false)}>
           Cancel
         </LinkButton>
       </form>

@@ -4,6 +4,15 @@
   border: 1px solid var(--field-line);
   border-radius: var(--radius-sm);
   background: var(--paper-lit);
+  color: var(--ink);
+  transition: border-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--brass-deep);
+  box-shadow: 0 0 0 2px var(--paper-lit), 0 0 0 4px var(--focus);
 }
 
 .sm {
@@ -21,6 +30,18 @@
 
 .select[aria-invalid='true'] {
   border-color: var(--danger);
+}
+
+.select[aria-invalid='true']:focus {
+  outline: none;
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px var(--paper-lit), 0 0 0 4px var(--danger);
+}
+
+.select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--paper-edge);
 }
 
 @media (pointer: coarse) {

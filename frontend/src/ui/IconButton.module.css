@@ -6,6 +6,25 @@
   border: 1px solid transparent;
   background: none;
   line-height: 1;
+  transition: background-color var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease),
+              transform var(--dur-fast) var(--ease);
+}
+
+.iconButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--paper-lit), 0 0 0 4px var(--focus);
+}
+
+.iconButton:active:not(:disabled) {
+  transform: translateY(1px) scale(0.96);
+}
+
+.iconButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .glyph {
@@ -16,16 +35,22 @@
 
 /* Legacy masthead `.icon-btn`. */
 .onDark {
+  --focus: var(--focus-on-dark);
   width: var(--field-h);
   height: var(--field-h);
   border-radius: var(--radius-sm);
   border-color: var(--baize-line);
-  color: var(--paper);
+  color: var(--ink-on-dark);
+}
+
+.onDark:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--baize-deep), 0 0 0 4px var(--focus-on-dark);
 }
 
 .onDark:hover:not(:disabled) {
   border-color: var(--brass);
-  color: var(--paper-lit);
+  color: var(--on-dark-lit);
 }
 
 /* Legacy `.ask-menu`. */
@@ -47,6 +72,11 @@
   border-radius: var(--radius-xs);
   color: var(--muted);
   font-size: 20px;
+}
+
+.plain:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--focus);
 }
 
 .plain:hover:not(:disabled) {

@@ -1,13 +1,15 @@
 .plate {
   padding: 26px 28px 22px;
   border: 1px solid var(--rule);
-  border-top: 3px solid var(--brass);
+  border-radius: var(--radius-md);
   background: var(--paper-lit);
   box-shadow: var(--shadow-plate);
 }
 
 .title {
   margin: 0 0 6px;
+  overflow-wrap: break-word;
+  word-break: break-word;
   font: 600 32px/1.18 var(--serif);
 }
 

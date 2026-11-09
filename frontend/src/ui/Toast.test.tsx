@@ -72,4 +72,34 @@ describe('Toast', () => {
     });
     expect(screen.queryByText('Gone soon')).not.toBeInTheDocument();
   });
+
+  it('renders an action button and executes its callback when clicked', async () => {
+    const user = userEvent.setup();
+    const onUndo = vi.fn();
+    function ActionTrigger() {
+      const { toast } = useToast();
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            toast('Note deleted.', {
+              action: { label: 'Undo', onClick: onUndo },
+            })
+          }
+        >
+          Delete
+        </button>
+      );
+    }
+    render(
+      <ToastProvider>
+        <ActionTrigger />
+      </ToastProvider>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    const undoBtn = screen.getByRole('button', { name: 'Undo' });
+    expect(undoBtn).toBeInTheDocument();
+    await user.click(undoBtn);
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
 });

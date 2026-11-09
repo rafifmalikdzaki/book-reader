@@ -1,6 +1,6 @@
 .viewport {
   position: fixed;
-  bottom: 22px;
+  bottom: max(22px, calc(env(safe-area-inset-bottom, 0px) + 16px));
   left: 50%;
   z-index: var(--z-toast);
   display: flex;
@@ -12,6 +12,7 @@
   padding: 0;
   list-style: none;
   translate: -50% 0;
+  overscroll-behavior: contain;
 }
 
 .viewport:focus-visible {
@@ -20,12 +21,44 @@
 }
 
 .toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 10px 16px;
   border-radius: var(--radius-md);
   background: var(--oak);
-  color: var(--paper-lit);
+  color: var(--on-dark-lit);
   box-shadow: var(--shadow-toast);
   font-size: 13px;
+}
+
+.description {
+  margin: 0;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--brass-lit);
+  font: 600 12px/1.2 var(--sans);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+
+.actionBtn:hover {
+  background: var(--brass);
+  color: var(--wood-ink);
+}
+
+.actionBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--oak), 0 0 0 4px var(--focus-on-dark);
 }
 
 .toast[data-swipe='move'] {

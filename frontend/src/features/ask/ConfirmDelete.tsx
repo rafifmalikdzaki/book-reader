@@ -26,7 +26,9 @@ export function ConfirmDelete({ target, onCancel, onConfirm }: {
         <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={onConfirm}>Delete</Button>
+        <Button variant="danger" onClick={onConfirm}>
+          Delete
+        </Button>
       </DialogActions>
     </Dialog>
   );

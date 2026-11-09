@@ -3,6 +3,8 @@
   inset: 0;
   z-index: var(--z-drawer);
   background: var(--veil);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .content {
@@ -14,6 +16,7 @@
   width: min(440px, 92vw);
   max-height: 92dvh;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 22px;
   border: 1px solid var(--brass);
   border-radius: var(--radius-lg);
