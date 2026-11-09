@@ -394,8 +394,10 @@ class ChatService:
         allowed_books: set[str] | None = None,
         scope: str | None = None,
         mode: str | None = None,
+        effort: str | None = None,
         on_step: Callable[[str], None] | None = None,
         on_token: Callable[[str], None] | None = None,
+        on_thought: Callable[[str], None] | None = None,
     ) -> dict[str, object]:
         if not self._providers:
             raise ChatUnavailable(
@@ -426,8 +428,12 @@ class ChatService:
                     run_kwargs["on_step"] = on_step
                 if "on_token" in sig.parameters or accepts_var_kw:
                     run_kwargs["on_token"] = on_token
+                if "on_thought" in sig.parameters or accepts_var_kw:
+                    run_kwargs["on_thought"] = on_thought
                 if "mode" in sig.parameters or accepts_var_kw:
                     run_kwargs["mode"] = mode
+                if "effort" in sig.parameters or accepts_var_kw:
+                    run_kwargs["effort"] = effort
                 return self._run(provider, messages, **run_kwargs)
             except Exception as exc:
                 logger.warning("chat provider %s failed: %s", provider.name, exc)
@@ -446,22 +452,47 @@ class ChatService:
         allowed_books: set[str] | None,
         scope: str | None,
         mode: str | None = None,
+        effort: str | None = None,
         on_step: Callable[[str], None] | None = None,
         on_token: Callable[[str], None] | None = None,
+        on_thought: Callable[[str], None] | None = None,
     ) -> dict[str, object]:
-        if on_step:
-            on_step("Starting research agent…")
-        tools = list(self.tool_map(allowed_books=allowed_books, on_step=on_step).values())
-        model = ChatOpenAI(
-            model=provider.model,
-            api_key=SecretStr(provider.api_key),
-            base_url=provider.base_url,
-            temperature=0.1,
-            timeout=120,
-            max_retries=0,
-        )
+        steps_recorded: list[str] = []
+
+        def step_tracker(step: str) -> None:
+            clean = step.strip()
+            if clean and (not steps_recorded or steps_recorded[-1] != clean):
+                steps_recorded.append(clean)
+            if on_step:
+                on_step(clean)
+
+        step_tracker("Starting research agent…")
+        tools = list(self.tool_map(allowed_books=allowed_books, on_step=step_tracker).values())
+        model_kwargs: dict[str, Any] = {
+            "model": provider.model,
+            "api_key": SecretStr(provider.api_key),
+            "base_url": provider.base_url,
+            "temperature": 0.1,
+            "timeout": 120,
+            "max_retries": 0,
+        }
+        if effort and effort in {"low", "medium", "high"}:
+            model_kwargs["reasoning_effort"] = effort
+        try:
+            model = ChatOpenAI(**model_kwargs)
+        except Exception:
+            model_kwargs.pop("reasoning_effort", None)
+            model = ChatOpenAI(**model_kwargs)
         bound = model.bind_tools(tools)
-        graph = self._graph(bound, model, tools, on_step=on_step, on_token=on_token)
+        graph = self._graph(
+            bound,
+            model,
+            tools,
+            on_step=step_tracker,
+            on_token=on_token,
+            on_thought=on_thought,
+            provider=provider,
+        )
         excerpt = self._page_excerpt(book, page, allowed_books=allowed_books)
         socratic = _is_socratic_request(mode, messages)
         history: list[BaseMessage] = [
@@ -500,6 +531,7 @@ class ChatService:
                 "sources": tool_sources,
                 "provider": provider.name,
                 "model": provider.model,
+                "thought_steps": steps_recorded,
                 "fallback": "extractive",
             }
         return {
@@ -507,6 +539,7 @@ class ChatService:
             "sources": _with_context_source(tool_sources, book, page, excerpt=excerpt),
             "provider": provider.name,
             "model": provider.model,
+            "thought_steps": steps_recorded,
         }
 
     def _graph(
@@ -517,6 +550,8 @@ class ChatService:
         *,
         on_step: Callable[[str], None] | None = None,
         on_token: Callable[[str], None] | None = None,
+        on_thought: Callable[[str], None] | None = None,
+        provider: ProviderConfig | None = None,
     ) -> Any:
         def tool_rounds(state: MessagesState) -> int:
             return sum(
@@ -528,12 +563,17 @@ class ChatService:
         def invoke_model(
             runnable: Runnable[Any, AIMessage], msgs: Sequence[BaseMessage]
         ) -> AIMessage:
-            if on_token is None:
-                return runnable.invoke(msgs)
             try:
+                if on_token is None and on_thought is None:
+                    return runnable.invoke(msgs)
                 accumulated: Any = None
                 for chunk in runnable.stream(msgs):
                     accumulated = chunk if accumulated is None else accumulated + chunk
+                    rc = chunk.additional_kwargs.get("reasoning_content") or getattr(
+                        chunk, "reasoning_content", None
+                    )
+                    if rc and on_thought:
+                        on_thought(str(rc))
                     has_tools = bool(
                         getattr(chunk, "tool_calls", None)
                         or getattr(chunk, "tool_call_chunks", None)
@@ -542,12 +582,22 @@ class ChatService:
                     )
                     if not has_tools:
                         delta = _chunk_text(getattr(chunk, "content", ""))
-                        if delta:
+                        if delta and on_token:
                             on_token(delta)
                 if isinstance(accumulated, AIMessage):
                     return accumulated
-            except Exception:
-                pass
+            except Exception as exc:
+                if "reasoning_effort" in str(exc) and provider:
+                    plain_clean = ChatOpenAI(
+                        model=provider.model,
+                        api_key=SecretStr(provider.api_key),
+                        base_url=provider.base_url,
+                        temperature=0.1,
+                        timeout=120,
+                        max_retries=0,
+                    )
+                    target = plain_clean.bind_tools(tools) if runnable == bound else plain_clean
+                    return target.invoke(msgs)
             return runnable.invoke(msgs)
 
         def agent_node(state: MessagesState) -> dict[str, list[BaseMessage]]:

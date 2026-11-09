@@ -338,16 +338,19 @@ export interface ChatOptions {
   available: boolean;
   models: ChatModelOption[];
   selected: string;
+  effort?: string;
 }
 
 /** POST /api/chat/options body; `model` "auto" clears the choice. 400 on unknown model. */
 export interface ChatOptionsBody {
-  model: string;
+  model?: string;
+  effort?: string;
 }
 
 export interface ChatOptionsSaved {
   ok: true;
-  selected: string;
+  selected?: string;
+  effort?: string;
 }
 
 export type ChatRole = 'user' | 'assistant';
@@ -381,6 +384,7 @@ export interface ChatAskBody {
   /** Overrides the saved model for this request. */
   model?: string | null;
   mode?: ChatMode;
+  effort?: string | null;
 }
 
 /** POST /api/chat. 400 bad input, 502 provider failed, 503 chat not configured. */
@@ -389,6 +393,7 @@ export interface ChatAskResponse {
   sources: ChatSource[];
   provider: string;
   model: string;
+  thought_steps?: string[];
   /** "extractive" when the model returned nothing and the answer is quoted from sources. */
   fallback?: string;
 }
@@ -406,6 +411,8 @@ export interface StoredMessage {
   provider: string;
   model: string;
   created: number;
+  thought_steps?: string[];
+  thought?: string;
 }
 
 export interface ChatSession {

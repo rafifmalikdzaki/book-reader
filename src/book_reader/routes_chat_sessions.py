@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import time
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
@@ -50,6 +51,8 @@ class SessionPatch(BaseModel):
 class MessageBody(BaseModel):
     content: str
     mode: str | None = None
+    model: str | None = None
+    effort: str | None = None
 
 
 class ProjectBody(BaseModel):
@@ -357,23 +360,42 @@ def register(
         loop = asyncio.get_running_loop()
 
         def background_work() -> dict[str, object]:
+            steps_recorded: list[str] = []
+            t_start = time.perf_counter()
+
             def on_step(step: str) -> None:
-                chats.set_session_status(session_id, "thinking", thought_step=step)
-                loop.call_soon_threadsafe(hub.emit, session_id, {"type": "step", "step": step})
+                clean = step.strip()
+                if clean and (not steps_recorded or steps_recorded[-1] != clean):
+                    steps_recorded.append(clean)
+                elapsed = round(time.perf_counter() - t_start, 1)
+                chats.set_session_status(session_id, "thinking", thought_step=clean)
+                loop.call_soon_threadsafe(
+                    hub.emit,
+                    session_id,
+                    {
+                        "type": "step",
+                        "step": clean,
+                        "steps": list(steps_recorded),
+                        "elapsed": elapsed,
+                    },
+                )
+
+            def on_thought(delta: str) -> None:
+                loop.call_soon_threadsafe(hub.emit, session_id, {"type": "thought", "delta": delta})
 
             def on_token(delta: str) -> None:
                 loop.call_soon_threadsafe(hub.emit, session_id, {"type": "delta", "delta": delta})
 
             chats.set_session_status(session_id, "thinking", thought_step="Searching library…")
-            loop.call_soon_threadsafe(
-                hub.emit, session_id, {"type": "step", "step": "Searching library…"}
-            )
+            on_step("Searching library…")
 
             try:
+                selected_model = select_model(body.model, preferences, chat)
+                selected_effort = body.effort or preferences.get("chat_effort", "medium")
                 ask_kwargs: dict[str, Any] = {
                     "book": book if book_in_scope else None,
                     "page": stored["page"] if book_in_scope else None,
-                    "model": select_model(None, preferences, chat),
+                    "model": selected_model,
                     "allowed_books": allowed,
                     "scope": scope_label(selected),
                 }
@@ -383,8 +405,12 @@ def register(
                     ask_kwargs["on_step"] = on_step
                 if "on_token" in ask_sig.parameters or accepts_var_kw:
                     ask_kwargs["on_token"] = on_token
+                if "on_thought" in ask_sig.parameters or accepts_var_kw:
+                    ask_kwargs["on_thought"] = on_thought
                 if body.mode and ("mode" in ask_sig.parameters or accepts_var_kw):
                     ask_kwargs["mode"] = body.mode
+                if "effort" in ask_sig.parameters or accepts_var_kw:
+                    ask_kwargs["effort"] = selected_effort
                 result = chat.ask(history, **ask_kwargs)
             except Exception as exc:
                 chats.set_session_status(session_id, "error", thought_step="", last_error=str(exc))
@@ -412,6 +438,13 @@ def register(
                 if isinstance(raw_sources, list)
                 else []
             )
+            # Combine steps from result if provided
+            final_steps = list(steps_recorded)
+            raw_thought_steps = result.get("thought_steps")
+            if isinstance(raw_thought_steps, list):
+                for s in raw_thought_steps:
+                    if isinstance(s, str) and s and s not in final_steps:
+                        final_steps.append(s)
             try:
                 chats.add_message(
                     session_id,
@@ -420,6 +453,7 @@ def register(
                     sources=sources,
                     provider=str(result.get("provider") or ""),
                     model=str(result.get("model") or ""),
+                    thought_steps=final_steps,
                 )
             except (ChatStorageError, ChatStoreError) as exc:
                 chats.set_session_status(session_id, "error", thought_step="", last_error=str(exc))

@@ -84,10 +84,12 @@ class ChatBody(BaseModel):
     page: int | None = None
     model: str | None = None
     mode: str | None = None
+    effort: str | None = None
 
 
 class ModelChoice(BaseModel):
-    model: str
+    model: str | None = None
+    effort: str | None = None
 
 
 class OrganizeBody(BaseModel):
@@ -555,23 +557,32 @@ def create_app(
     @app.get("/api/chat/options")
     def api_chat_options() -> dict[str, object]:
         if chat_service is None:
-            return {"available": False, "models": [], "selected": "auto"}
+            return {"available": False, "models": [], "selected": "auto", "effort": "medium"}
         return {
             "available": chat_service.available(),
             "models": chat_service.model_options(),
             "selected": preferences.get("chat_model", "auto"),
+            "effort": preferences.get("chat_effort", "medium"),
         }
 
     @app.post("/api/chat/options")
     def api_chat_options_save(choice: ModelChoice) -> dict[str, object]:
-        model = choice.model.strip() or "auto"
-        if model != "auto":
-            if chat_service is None:
-                raise HTTPException(status_code=503, detail="chat is not configured")
-            if model not in chat_model_ids(chat_service):
-                raise HTTPException(status_code=400, detail=f"unknown model: {model}")
-        preferences.set("chat_model", model)
-        return {"ok": True, "selected": model}
+        resp: dict[str, object] = {"ok": True}
+        if choice.model is not None:
+            model = choice.model.strip() or "auto"
+            if model != "auto":
+                if chat_service is None:
+                    raise HTTPException(status_code=503, detail="chat is not configured")
+                if model not in chat_model_ids(chat_service):
+                    raise HTTPException(status_code=400, detail=f"unknown model: {model}")
+            preferences.set("chat_model", model)
+            resp["selected"] = model
+        if choice.effort is not None:
+            effort = choice.effort.strip().lower()
+            if effort in {"default", "low", "medium", "high"}:
+                preferences.set("chat_effort", effort)
+                resp["effort"] = effort
+        return resp
 
     @app.post("/api/chat")
     def api_chat(body: ChatBody) -> dict[str, object]:
@@ -592,20 +603,21 @@ def create_app(
         if body.book is not None:
             library.book_file(body.book)
         selected = select_model(body.model, preferences, chat_service)
+        selected_effort = body.effort or preferences.get("chat_effort", "medium")
         try:
             ask_kwargs: dict[str, object] = {
                 "book": body.book,
                 "page": body.page,
                 "model": selected,
             }
-            if body.mode:
-                import inspect as _inspect
+            import inspect as _inspect
 
-                sig = _inspect.signature(chat_service.ask)
-                if "mode" in sig.parameters or any(
-                    p.kind == p.VAR_KEYWORD for p in sig.parameters.values()
-                ):
-                    ask_kwargs["mode"] = body.mode
+            sig = _inspect.signature(chat_service.ask)
+            accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())
+            if "effort" in sig.parameters or accepts_var_kw:
+                ask_kwargs["effort"] = selected_effort
+            if body.mode and ("mode" in sig.parameters or accepts_var_kw):
+                ask_kwargs["mode"] = body.mode
             return chat_service.ask(messages, **ask_kwargs)  # type: ignore[arg-type]
         except ChatUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc

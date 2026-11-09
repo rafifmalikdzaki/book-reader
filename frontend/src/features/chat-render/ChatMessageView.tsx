@@ -13,6 +13,8 @@ export interface ChatMessageData {
   sources?: ChatSource[];
   provider?: string;
   model?: string;
+  thought_steps?: string[];
+  thought?: string;
 }
 
 export interface ChatMessageViewProps {
@@ -55,6 +57,33 @@ export function ChatMessageView({
         className,
       )}
     >
+      {message.role === 'assistant' && !pending && (message.thought_steps?.length || message.thought) ? (
+        <details className={styles.thoughtTrace}>
+          <summary className={styles.thoughtTraceSummary}>
+            <span className={styles.thoughtTraceIcon} aria-hidden="true">💡</span>
+            <span className={styles.thoughtTraceTitle}>
+              Research & reasoning process ({message.thought_steps?.length || 1} step{(message.thought_steps?.length || 1) === 1 ? '' : 's'})
+            </span>
+          </summary>
+          <div className={styles.thoughtTraceBody}>
+            {message.thought_steps?.length ? (
+              <ol className={styles.thoughtStepList}>
+                {message.thought_steps.map((step, idx) => (
+                  <li key={idx} className={styles.thoughtStepItem}>
+                    <span className={styles.thoughtStepNumber}>{idx + 1}</span>
+                    <span className={styles.thoughtStepText}>{step}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : null}
+            {message.thought ? (
+              <div className={styles.thoughtContentText}>
+                {message.thought}
+              </div>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
       {message.role === 'assistant' ? (
         <MarkdownAnswer text={message.content} onPrompt={onPrompt} />
       ) : (

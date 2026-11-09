@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { getChatStatus } from '../../api/endpoints';
 import type { ChatMode } from '../../api/types';
+import { ModelEffortBar } from '../chat-model';
 import { ChatMessageView, SmartLink, ensureKatex } from '../chat-render';
 import { Rail, RailResizeHandle, usePanel, useRailResize } from '../../ui';
 
@@ -81,6 +82,7 @@ export function ChatRail() {
           </SmartLink>
         </div>
       ) : null}
+      <ModelEffortBar variant="compact" />
       <div className={styles.modeBar} role="group" aria-label="Teaching mode">
         <button
           type="button"

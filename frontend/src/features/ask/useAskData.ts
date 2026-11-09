@@ -24,6 +24,9 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
   });
   const client = useQueryClient();
   const [liveStep, setLiveStep] = useState<string>('');
+  const [liveSteps, setLiveSteps] = useState<string[]>([]);
+  const [liveThought, setLiveThought] = useState<string>('');
+  const [liveElapsed, setLiveElapsed] = useState<number>(0);
   const [streamingText, setStreamingText] = useState<string>('');
   const status = useQuery({ queryKey: CHAT_STATUS_KEY, queryFn: () => getChatStatus() });
   const detail = useQuery({
@@ -44,7 +47,21 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
       try {
         const payload = JSON.parse(event.data);
         if (payload.type === 'step') {
-          setLiveStep(String(payload.step || ''));
+          const step = String(payload.step || '');
+          if (step) setLiveStep(step);
+          if (Array.isArray(payload.steps)) {
+            setLiveSteps(payload.steps.map(String));
+          } else if (step) {
+            setLiveSteps((prev) => (prev.includes(step) ? prev : [...prev, step]));
+          }
+          if (typeof payload.elapsed === 'number') {
+            setLiveElapsed(payload.elapsed);
+          }
+        } else if (payload.type === 'thought') {
+          const delta = String(payload.delta || '');
+          if (delta) {
+            setLiveThought((prev) => prev + delta);
+          }
         } else if (payload.type === 'delta') {
           const delta = String(payload.delta || '');
           if (delta) {
@@ -54,10 +71,16 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
           client.setQueryData(sessionKey(chatId), payload.session);
           void client.invalidateQueries({ queryKey: SESSIONS_KEY });
           setLiveStep('');
+          setLiveSteps([]);
+          setLiveThought('');
+          setLiveElapsed(0);
           setStreamingText('');
           source.close();
         } else if (payload.type === 'error') {
           setLiveStep('');
+          setLiveSteps([]);
+          setLiveThought('');
+          setLiveElapsed(0);
           setStreamingText('');
           source.close();
         }
@@ -71,6 +94,9 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
     return () => {
       source.close();
       setLiveStep('');
+      setLiveSteps([]);
+      setLiveThought('');
+      setLiveElapsed(0);
       setStreamingText('');
     };
   }, [chatId, detail.data?.status, client]);
@@ -85,6 +111,9 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
       // ignore
     } finally {
       setLiveStep('');
+      setLiveSteps([]);
+      setLiveThought('');
+      setLiveElapsed(0);
       setStreamingText('');
     }
   }
@@ -118,6 +147,9 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
     session,
     sessionStatus: detail.data?.status ?? 'idle',
     thoughtStep: liveStep || detail.data?.thought_step || '',
+    liveSteps,
+    liveThought,
+    liveElapsed,
     streamingText,
     cancelGeneration,
     loadingSession: chatId !== null && detail.isPending,

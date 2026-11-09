@@ -869,6 +869,97 @@
   background: var(--brass);
 }
 
+/* ---- thought & reasoning process disclosure ---- */
+.thoughtTrace {
+  margin: 0 0 12px;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-sm);
+  background: var(--paper-edge);
+  overflow: hidden;
+  font-size: 12.5px;
+}
+
+.thoughtTraceSummary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.thoughtTraceSummary:hover {
+  background: var(--on-light-hover);
+  color: var(--ink);
+}
+
+.thoughtTraceIcon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.thoughtTraceTitle {
+  flex: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.thoughtTraceBody {
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--rule-soft);
+  background: var(--paper-lit);
+}
+
+.thoughtStepList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.thoughtStepItem {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.thoughtStepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--paper-edge);
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  font: 600 10px/1 var(--sans);
+  flex-shrink: 0;
+}
+
+.thoughtStepText {
+  flex: 1;
+}
+
+.thoughtContentText {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--brass);
+  background: var(--paper-edge);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  white-space: pre-wrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skillFill,
   .masteryRingFill,

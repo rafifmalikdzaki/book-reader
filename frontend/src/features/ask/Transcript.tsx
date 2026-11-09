@@ -53,6 +53,9 @@ interface Props {
   aboutBook: boolean;
   notice: string;
   thoughtStep?: string;
+  liveSteps?: string[];
+  liveThought?: string;
+  liveElapsed?: number;
   streamingText?: string;
   sessionStatus?: 'idle' | 'thinking' | 'error';
   onPrompt: (text: string) => void;
@@ -67,6 +70,9 @@ export function Transcript({
   aboutBook,
   notice,
   thoughtStep,
+  liveSteps = [],
+  liveThought = '',
+  liveElapsed = 0,
   streamingText = '',
   sessionStatus = 'idle',
   onPrompt,
@@ -82,7 +88,7 @@ export function Transcript({
 
   useEffect(() => {
     if (box.current) box.current.scrollTop = box.current.scrollHeight;
-  }, [messages.length, showOptimisticUser, isThinking, thoughtStep, streamingText]);
+  }, [messages.length, showOptimisticUser, isThinking, thoughtStep, liveSteps.length, liveThought, streamingText]);
 
   const blank = messages.length === 0 && !showOptimisticUser && !isThinking && !loading;
   return (
@@ -138,9 +144,45 @@ export function Transcript({
         />
       ) : null}
       {isThinking ? (
-        <div className={styles.thinkingCard} role="status" aria-live="polite">
-          <span className={styles.thinkingSpinner} aria-hidden="true" />
-          <span>{thoughtStep || 'Searching the library…'}</span>
+        <div className={styles.processCard} role="status" aria-live="polite">
+          <div className={styles.processHeader}>
+            <span className={styles.processSpinner} aria-hidden="true" />
+            <div className={styles.processHeaderTitle}>
+              <strong>{thoughtStep || 'Searching the library…'}</strong>
+              <span className={styles.processSubtitle}>
+                {liveSteps.length > 0
+                  ? `${liveSteps.length} step${liveSteps.length === 1 ? '' : 's'} executed`
+                  : 'Agent active'}
+              </span>
+            </div>
+            {liveElapsed > 0 ? (
+              <span className={styles.processElapsed}>{liveElapsed.toFixed(1)}s</span>
+            ) : null}
+          </div>
+          {liveSteps.length > 0 ? (
+            <div className={styles.processSteps}>
+              {liveSteps.map((step, idx) => {
+                const isCurrent = idx === liveSteps.length - 1;
+                return (
+                  <div
+                    key={idx}
+                    className={isCurrent ? styles.processStepCurrent : styles.processStepDone}
+                  >
+                    <span className={styles.processStepIcon} aria-hidden="true">
+                      {isCurrent ? '●' : '✓'}
+                    </span>
+                    <span className={styles.processStepText}>{step}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+          {liveThought ? (
+            <div className={styles.processThoughtStream}>
+              <div className={styles.processThoughtHeader}>Model Reasoning Stream</div>
+              <div className={styles.processThoughtBody}>{liveThought}</div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

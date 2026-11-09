@@ -307,4 +307,29 @@ describe('Rich Markdown & OpenUI Generative Blocks', () => {
     expect(screen.getByText('120 ms')).toBeInTheDocument();
     expect(screen.getByText('Diffusion LLM')).toBeInTheDocument();
   });
+
+  it('renders thought process disclosure when thought_steps are provided', () => {
+    render(
+      <MemoryRouter>
+        <ChatMessageView
+          message={{
+            role: 'assistant',
+            content: 'Here is the answer.',
+            thought_steps: [
+              'Searching library for attention',
+              'Reading section 3.1 in transformers.pdf',
+              'Synthesizing explanation',
+            ],
+            thought: 'We should highlight key formulas.',
+          }}
+          variant="thread"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/Research & reasoning process \(3 steps\)/)).toBeInTheDocument();
+    expect(screen.getByText('Searching library for attention')).toBeInTheDocument();
+    expect(screen.getByText('Reading section 3.1 in transformers.pdf')).toBeInTheDocument();
+    expect(screen.getByText('We should highlight key formulas.')).toBeInTheDocument();
+  });
 });

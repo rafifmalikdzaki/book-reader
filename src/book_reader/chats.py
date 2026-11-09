@@ -35,7 +35,7 @@ class ChatStorageError(RuntimeError):
     """The chat state could not be written."""
 
 
-class StoredMessage(TypedDict):
+class StoredMessage(TypedDict, total=False):
     id: str
     role: str
     content: str
@@ -43,6 +43,7 @@ class StoredMessage(TypedDict):
     provider: str
     model: str
     created: float
+    thought_steps: list[str]
 
 
 class ChatSession(TypedDict, total=False):
@@ -104,7 +105,13 @@ def _message(raw: object) -> StoredMessage | None:
         if isinstance(sources_raw, list)
         else []
     )
-    return {
+    thought_steps_raw = raw.get("thought_steps")
+    thought_steps = (
+        [str(step) for step in thought_steps_raw if isinstance(step, str)]
+        if isinstance(thought_steps_raw, list)
+        else []
+    )
+    msg: StoredMessage = {
         "id": _text(raw.get("id")) or secrets.token_hex(8),
         "role": role,
         "content": content[:MAX_MESSAGE_CHARS],
@@ -113,6 +120,9 @@ def _message(raw: object) -> StoredMessage | None:
         "model": _text(raw.get("model")),
         "created": _timestamp(raw.get("created")),
     }
+    if thought_steps:
+        msg["thought_steps"] = thought_steps
+    return msg
 
 
 def _project(raw: object) -> ChatProject | None:
@@ -442,6 +452,7 @@ class ChatStore:
         sources: list[dict[str, object]] | None = None,
         provider: str = "",
         model: str = "",
+        thought_steps: list[str] | None = None,
     ) -> ChatSession:
         clean_role = role.strip()
         clean_content = content.strip()
@@ -466,6 +477,8 @@ class ChatStore:
                 "model": model,
                 "created": now,
             }
+            if thought_steps:
+                message["thought_steps"] = [str(step) for step in thought_steps if step]
             session["messages"].append(message)
             overflow = len(session["messages"]) - MAX_MESSAGES
             if overflow > 0:

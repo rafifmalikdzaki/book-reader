@@ -199,21 +199,30 @@ uv run python scripts/eval_ask.py --live --model inception:mercury-3
 
 ## 🛠️ Development
 
+We use [`just`](https://github.com/casey/just) for streamlined, cross-platform build and test automation:
+
 ```bash
-# Python unit tests & linting
-uv run pytest -q
-uv run ruff check .
-uv run mypy src tests
+# Run full quality gate (Python format/lint/types/tests + Frontend lint/types/tests/build)
+just ci
 
-# Frontend checks
-cd frontend && npm run lint && npm run typecheck && npm test
+# Run all linters and typecheckers
+just check
 
-# Full CI gate (Python checks, frontend lint/typecheck/tests/build)
-./scripts/ci.sh
+# Run all test suites (182 Python tests + 202 Frontend tests)
+just test
+
+# Auto-format and fix Python code
+just fmt
+
+# Run Ask + Socratic Tutor evaluation suite (offline or live Mercury 3)
+just eval-offline
+just eval-live
 
 # Dev server with HMR (proxies API to localhost:8000)
-cd frontend && npm run dev
+just dev-ui
 ```
+
+*(You can also run commands directly with `uv run ...` and `npm run ...` if `just` is not installed.)*
 
 ---
 

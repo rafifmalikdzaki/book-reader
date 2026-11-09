@@ -9,6 +9,9 @@ export interface LogEntry {
   role: 'user' | 'assistant';
   content: string;
   sources?: ChatSource[];
+  provider?: string;
+  model?: string;
+  thought_steps?: string[];
   pending?: boolean;
 }
 
@@ -67,7 +70,15 @@ export function useChatThread(
       history.current = [...history.current, { role: 'assistant', content: data.answer }];
       setLog((entries) => [
         ...entries.filter((entry) => entry.id !== pendingId),
-        { id: pendingId, role: 'assistant', content: data.answer, sources: data.sources },
+        {
+          id: pendingId,
+          role: 'assistant',
+          content: data.answer,
+          sources: data.sources,
+          provider: data.provider,
+          model: data.model,
+          thought_steps: data.thought_steps,
+        },
       ]);
       onAnswered?.({ provider: data.provider, model: data.model });
     } catch (caught) {

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 
 import type { ChatMode } from '../../api/types';
 import { useStage } from '../../app';
+import { ModelEffortBar } from '../chat-model';
 import { AskHeader } from './AskHeader';
 import styles from './AskPage.module.css';
 import { Composer } from './Composer';
@@ -100,6 +101,7 @@ export default function AskPage() {
           onProject={actions.setProject}
           onDelete={() => session && setTarget({ kind: 'chat', id: session.id })}
         />
+        <ModelEffortBar />
         <ScopePicker
           categories={data.categories}
           selected={session ? session.categories : draftCategories}
@@ -115,6 +117,9 @@ export default function AskPage() {
           aboutBook={Boolean(session?.book ?? url.book)}
           notice={data.notice}
           thoughtStep={data.thoughtStep}
+          liveSteps={data.liveSteps}
+          liveThought={data.liveThought}
+          liveElapsed={data.liveElapsed}
           streamingText={data.streamingText}
           sessionStatus={data.sessionStatus}
           onPrompt={(prompt) => {

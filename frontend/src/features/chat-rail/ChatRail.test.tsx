@@ -2,13 +2,18 @@ import { fireEvent, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '../../api/client';
-import { askStateless, getChatStatus } from '../../api/endpoints';
+import { askStateless, getChatOptions, getChatStatus } from '../../api/endpoints';
 import type { ChatAskResponse } from '../../api/types';
 import { stubViewport } from '../../ui/test-utils';
 
 import { AUTO, answer, openChat, setup } from './ChatRail.harness';
 
-vi.mock('../../api/endpoints', () => ({ askStateless: vi.fn(), getChatStatus: vi.fn() }));
+vi.mock('../../api/endpoints', () => ({
+  askStateless: vi.fn(),
+  getChatStatus: vi.fn(),
+  getChatOptions: vi.fn(),
+  setChatOptions: vi.fn(),
+}));
 vi.mock('./bookContext', () => ({
   useBookContext: () => ({ book: 'shelf/Deep Learning.pdf', page: 12 }),
 }));
@@ -20,6 +25,12 @@ beforeEach(() => {
   window.localStorage.clear();
   window.renderMathInElement = vi.fn();
   status.mockResolvedValue(AUTO);
+  vi.mocked(getChatOptions).mockResolvedValue({
+    available: true,
+    models: [{ id: 'inception:mercury-3', provider: 'inception', model: 'mercury-3' }],
+    selected: 'auto',
+    effort: 'medium',
+  });
   ask.mockReset();
 });
 

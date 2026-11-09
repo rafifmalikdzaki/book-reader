@@ -134,9 +134,13 @@ export function getChatOptions(options?: RequestOptions): Promise<ChatOptions> {
   return apiGet<ChatOptions>('/api/chat/options', options);
 }
 
-/** `model` is "auto" or a `ChatModelOption.id`. */
-export function setChatOptions(model: string, options?: RequestOptions): Promise<ChatOptionsSaved> {
-  return apiSend<ChatOptionsSaved>('POST', '/api/chat/options', { model }, options);
+/** Set active model or reasoning effort. */
+export function setChatOptions(
+  choice: { model?: string; effort?: string } | string,
+  options?: RequestOptions,
+): Promise<ChatOptionsSaved> {
+  const payload = typeof choice === 'string' ? { model: choice } : choice;
+  return apiSend<ChatOptionsSaved>('POST', '/api/chat/options', payload, options);
 }
 
 /** Stateless ask used by the reader chat rail. */

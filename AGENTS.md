@@ -15,15 +15,16 @@ served by FastAPI from the generated `static/app/` bundle.
 ## Commands
 
 ```bash
-uv sync
-uv run book-reader --library ~/Documents/Books --port 8000
-uv run pytest -q
-./scripts/ci.sh                 # python gate, then frontend lint/typecheck/test/build
-scripts/build_frontend.sh       # npm ci + build into src/book_reader/static/app (required before run)
-cd frontend && npm run dev      # Vite dev server, proxies /api etc. to 127.0.0.1:8000
-cd frontend && npm run lint && npm run typecheck && npm test
-uv run python scripts/vendor_pdfjs.py
-uv run python scripts/vendor_katex.py
+just ci                         # Complete quality gate: Python check/test + Frontend check/test/build
+just check                      # Run all linters and typecheckers (Python + TypeScript)
+just test                       # Run all test suites (pytest + vitest)
+just fmt                        # Auto-format codebase (ruff + autofix)
+just run                        # Start local book-reader server
+just dev-ui                     # Vite dev server, proxies /api etc. to 127.0.0.1:8000
+just eval-offline               # Run Ask + OpenUI eval suite
+just eval-live                  # Run Ask eval live against inception:mercury-3
+just vendor-pdfjs               # Vendor PDF.js
+just vendor-katex               # Vendor KaTeX
 ```
 
 ## Architecture invariants

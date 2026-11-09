@@ -1,0 +1,132 @@
+/*
+ * Model & Reasoning Effort Top Bar
+ * Strict token compliance — uses tokens.css variables only.
+ */
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--rule-soft);
+  background: var(--paper-edge);
+  font-size: 12.5px;
+  flex-wrap: wrap;
+}
+
+.compact {
+  padding: 6px 10px;
+  gap: 8px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-edge);
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.selectWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.modelSelect {
+  height: 28px;
+  padding: 2px 26px 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper-lit);
+  color: var(--ink);
+  font: 500 12px/1.4 var(--sans);
+  cursor: pointer;
+  appearance: none;
+  transition: border-color var(--dur-fast) var(--ease);
+  max-width: 260px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modelSelect:hover {
+  border-color: var(--brass);
+}
+
+.modelSelect:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.selectChevron {
+  position: absolute;
+  right: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.effortGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper-lit);
+}
+
+.effortBtn {
+  padding: 3px 9px;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 1px);
+  background: transparent;
+  color: var(--muted);
+  font: 500 11px/1.2 var(--sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.effortBtn:hover {
+  color: var(--ink);
+  background: var(--on-light-hover);
+}
+
+.effortBtn[aria-pressed='true'] {
+  background: var(--brass);
+  color: var(--on-brass);
+  font-weight: 600;
+}
+
+.effortBtn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.compactSelect {
+  height: 26px;
+  padding: 1px 22px 1px 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper-lit);
+  color: var(--ink);
+  font: 500 11.5px/1.3 var(--sans);
+  cursor: pointer;
+  appearance: none;
+}
+
+.savingIndicator {
+  color: var(--brass-deep);
+  font-size: 10.5px;
+  font-style: italic;
+}
