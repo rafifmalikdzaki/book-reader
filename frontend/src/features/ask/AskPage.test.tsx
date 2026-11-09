@@ -142,3 +142,50 @@ describe('Ask: URL contract', () => {
     );
   });
 });
+
+describe('Ask: OpenUI actions', () => {
+  const skillMap = JSON.stringify({
+    component: 'SkillMap',
+    topic: 'Tensors',
+    skills: [{ name: 'Shapes', level: 2 }],
+  });
+  const withBlock = (content: string) =>
+    makeSession({
+      id: 's0',
+      messages: [
+        {
+          id: 'm1',
+          role: 'assistant',
+          content,
+          sources: [],
+          provider: 'stub',
+          model: 'm',
+          created: 1,
+        },
+      ],
+    });
+
+  it('sends tutor-control buttons straight away in Socratic Tutor mode', async () => {
+    installServer({ sessions: [withBlock('```openui\n' + skillMap + '\n```')] });
+    const user = renderAsk('/ask?chat=s0');
+    await user.click(await screen.findByRole('button', { name: 'Easier' }));
+    await waitFor(() =>
+      expect(endpoints.postMessage).toHaveBeenCalledWith('s0', 'easier', { mode: 'tutor' }),
+    );
+    expect(screen.getByRole('button', { name: 'Socratic Tutor' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
+  it('sends non-tutor prompts without switching mode', async () => {
+    const card = JSON.stringify({ component: 'ConceptCard', title: 'Tensor', intuition: 'array' });
+    installServer({ sessions: [withBlock('```openui\n' + card + '\n```')] });
+    const user = renderAsk('/ask?chat=s0');
+    await user.click(await screen.findByRole('button', { name: /Map a ConceptGraph|Concept graph/i }));
+    await waitFor(() => expect(endpoints.postMessage).toHaveBeenCalled());
+    const call = vi.mocked(endpoints.postMessage).mock.calls[0]!;
+    expect(call[1]).toContain('ConceptGraph');
+    expect(call[2]).toBeUndefined();
+  });
+});
