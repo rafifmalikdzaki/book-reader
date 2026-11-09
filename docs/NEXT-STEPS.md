@@ -4,7 +4,7 @@
 
 - The React SPA cutover is complete in the working tree (uncommitted): FastAPI serves
   only `static/app`, and the Jinja templates/legacy scripts are gone.
-- Gate: `./scripts/ci.sh` → 171 Python tests, 187 Vitest tests, ruff/mypy clean;
+- Gate: `just ci` → 171 Python tests, 187 Vitest tests, ruff/mypy clean;
   wheel packaging and the Docker Node build were verified.
 - A source checkout must run `scripts/build_frontend.sh` before `uv run book-reader`.
 - Chat providers verified end to end: `mistral-small-latest`, `ministral-8b-latest`,

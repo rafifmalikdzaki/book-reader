@@ -23,3 +23,6 @@ frontend/node_modules/
 frontend/dist/
 src/book_reader/static/app/
 *.tsbuildinfo
+
+# Local planning scratch (finished plans live in git history)
+tasks/

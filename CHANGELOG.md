@@ -13,7 +13,8 @@
 - ADRs for the SPA cutover, vendored reader assets, content-hash reindex, local trust
   boundary, and Ask retention.
 - Live agent process on `/ask`: steps, documents found (`found` SSE event) and model
-  reasoning stream into a collapsible card while the answer is generated.
+  reasoning stream into a card (collapsed by default) while the answer is generated.
+- Any Ask chat can be renamed from its header.
 
 ### Changed
 
