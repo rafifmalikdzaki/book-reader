@@ -4,47 +4,8 @@ import type { StoredMessage } from '../../api/types';
 import { EmptyState } from '../../ui';
 import { ChatMessageView } from '../chat-render';
 import styles from './AskPage.module.css';
+import { BOOK_PROMPTS, LIBRARY_PROMPTS, OPENUI_SHOWCASE, tourPrompt } from './prompts';
 import type { PendingTurn } from './useSendMessage';
-
-const BOOK_PROMPTS = [
-  'Summarize this page',
-  'Find related passages in this book',
-  'What does this section argue?',
-  'Tutor me on this section',
-];
-const LIBRARY_PROMPTS = [
-  'Find passages about a topic',
-  'Compare two books',
-  'Trace an idea across the library',
-  'Teach me a topic Socratically',
-];
-
-const OPENUI_SHOWCASE = [
-  {
-    badge: 'ConceptCard',
-    title: 'Concept Breakdown',
-    desc: 'Intuition, formal math & worked example',
-    prompt: 'Break down a core concept from my library with intuition, formal math, and a ConceptCard',
-  },
-  {
-    badge: 'ConceptGraph',
-    title: 'Architecture & Flow',
-    desc: 'Interactive node-link diagram of dependencies',
-    prompt: 'Map the key concepts and their dependencies as an interactive ConceptGraph',
-  },
-  {
-    badge: 'ComparisonTable',
-    title: 'Trade-off Matrix',
-    desc: 'Side-by-side comparison across methods or books',
-    prompt: 'Compare two approaches or algorithms in my library using a ComparisonTable',
-  },
-  {
-    badge: 'SkillMap',
-    title: 'Socratic Mastery',
-    desc: '0–5 subskill diagnostic & one question per turn',
-    prompt: 'Tutor me Socratically with a diagnostic SkillMap and one question at a time',
-  },
-] as const;
 
 interface Props {
   messages: StoredMessage[];
@@ -110,6 +71,17 @@ export function Transcript({
             {notice ? <span className={styles.notice}>{notice}</span> : null}
           </EmptyState>
           <div className={styles.showcaseGrid} aria-label="Generative UI modes">
+            <button
+              type="button"
+              className={`${styles.showcaseCard} ${styles.showcaseTour}`}
+              onClick={() => onPrompt(tourPrompt(aboutBook))}
+            >
+              <span className={styles.showcaseBadge}>All features</span>
+              <strong className={styles.showcaseTitle}>Capability tour</strong>
+              <span className={styles.showcaseDesc}>
+                One ready-made prompt: cited search, math, and every visual block in a single answer
+              </span>
+            </button>
             {OPENUI_SHOWCASE.map((item) => (
               <button
                 key={item.badge}

@@ -189,3 +189,39 @@ describe('Ask: OpenUI actions', () => {
     expect(call[2]).toBeUndefined();
   });
 });
+
+describe('Ask: capability prompts', () => {
+  it('fills the composer with the capability tour, covering every block, in Explain mode', async () => {
+    installServer();
+    const user = renderAsk();
+    await user.click(await screen.findByRole('button', { name: /Capability tour/ }));
+
+    const tour = (box() as HTMLTextAreaElement).value;
+    for (const name of [
+      'ConceptCard',
+      'ComparisonTable',
+      'StepWalkthrough',
+      'ConceptGraph',
+      'Chart',
+      'BookList',
+      'QuizCheck',
+    ]) {
+      expect(tour).toContain(name);
+    }
+    expect(tour).toMatch(/book\.pdf#p12/);
+    expect(screen.getByRole('button', { name: 'Explain' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('keeps tutor mode for the SkillMap card only', async () => {
+    installServer();
+    const user = renderAsk();
+    await user.click(await screen.findByRole('button', { name: /Socratic Mastery/ }));
+    expect(screen.getByRole('button', { name: 'Socratic Tutor' })).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'Explain' }));
+    for (const card of ['Concept Breakdown', 'Step-by-step Derivation', 'Check Question']) {
+      await user.click(screen.getByRole('button', { name: new RegExp(card) }));
+      expect(screen.getByRole('button', { name: 'Explain' })).toHaveAttribute('aria-pressed', 'true');
+    }
+  });
+});

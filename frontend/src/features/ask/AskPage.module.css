@@ -239,6 +239,11 @@
   outline-offset: 2px;
 }
 
+.showcaseTour {
+  grid-column: 1 / -1;
+  border-color: var(--brass);
+}
+
 .showcaseBadge {
   padding: 1px 7px;
   border: 1px solid var(--rule);
