@@ -83,6 +83,7 @@ class ChatBody(BaseModel):
     book: str | None = None
     page: int | None = None
     model: str | None = None
+    mode: str | None = None
 
 
 class ModelChoice(BaseModel):
@@ -183,7 +184,16 @@ def build_services(
     try:
         from .chat import ChatService
 
-        chat = ChatService(library, searcher, pdf, sections, notepad)
+        chat = ChatService(
+            library,
+            searcher,
+            pdf,
+            sections,
+            notepad,
+            pages=pages,
+            categories=categories,
+            reconciler=reconciler,
+        )
     except ImportError as exc:
         logger.info("chat disabled: %s", exc)
     return Services(
@@ -583,7 +593,20 @@ def create_app(
             library.book_file(body.book)
         selected = select_model(body.model, preferences, chat_service)
         try:
-            return chat_service.ask(messages, book=body.book, page=body.page, model=selected)
+            ask_kwargs: dict[str, object] = {
+                "book": body.book,
+                "page": body.page,
+                "model": selected,
+            }
+            if body.mode:
+                import inspect as _inspect
+
+                sig = _inspect.signature(chat_service.ask)
+                if "mode" in sig.parameters or any(
+                    p.kind == p.VAR_KEYWORD for p in sig.parameters.values()
+                ):
+                    ask_kwargs["mode"] = body.mode
+            return chat_service.ask(messages, **ask_kwargs)  # type: ignore[arg-type]
         except ChatUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ChatError as exc:

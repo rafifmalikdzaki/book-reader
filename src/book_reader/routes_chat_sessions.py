@@ -49,6 +49,7 @@ class SessionPatch(BaseModel):
 
 class MessageBody(BaseModel):
     content: str
+    mode: str | None = None
 
 
 class ProjectBody(BaseModel):
@@ -68,6 +69,13 @@ class SessionTaskHub:
 
     def register_task(self, session_id: str, task: asyncio.Task[Any]) -> None:
         self._tasks[session_id] = task
+
+    def cancel_task(self, session_id: str) -> bool:
+        task = self._tasks.get(session_id)
+        if task is not None and not task.done():
+            task.cancel()
+            return True
+        return False
 
     def subscribe(self, session_id: str) -> asyncio.Queue[dict[str, Any]]:
         queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
@@ -353,6 +361,9 @@ def register(
                 chats.set_session_status(session_id, "thinking", thought_step=step)
                 loop.call_soon_threadsafe(hub.emit, session_id, {"type": "step", "step": step})
 
+            def on_token(delta: str) -> None:
+                loop.call_soon_threadsafe(hub.emit, session_id, {"type": "delta", "delta": delta})
+
             chats.set_session_status(session_id, "thinking", thought_step="Searching library…")
             loop.call_soon_threadsafe(
                 hub.emit, session_id, {"type": "step", "step": "Searching library…"}
@@ -367,10 +378,13 @@ def register(
                     "scope": scope_label(selected),
                 }
                 ask_sig = inspect.signature(chat.ask)
-                if "on_step" in ask_sig.parameters or any(
-                    p.kind == p.VAR_KEYWORD for p in ask_sig.parameters.values()
-                ):
+                accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in ask_sig.parameters.values())
+                if "on_step" in ask_sig.parameters or accepts_var_kw:
                     ask_kwargs["on_step"] = on_step
+                if "on_token" in ask_sig.parameters or accepts_var_kw:
+                    ask_kwargs["on_token"] = on_token
+                if body.mode and ("mode" in ask_sig.parameters or accepts_var_kw):
+                    ask_kwargs["mode"] = body.mode
                 result = chat.ask(history, **ask_kwargs)
             except Exception as exc:
                 chats.set_session_status(session_id, "error", thought_step="", last_error=str(exc))
@@ -424,11 +438,22 @@ def register(
         hub.register_task(session_id, task)
         try:
             return await asyncio.shield(task)
+        except asyncio.CancelledError as exc:
+            chats.set_session_status(session_id, "idle", thought_step="")
+            raise HTTPException(status_code=499, detail="generation cancelled") from exc
         except ChatUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ProviderChatError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         except ChatStorageError as exc:
             raise store_error(exc) from exc
+
+    @router.post("/sessions/{session_id}/cancel")
+    def cancel_session(session_id: str) -> dict[str, object]:
+        session_or_404(session_id)
+        cancelled = hub.cancel_task(session_id)
+        updated = chats.set_session_status(session_id, "idle", thought_step="")
+        hub.emit(session_id, {"type": "done", "session": updated})
+        return {"ok": True, "cancelled": cancelled, "session": updated}
 
     app.include_router(router)

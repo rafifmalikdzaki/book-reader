@@ -160,11 +160,55 @@ class SectionIndex:
         )
 
     def section_for_page(self, rel: str, path: Path, page: int) -> str:
-        match = ""
+        span = self.active_section_span(rel, path, page)
+        return span["title"] if span else ""
+
+    def active_section_span(self, rel: str, path: Path, page: int) -> Section | None:
+        """Deepest section containing ``page`` with its full start/end page range."""
+        match: Section | None = None
         for section in self.sections(rel, path):
             if section["start_page"] <= page <= section["end_page"]:
-                match = section["title"]
+                match = section
         return match
+
+    def find_section(self, rel: str, path: Path, query: str) -> list[Section]:
+        """Match ``query`` against section titles or page numbers in ``rel``."""
+        return match_sections(self.sections(rel, path), query)
+
+
+def match_sections(sections: list[Section], query: str) -> list[Section]:
+    """Rank sections matching ``query`` by exact match, substring, or token overlap."""
+    needle = " ".join(query.casefold().split())
+    if not needle or not sections:
+        return []
+    page_num: int | None = None
+    stripped = needle.removeprefix("p.").removeprefix("page").strip()
+    if stripped.isdigit():
+        page_num = int(stripped)
+
+    scored: list[tuple[int, int, Section]] = []
+    tokens = [tok for tok in needle.replace(".", " ").split() if tok]
+    for idx, section in enumerate(sections):
+        title_cf = " ".join(section["title"].casefold().split())
+        score = 0
+        if title_cf == needle:
+            score = 100
+        elif title_cf.startswith(needle):
+            score = 85
+        elif needle in title_cf:
+            score = 70
+        elif tokens:
+            matched = sum(1 for tok in tokens if tok in title_cf)
+            if matched == len(tokens):
+                score = 60
+            elif matched > 0 and matched >= len(tokens) / 2:
+                score = 30 + matched * 5
+        if page_num is not None and section["start_page"] <= page_num <= section["end_page"]:
+            score = max(score, 50 + section["depth"])
+        if score > 0:
+            scored.append((score, -idx, section))
+    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    return [item[2] for item in scored]
 
 
 def _decode_sections(cached: object) -> list[Section] | None:

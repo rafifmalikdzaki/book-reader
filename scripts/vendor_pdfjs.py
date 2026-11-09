@@ -3,9 +3,8 @@
 
 from __future__ import annotations
 
-import io
-import json
 import gzip
+import json
 import shutil
 import tempfile
 import urllib.request
@@ -27,19 +26,18 @@ def current_version() -> str:
 
 
 def _download(url: str, *, accept: str) -> bytes:
-    request = urllib.request.Request(url, headers={"Accept": accept, "User-Agent": "book-reader-vendor"})
+    request = urllib.request.Request(
+        url, headers={"Accept": accept, "User-Agent": "book-reader-vendor"}
+    )
     with urllib.request.urlopen(request, timeout=120) as response:
         return response.read()
-
 
 
 def _compress_text(root: Path) -> None:
     suffixes = {".html", ".js", ".mjs", ".css", ".json", ".svg", ".ftl", ".map", ".txt"}
     for path in root.rglob("*"):
         if path.is_file() and path.suffix.lower() in suffixes and not path.name.endswith(".gz"):
-            path.with_name(path.name + ".gz").write_bytes(
-                gzip.compress(path.read_bytes(), mtime=0)
-            )
+            path.with_name(path.name + ".gz").write_bytes(gzip.compress(path.read_bytes(), mtime=0))
 
 
 def main() -> None:
@@ -50,7 +48,11 @@ def main() -> None:
     print(f"resolving pdfjs {VERSION} dist release...")
     release = json.loads(_download(API_RELEASE, accept="application/vnd.github+json"))
     asset = next(
-        (item for item in release.get("assets", []) if item.get("name") == f"pdfjs-{VERSION}-dist.zip"),
+        (
+            item
+            for item in release.get("assets", [])
+            if item.get("name") == f"pdfjs-{VERSION}-dist.zip"
+        ),
         None,
     )
     if asset is None:

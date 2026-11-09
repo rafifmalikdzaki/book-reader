@@ -375,3 +375,54 @@ def test_system_prompt_respects_category_scope(library: Path, tmp_path: Path) ->
 
     outside = chat._system_prompt("note.md", 1, allowed_books={"sub/a.pdf"})
     assert "currently viewing" not in outside
+
+
+def test_outline_and_read_section_tools(library: Path, tmp_path: Path) -> None:
+    chat = build_chat(library, tmp_path)
+    tools = chat.tool_map()
+
+    # Markdown outline and section reading
+    md_outline = json.loads(tools["get_book_outline"].invoke({"book": "note.md"}))
+    assert md_outline["kind"] == "md"
+    assert any("Title" in sec["title"] for sec in md_outline["sections"])
+
+    md_section = json.loads(tools["read_section"].invoke({"book": "note.md", "section": "Title"}))
+    assert "snake_case" in md_section["text"]
+    assert md_section["sources"][0]["book"] == "note.md"
+
+    # PDF outline and section reading fallback
+    pdf_outline = json.loads(tools["get_book_outline"].invoke({"book": "sub/a.pdf"}))
+    assert pdf_outline["kind"] == "pdf"
+    assert pdf_outline["pages"] >= 1
+
+    pdf_section = json.loads(
+        tools["read_section"].invoke(
+            {"book": "sub/a.pdf", "section": "hello-search-needle", "max_pages": 2}
+        )
+    )
+    assert "hello-search-needle" in pdf_section["text"]
+    assert pdf_section["sources"][0]["book"] == "sub/a.pdf"
+
+
+def test_list_books_and_read_notes_tools(library: Path, tmp_path: Path) -> None:
+    chat = build_chat(library, tmp_path)
+    tools = chat.tool_map()
+
+    listed = json.loads(tools["list_books"].invoke({"query": "note"}))
+    assert any(item["book"] == "note.md" for item in listed["books"])
+
+    tools["add_note"].invoke(
+        {"book": "sub/a.pdf", "quote": "key definition", "comment": "important", "page": 1}
+    )
+    notes_payload = json.loads(tools["read_notes"].invoke({"book": "sub/a.pdf"}))
+    assert len(notes_payload["notes"]) == 1
+    assert notes_payload["notes"][0]["quote"] == "key definition"
+
+
+def test_socratic_tutor_mode_injects_skill(library: Path, tmp_path: Path) -> None:
+    chat = build_chat(library, tmp_path)
+    teacher_prompt = chat._system_prompt("sub/a.pdf", 1, socratic=False)
+    tutor_prompt = chat._system_prompt("sub/a.pdf", 1, socratic=True)
+    assert "Master Teacher Mode" in teacher_prompt
+    assert "SkillMap" in tutor_prompt
+    assert "ONE question per turn" in tutor_prompt

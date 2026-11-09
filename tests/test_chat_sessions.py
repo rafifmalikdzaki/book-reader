@@ -516,3 +516,8 @@ def test_session_events_stream_and_conflict_when_thinking(tmp_path: Path) -> Non
     )
     assert conflict.status_code == 409
     assert "already generating" in conflict.json()["detail"]
+
+    # Cancel endpoint resets session status to idle
+    cancelled = harness.client.post(f"/api/chat/sessions/{session['id']}/cancel")
+    assert cancelled.status_code == 200
+    assert cancelled.json()["session"]["status"] == "idle"

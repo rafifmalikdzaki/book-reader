@@ -14,7 +14,12 @@ VERSION = "0.19.1"
 TARBALL = f"https://registry.npmjs.org/katex/-/katex-{VERSION}.tgz"
 ROOT = Path(__file__).resolve().parents[1]
 TARGET = ROOT / "src" / "book_reader" / "static" / "vendor" / "katex"
-REQUIRED = ("katex.min.css", "katex.min.js", "contrib/auto-render.min.js", "fonts/KaTeX_Main-Regular.woff2")
+REQUIRED = (
+    "katex.min.css",
+    "katex.min.js",
+    "contrib/auto-render.min.js",
+    "fonts/KaTeX_Main-Regular.woff2",
+)
 
 
 def current_version() -> str:
@@ -24,14 +29,11 @@ def current_version() -> str:
         return ""
 
 
-
 def _compress_text(root: Path) -> None:
     suffixes = {".html", ".js", ".mjs", ".css", ".json", ".svg", ".ftl", ".map", ".txt"}
     for path in root.rglob("*"):
         if path.is_file() and path.suffix.lower() in suffixes and not path.name.endswith(".gz"):
-            path.with_name(path.name + ".gz").write_bytes(
-                gzip.compress(path.read_bytes(), mtime=0)
-            )
+            path.with_name(path.name + ".gz").write_bytes(gzip.compress(path.read_bytes(), mtime=0))
 
 
 def main() -> None:
@@ -52,7 +54,9 @@ def main() -> None:
         for name in ("katex.min.css", "katex.min.js"):
             shutil.copy2(dist / name, TARGET / name)
         (TARGET / "contrib").mkdir()
-        shutil.copy2(dist / "contrib" / "auto-render.min.js", TARGET / "contrib" / "auto-render.min.js")
+        shutil.copy2(
+            dist / "contrib" / "auto-render.min.js", TARGET / "contrib" / "auto-render.min.js"
+        )
         shutil.copytree(dist / "fonts", TARGET / "fonts")
         license_path = Path(temp) / "package" / "LICENSE"
         if license_path.is_file():
