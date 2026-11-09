@@ -4,17 +4,72 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 import uvicorn
 from dotenv import load_dotenv
 
-from .app import DEFAULT_ES_INDEX, build_services, create_app
+from .app import DEFAULT_ES_INDEX, PACKAGE_DIR, build_services, create_app
 from .security_headers import allowed_hosts_for
 from .state_lock import StateDirectoryLock, StateLockedError
 
 DEFAULT_LIBRARY = Path.home() / "Documents" / "Books"
+REPO_ROOT = PACKAGE_DIR.parent.parent
+
+
+def _bundle_needs_build(frontend_dir: Path, bundle_index: Path) -> bool:
+    """Return True if the SPA bundle is missing or older than frontend sources."""
+    if not bundle_index.is_file():
+        return True
+    try:
+        bundle_mtime = bundle_index.stat().st_mtime
+    except OSError:
+        return True
+    candidates = [
+        frontend_dir / "index.html",
+        frontend_dir / "package.json",
+        frontend_dir / "package-lock.json",
+        frontend_dir / "vite.config.ts",
+    ]
+    src_dir = frontend_dir / "src"
+    if src_dir.is_dir():
+        candidates.extend(src_dir.rglob("*"))
+    for path in candidates:
+        try:
+            if path.is_file() and path.stat().st_mtime > bundle_mtime:
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def ensure_frontend_bundle(
+    repo_root: Path = REPO_ROOT,
+    static_dir: Path | None = None,
+) -> bool:
+    """Auto-build the React SPA in source checkouts when the bundle is missing or stale."""
+    frontend_dir = repo_root / "frontend"
+    build_script = repo_root / "scripts" / "build_frontend.sh"
+    target_static = static_dir if static_dir is not None else PACKAGE_DIR / "static"
+    bundle_index = target_static / "app" / "index.html"
+
+    if not (frontend_dir / "package.json").is_file() or not build_script.is_file():
+        return False
+    if not _bundle_needs_build(frontend_dir, bundle_index):
+        return False
+    if shutil.which("npm") is None:
+        print(
+            "warning: frontend bundle is missing or outdated, and npm was not found on PATH",
+            file=sys.stderr,
+        )
+        return False
+
+    print("book-reader: building frontend bundle…", flush=True)
+    subprocess.run(["bash", str(build_script)], cwd=str(repo_root), check=True)
+    return True
 
 
 def load_env(directory: Path | None = None) -> bool:
@@ -173,6 +228,12 @@ def main(argv: list[str] | None = None) -> None:
         finally:
             lock.release()
         return
+
+    try:
+        ensure_frontend_bundle()
+    except subprocess.CalledProcessError as exc:
+        print(f"frontend build failed (exit {exc.returncode})", file=sys.stderr)
+        raise SystemExit(2) from exc
 
     try:
         app = create_app(

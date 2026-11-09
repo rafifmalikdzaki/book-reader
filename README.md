@@ -23,10 +23,6 @@ whole collection to a retrieval-augmented assistant. There are no accounts, no
 telemetry, and no cloud requirement. The only network destination is the chat
 provider you configure.
 
-> **Source checkouts:** the React UI ships as a generated bundle. Run
-> `scripts/build_frontend.sh` once before starting the server. Wheels and the
-> Docker image include the built bundle.
-
 ## Contents
 
 - [Quick start](#quick-start)
@@ -43,27 +39,39 @@ provider you configure.
 
 ## Quick start
 
-### Requirements
+### Option 1: Docker (One Command)
 
-- Python 3.12+ and [uv](https://docs.astral.sh/uv/)
-- Node.js 22.12+ and npm for source builds
-- Optional: Elasticsearch 9 for fast library-wide BM25 search
+```bash
+docker compose up --build
+```
+
+Open <http://127.0.0.1:8000>. By default it mounts `~/Documents/Books`
+**read-only** at `/library` (override `BOOKS_DIR` or `BOOK_READER_PORT` in
+`.env` if desired); state and caches persist in the `reader-state` volume, and
+Elasticsearch data in `es-data`. Ports bind to `127.0.0.1` only. To build the
+Elasticsearch BM25 index inside the container:
+
+```bash
+docker compose run --rm reader book-reader --index
+```
+
+### Option 2: Local with `uv` (One Command)
+
+Requires Python 3.12+, [uv](https://docs.astral.sh/uv/), and Node.js 22.12+:
 
 ```bash
 git clone https://github.com/rafifmalikdzaki/book-reader.git
 cd book-reader
-uv sync --extra pageindex --extra agent
-scripts/build_frontend.sh
-uv run book-reader --library ~/Documents/Books
+uv run book-reader
 ```
 
-Open <http://127.0.0.1:8000>. The default library is `~/Documents/Books`; a
-missing root exits with status 2. Reading state lives in
-`$XDG_STATE_HOME/book-reader` (fallback `~/.local/state/book-reader`).
+Open <http://127.0.0.1:8000>. On first run (or whenever files in `frontend/`
+change), `book-reader` automatically builds the React UI bundle before starting
+the server. The default library is `~/Documents/Books` (pass `--library /path`
+to override); reading state lives in `$XDG_STATE_HOME/book-reader` (fallback
+`~/.local/state/book-reader`).
 
-The `pageindex` extra enables cached PDF section trees and section-aware search.
-The `agent` extra enables chat; without it, the readers, search, and notepad
-continue to work. Chat credentials are optional and live in a gitignored `.env`:
+Chat credentials are optional and live in a gitignored `.env`:
 
 ```bash
 MISTRAL_API_KEY=...          # or MISTRAL_API
@@ -72,18 +80,6 @@ OPENROUTER_API_KEY=...
 OLLAMA_API_KEY=...
 BOOK_READER_CHAT_PRIORITY=mistral:mistral-small-latest,mistral:ministral-8b-latest,mistral:zai-glm-5-3-flash,inception:mercury-3,openrouter:openrouter/free,openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,ollama:gpt-oss:20b
 ```
-
-### Docker
-
-```bash
-cp .env.example .env        # adjust BOOKS_DIR / BOOK_READER_PORT if needed
-docker compose up --build   # reader + Elasticsearch, http://127.0.0.1:8000
-docker compose run --rm reader book-reader --index   # build the search index
-```
-
-The library is mounted **read-only** at `/library`; state and caches persist in
-the `reader-state` volume, and Elasticsearch data in `es-data`. Ports bind to
-`127.0.0.1` only because the app has no authentication.
 
 ## What it does
 
@@ -339,15 +335,15 @@ The React UI lives in `frontend/` (Node 22.12+, npm). The FastAPI server serves
 the built SPA from `src/book_reader/static/app/`:
 
 ```bash
-scripts/build_frontend.sh   # build into src/book_reader/static/app
-uv run book-reader          # serve the SPA
-cd frontend && npm run dev  # Vite on :5173, proxying to a backend on :8000
+uv run book-reader          # auto-builds the SPA if missing/stale and serves on :8000
+scripts/build_frontend.sh   # explicit manual build into src/book_reader/static/app
+cd frontend && npm run dev  # Vite HMR dev server on :5173, proxying API to :8000
 ```
 
-A source checkout must build the bundle before starting the server. Without it,
-HTML routes answer `503` with a hint to run `scripts/build_frontend.sh`. The
-Docker image builds the bundle in a Node stage. CI runs the same Python and
-frontend checks plus a Docker build.
+When starting from a source checkout, `uv run book-reader` automatically runs
+`scripts/build_frontend.sh` if the bundle is missing or older than `frontend/`
+sources. The Docker image builds the bundle in a multi-stage Node build. CI runs
+the same Python and frontend checks plus a Docker build.
 
 ## Project layout
 
