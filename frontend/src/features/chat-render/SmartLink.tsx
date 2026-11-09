@@ -11,15 +11,17 @@ export function SmartLink({
   href,
   children,
   className,
+  title,
 }: {
   href: string;
   children: ReactNode;
   className?: string;
+  title?: string;
 }) {
   const inRouter = useInRouterContext();
   if (inRouter && isInternalHref(href)) {
     return (
-      <Link to={href} rel="noreferrer" className={className}>
+      <Link to={href} rel="noreferrer" className={className} title={title}>
         {children}
       </Link>
     );
@@ -31,6 +33,7 @@ export function SmartLink({
       rel="noreferrer"
       target={external ? '_blank' : undefined}
       className={className}
+      title={title}
     >
       {children}
     </a>

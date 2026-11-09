@@ -10,7 +10,11 @@ export function SourceList({ sources }: { sources: ChatSource[] }) {
   return (
     <div className={styles.sources}>
       {sources.map((source, index) => (
-        <SmartLink key={`${index}-${bookHref(source)}`} href={bookHref(source)}>
+        <SmartLink
+          key={`${index}-${bookHref(source)}`}
+          href={bookHref(source)}
+          title={sourceLabel(source)}
+        >
           {sourceLabel(source)}
         </SmartLink>
       ))}

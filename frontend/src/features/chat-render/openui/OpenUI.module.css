@@ -48,8 +48,11 @@
 }
 
 .uiCiteChip {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
+  max-width: 28ch;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 2px 9px;
   border: 1px solid var(--rule);
   border-radius: var(--radius-pill);
@@ -256,9 +259,10 @@
 
 .stepHead {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px 8px;
 }
 
 .stepBody p {
@@ -423,6 +427,8 @@
   background: var(--paper-lit);
   color: var(--muted);
   font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
 }
 
@@ -440,8 +446,11 @@
 
 .stepMeta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .uiChipBtnActive {

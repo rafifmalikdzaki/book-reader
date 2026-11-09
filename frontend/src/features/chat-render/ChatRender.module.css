@@ -58,8 +58,11 @@
 }
 
 .sources a {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block;
+  max-width: min(100%, 34ch);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding: 2px 8px;
   border: 1px solid var(--rule);
   border-radius: var(--radius-pill);

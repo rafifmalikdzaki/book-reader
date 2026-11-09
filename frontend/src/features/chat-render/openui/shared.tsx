@@ -65,7 +65,7 @@ export function CitationChip({ cite }: { cite?: string }) {
     return <span className={styles.uiBadge}>{shortLabel}</span>;
   }
   return (
-    <SmartLink href={href} className={styles.uiCiteChip}>
+    <SmartLink href={href} className={styles.uiCiteChip} title={cite}>
       {shortLabel}
     </SmartLink>
   );

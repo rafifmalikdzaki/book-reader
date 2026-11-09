@@ -152,6 +152,13 @@ describe('sources and links', () => {
     render(<SourceList sources={sources} />);
     expect(screen.getByRole('link', { name: 'n.md · lines 40' })).toHaveAttribute('href', '/book/n.md#L40');
   });
+
+  it('keeps the full label in a tooltip so CSS can truncate long filenames', () => {
+    const book = `${'very-long-title-'.repeat(6)}.pdf`;
+    render(<SourceList sources={[{ book, page: 3, section: 'Monte Carlo methods' }]} />);
+    const label = sourceLabel({ book, page: 3, section: 'Monte Carlo methods' });
+    expect(screen.getByRole('link', { name: label })).toHaveAttribute('title', label);
+  });
 });
 
 describe('ChatMessageView', () => {
