@@ -9,9 +9,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from book_reader.app import Services, build_services, create_app
+from book_reader.app import create_app
 from book_reader.organize.categories import CategoryStore
 from book_reader.organize.service import LibraryOrganizer
+from book_reader.services import Services, build_services
 
 TAXONOMY = [
     {"id": "papers", "name": "Papers", "description": "Peer-reviewed work"},

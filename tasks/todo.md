@@ -48,7 +48,8 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
       api/views.py + api/routes/{library,reading,search}.py; OpenAPI path/method table identical before/after (34 paths); pytest 224 passed; ruff + mypy clean.
 - [x] Task 11: Extract organize/chat/system routes; move remaining routes.
       api/routes/{chat,organize,system} extracted; routes_notepad/chat_sessions/spa moved into api/routes/; no @app.<verb> left in app.py; OpenAPI table identical (34 paths); pytest 224 passed.
-- [ ] Task 12: Slim `app.py`; move `Services`/`build_services` to `services.py`.
+- [x] Task 12: Slim `app.py`; move `Services`/`build_services` to `services.py`.
+      services.py (Services, build_services, DEFAULT_ES_INDEX); api/static.py (GzipStaticFiles + cache/gzip middleware); app.py 146 lines, no store construction or route bodies; OpenAPI table identical; pytest 224 passed.
 
 ## Checkpoint: API
 

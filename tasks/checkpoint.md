@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 11 done. Task 12: move Services/build_services to services.py; slim app.py (move GzipStaticFiles + cache middleware to api/static.py).
+Task 12 done. Task 13: mirror tests under tests/<package>/ and update mypy overrides.
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 11 done. Task 12: move Services/build_services to services.py; slim app.py 
 
 ## Next action
 
-Task 12: move Services/build_services to services.py; slim app.py (move GzipStaticFiles + cache middleware to api/static.py).
+Task 13: mirror tests under tests/<package>/ and update mypy overrides.
 
 ## Blockers
 

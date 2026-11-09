@@ -11,8 +11,9 @@ import pymupdf
 import pytest
 from fastapi.testclient import TestClient
 
-from book_reader.app import Services, build_services, create_app
+from book_reader.app import create_app
 from book_reader.reading.sections import SectionIndex
+from book_reader.services import Services, build_services
 
 
 def _services(library: Path, tmp_path: Path) -> Services:
