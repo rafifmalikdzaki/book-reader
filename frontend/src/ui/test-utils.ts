@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { onTestFinished, vi } from 'vitest';
 
 /** jsdom has no matchMedia. Stubs it so queries resolve through `viewport`. */
 export function stubViewport(width: number): { set: (width: number) => void } {
@@ -32,11 +32,11 @@ export function stubViewport(width: number): { set: (width: number) => void } {
   };
 }
 
-/** jsdom does no layout: fake the scroll geometry of every element. Returns a restore function. */
-export function stubScrollGeometry(scrollHeight: number, clientHeight = 100): () => void {
+/** jsdom does no layout: fake the scroll geometry of every element for the current test. */
+export function stubScrollGeometry(scrollHeight: number, clientHeight = 100): void {
   const spies = [
     vi.spyOn(Element.prototype, 'scrollHeight', 'get').mockReturnValue(scrollHeight),
     vi.spyOn(Element.prototype, 'clientHeight', 'get').mockReturnValue(clientHeight),
   ];
-  return () => spies.forEach((spy) => spy.mockRestore());
+  onTestFinished(() => spies.forEach((spy) => spy.mockRestore()));
 }

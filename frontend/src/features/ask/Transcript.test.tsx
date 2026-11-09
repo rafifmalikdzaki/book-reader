@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { stubScrollGeometry } from '../../ui/test-utils';
 import { Transcript } from './Transcript';
@@ -21,12 +21,9 @@ function view(pending: { text: string; base: number } | null, liveSteps: string[
   );
 }
 
-let restore = () => undefined as void;
-afterEach(() => restore());
-
 describe('Transcript scrolling', () => {
   it('does not yank a reader who scrolled up when live steps arrive, but follows their own send', () => {
-    restore = stubScrollGeometry(1000);
+    stubScrollGeometry(1000);
     const { getByRole, rerender } = render(view({ text: 'q1', base: 0 }));
     const log = getByRole('log');
     log.scrollTop = 100;

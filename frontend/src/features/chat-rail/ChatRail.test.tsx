@@ -84,28 +84,24 @@ describe('ChatRail', () => {
   });
 
   it('keeps a scrolled-up reader in place, then follows once they send', async () => {
-    const restore = stubScrollGeometry(1000);
-    try {
-      let finish: (value: ChatAskResponse) => void = () => {};
-      ask.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
-      const { user } = setup();
-      const rail = await openChat(user);
-      const log = within(rail).getByRole('log');
-      log.scrollTop = 100;
-      fireEvent.scroll(log);
+    stubScrollGeometry(1000);
+    let finish: (value: ChatAskResponse) => void = () => {};
+    ask.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    const { user } = setup();
+    const rail = await openChat(user);
+    const log = within(rail).getByRole('log');
+    log.scrollTop = 100;
+    fireEvent.scroll(log);
 
-      await user.type(within(rail).getByRole('textbox', { name: 'Your question' }), 'Hello{Enter}');
-      expect(await within(rail).findByText('…thinking')).toBeInTheDocument();
-      expect(log.scrollTop).toBe(1000);
+    await user.type(within(rail).getByRole('textbox', { name: 'Your question' }), 'Hello{Enter}');
+    expect(await within(rail).findByText('…thinking')).toBeInTheDocument();
+    expect(log.scrollTop).toBe(1000);
 
-      log.scrollTop = 100;
-      fireEvent.scroll(log);
-      finish(answer('Done'));
-      await within(rail).findByText('Done');
-      expect(log.scrollTop).toBe(100);
-    } finally {
-      restore();
-    }
+    log.scrollTop = 100;
+    fireEvent.scroll(log);
+    finish(answer('Done'));
+    await within(rail).findByText('Done');
+    expect(log.scrollTop).toBe(100);
   });
 
   it('inserts a newline on Shift+Enter without sending', async () => {

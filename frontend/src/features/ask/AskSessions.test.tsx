@@ -49,34 +49,30 @@ describe('Ask: session controls', () => {
   });
 
   it('opens another chat at the bottom even if the previous one was scrolled up', async () => {
-    const restore = stubScrollGeometry(1000);
-    try {
-      const turn = (id: string, content: string): StoredMessage => ({
-        id,
-        role: 'user',
-        content,
-        sources: [],
-        provider: '',
-        model: '',
-        created: 1,
-      });
-      const server = installServer();
-      server.sessions.push(
-        makeSession({ id: 's1', title: 'First chat', messages: [turn('m1', 'one')] }),
-        makeSession({ id: 's2', title: 'Second chat', messages: [turn('m2', 'two')] }),
-      );
-      const user = renderAsk('/ask?chat=s1');
-      await screen.findByRole('heading', { level: 1, name: 'First chat' });
-      const log = screen.getByRole('log');
-      log.scrollTop = 100;
-      fireEvent.scroll(log);
+    stubScrollGeometry(1000);
+    const turn = (id: string, content: string): StoredMessage => ({
+      id,
+      role: 'user',
+      content,
+      sources: [],
+      provider: '',
+      model: '',
+      created: 1,
+    });
+    const server = installServer();
+    server.sessions.push(
+      makeSession({ id: 's1', title: 'First chat', messages: [turn('m1', 'one')] }),
+      makeSession({ id: 's2', title: 'Second chat', messages: [turn('m2', 'two')] }),
+    );
+    const user = renderAsk('/ask?chat=s1');
+    await screen.findByRole('heading', { level: 1, name: 'First chat' });
+    const log = screen.getByRole('log');
+    log.scrollTop = 100;
+    fireEvent.scroll(log);
 
-      await user.click(await screen.findByRole('button', { name: /^Second chat/ }));
-      await screen.findByRole('heading', { level: 1, name: 'Second chat' });
-      expect(screen.getByRole('log').scrollTop).toBe(1000);
-    } finally {
-      restore();
-    }
+    await user.click(await screen.findByRole('button', { name: /^Second chat/ }));
+    await screen.findByRole('heading', { level: 1, name: 'Second chat' });
+    expect(screen.getByRole('log').scrollTop).toBe(1000);
   });
 
   it('pins and deletes a chat after confirmation', async () => {

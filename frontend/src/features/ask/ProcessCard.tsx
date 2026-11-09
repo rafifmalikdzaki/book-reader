@@ -13,6 +13,13 @@ interface Props {
   elapsed: number;
 }
 
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
+function summary(steps: number, found: number): string {
+  if (steps === 0) return 'Agent active';
+  return found > 0 ? `${count(steps, 'step')} · ${count(found, 'passage')} found` : count(steps, 'step');
+}
+
 /** Live view of one agent run: tool steps, the documents they found, and model reasoning. */
 export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
   const [open, setOpen] = useState(true);
@@ -28,11 +35,7 @@ export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
         <span className={styles.processHeaderTitle}>
           <strong>{step || 'Searching the library…'}</strong>
           <span className={styles.processSubtitle}>
-            {steps.length > 0
-              ? `${steps.length} step${steps.length === 1 ? '' : 's'}${
-                  found.length > 0 ? ` · ${found.length} passage${found.length === 1 ? '' : 's'} found` : ''
-                }`
-              : 'Agent active'}
+            {summary(steps.length, found.length)}
           </span>
         </span>
         {elapsed > 0 ? <span className={styles.processElapsed}>{elapsed.toFixed(1)}s</span> : null}
