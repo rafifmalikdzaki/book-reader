@@ -64,14 +64,20 @@ def _hostname(header: str) -> str:
 
 
 def install_host_check(app: FastAPI, allowed: Sequence[str]) -> None:
-    """Reject requests whose ``Host`` header is not one of ``allowed`` (HTTP 400)."""
-    names = {name.strip("[]").lower() for name in allowed}
+    """Reject requests whose ``Host`` header is not one of ``allowed`` (HTTP 400).
+
+    An entry starting with ``.`` matches any subdomain (``.ngrok-free.app`` accepts
+    ``abc.ngrok-free.app`` but not the bare domain or ``evilngrok-free.app``).
+    """
+    names = {name.strip("[]").lower() for name in allowed if not name.startswith(".")}
+    suffixes = tuple(name.lower() for name in allowed if name.startswith("."))
 
     @app.middleware("http")
     async def host_check(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        if _hostname(request.headers.get("host", "")) not in names:
+        host = _hostname(request.headers.get("host", ""))
+        if host not in names and not host.endswith(suffixes):
             return PlainTextResponse("Invalid host header", status_code=400)
         return await call_next(request)
 

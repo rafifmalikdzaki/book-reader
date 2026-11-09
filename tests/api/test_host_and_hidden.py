@@ -73,3 +73,23 @@ def test_host_header_is_checked_on_loopback_binds(
 def test_host_header_is_unchecked_without_a_policy(library: Path, tmp_path: Path) -> None:
     with TestClient(create_app(library, tmp_path / "state")) as test_client:
         assert test_client.get("/healthz", headers={"host": "anything.example"}).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("host", "status"),
+    [
+        ("localhost:8000", 200),
+        ("abc-123.ngrok-free.app", 200),
+        ("ABC.ngrok-free.app:443", 200),
+        ("ngrok-free.app", 400),
+        ("evilngrok-free.app", 400),
+        ("abc.ngrok-free.app.evil.example", 400),
+    ],
+)
+def test_allowed_hosts_accepts_dot_prefixed_suffixes(
+    library: Path, tmp_path: Path, host: str, status: int
+) -> None:
+    allowed = allowed_hosts_for("127.0.0.1", "localhost,.ngrok-free.app")
+    app = create_app(library, tmp_path / "state", allowed_hosts=allowed)
+    with TestClient(app) as test_client:
+        assert test_client.get("/healthz", headers={"host": host}).status_code == status

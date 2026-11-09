@@ -90,6 +90,10 @@ dev-ui:
 run *args="":
     uv run book-reader {{args}}
 
+# Serve for an ngrok tunnel (run `ngrok http 8000` in another terminal). NO AUTH: anyone with the URL can use the app.
+share *args="":
+    BOOK_READER_ALLOWED_HOSTS=localhost,127.0.0.1,::1,.ngrok-free.app,.ngrok-free.dev,.ngrok.app,.ngrok.dev,.ngrok.io uv run book-reader {{args}}
+
 # Sync Python environment dependencies
 sync:
     uv sync --locked

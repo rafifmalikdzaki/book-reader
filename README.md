@@ -178,6 +178,17 @@ Override a single provider's model with `BOOK_READER_{INCEPTION,GEMINI,MISTRAL,O
 
 See [ADR-004](docs/decisions/ADR-004-local-trust-boundary.md) for the threat model.
 
+### Sharing over ngrok
+
+The app has no login, so a tunnel makes your library, notes, chats and model keys available to anyone who has the URL. Share it only with people you trust and stop the tunnel when you are done.
+
+```bash
+just share              # server on :8000 that accepts *.ngrok-free.app / .dev / .io Host headers
+ngrok http 8000         # in another terminal; send the printed https URL
+```
+
+Without `just`, set `BOOK_READER_ALLOWED_HOSTS=localhost,127.0.0.1,::1,.ngrok-free.app` yourself. Everyone shares one set of chats, notes and reading progress.
+
 ## 🛠️ Development
 
 ```bash
