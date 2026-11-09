@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import type { ChatProject, ChatSession } from '../../api/types';
 import { LinkButton } from '../../ui';
+import { PulseDotIcon } from '../chat-render/icons';
 import { updatedLabel } from './format';
 import styles from './Sidebar.module.css';
 
@@ -44,7 +45,7 @@ function SessionButton({ session, current, onSelect }: {
       <span className={styles.title}>{session.title || 'New chat'}</span>
       {session.status === 'thinking' ? (
         <span className={styles.thinkingBadge} aria-label="Thinking">
-          ●
+          <PulseDotIcon />
         </span>
       ) : null}
       {session.pinned ? <span className={styles.pin}>Pin</span> : null}

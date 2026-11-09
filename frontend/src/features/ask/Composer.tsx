@@ -38,22 +38,24 @@ export function Composer({
     <div className={styles.composerWrap}>
       {onModeChange ? (
         <div className={styles.modeBar} role="group" aria-label="Teaching mode">
-          <button
-            type="button"
-            className={mode === 'teacher' ? `${styles.modeBtn} ${styles.modeActive}` : styles.modeBtn}
-            aria-pressed={mode === 'teacher'}
-            onClick={() => onModeChange('teacher')}
-          >
-            Explain
-          </button>
-          <button
-            type="button"
-            className={mode === 'tutor' ? `${styles.modeBtn} ${styles.modeActive}` : styles.modeBtn}
-            aria-pressed={mode === 'tutor'}
-            onClick={() => onModeChange('tutor')}
-          >
-            Socratic Tutor
-          </button>
+          <span className={styles.modeSegmented}>
+            <button
+              type="button"
+              className={mode === 'teacher' ? `${styles.modeBtn} ${styles.modeActive}` : styles.modeBtn}
+              aria-pressed={mode === 'teacher'}
+              onClick={() => onModeChange('teacher')}
+            >
+              Explain
+            </button>
+            <button
+              type="button"
+              className={mode === 'tutor' ? `${styles.modeBtn} ${styles.modeActive}` : styles.modeBtn}
+              aria-pressed={mode === 'tutor'}
+              onClick={() => onModeChange('tutor')}
+            >
+              Socratic Tutor
+            </button>
+          </span>
           <span className={styles.modeHint}>
             {mode === 'tutor'
               ? 'Jane Street Socratic Tutor: diagnostic skill map + one question at a time'

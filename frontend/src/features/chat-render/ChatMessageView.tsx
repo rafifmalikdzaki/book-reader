@@ -4,6 +4,7 @@ import type { ChatRole, ChatSource } from '../../api/types';
 import { cx } from '../../ui/cx';
 
 import styles from './ChatRender.module.css';
+import { BulbIcon } from './icons';
 import { MarkdownAnswer } from './MarkdownAnswer';
 import { SourceList } from './SourceList';
 
@@ -60,7 +61,7 @@ export function ChatMessageView({
       {message.role === 'assistant' && !pending && (message.thought_steps?.length || message.thought) ? (
         <details className={styles.thoughtTrace}>
           <summary className={styles.thoughtTraceSummary}>
-            <span className={styles.thoughtTraceIcon} aria-hidden="true">💡</span>
+            <BulbIcon className={styles.thoughtTraceIcon} />
             <span className={styles.thoughtTraceTitle}>
               Research & reasoning process ({message.thought_steps?.length || 1} step{(message.thought_steps?.length || 1) === 1 ? '' : 's'})
             </span>

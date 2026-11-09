@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import type { ChatSource } from '../../api/types';
 import { SmartLink, bookHref, sourceLabel } from '../chat-render';
+import { CheckIcon, ChevronDownIcon, PulseDotIcon } from '../chat-render/icons';
 import styles from './AskPage.module.css';
 
 interface Props {
@@ -40,7 +41,7 @@ export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
         </span>
         {elapsed > 0 ? <span className={styles.processElapsed}>{elapsed.toFixed(1)}s</span> : null}
         <span className={styles.processChevron} data-open={open} aria-hidden="true">
-          ▾
+          <ChevronDownIcon />
         </span>
       </button>
       {open && steps.length > 0 ? (
@@ -50,7 +51,7 @@ export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
             return (
               <li key={idx} className={current ? styles.processStepCurrent : styles.processStepDone}>
                 <span className={styles.processStepIcon} aria-hidden="true">
-                  {current ? '●' : '✓'}
+                  {current ? <PulseDotIcon /> : <CheckIcon />}
                 </span>
                 <span className={styles.processStepText}>{text}</span>
               </li>

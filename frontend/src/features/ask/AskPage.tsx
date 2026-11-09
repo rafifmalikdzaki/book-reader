@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 
 import type { ChatMode } from '../../api/types';
 import { useStage } from '../../app';
+import { cx } from '../../ui/cx';
 import { ModelEffortBar } from '../chat-model';
 import { AskHeader } from './AskHeader';
 import styles from './AskPage.module.css';
@@ -67,7 +68,7 @@ export default function AskPage() {
   }
 
   return (
-    <div className={styles.shell}>
+    <div className={cx(styles.shell, 'ask-console')}>
       <SessionsSidebar
         drawer={drawer}
         sessions={data.sessions}

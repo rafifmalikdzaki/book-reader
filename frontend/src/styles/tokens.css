@@ -97,6 +97,9 @@
   --field-h: 34px; /* legacy .field / masthead control height */
   --sheet-w: min(92vw, 420px); /* rails as phone sheets (<= 900px) */
   --touch-min: 44px; /* minimum target on coarse pointers (added, not legacy) */
+
+  /* Referenced by feature CSS as `outline: var(--focus-ring)`; was never defined. */
+  --focus-ring: 2px solid var(--focus);
 }
 
 @media (max-width: 900px) {
@@ -159,4 +162,17 @@ body.atmosphere-midnight {
   --shadow-plate: 0 16px 30px -26px #000000ee;
   --shadow-cover: 0 14px 26px -24px #000000fa;
   --shadow-dialog: 0 30px 60px -30px #000000ff;
+}
+
+/*
+ * ---- Ask console scope ----
+ * The Ask surfaces (/ask workspace + reader chat rail) use the beautifului.dev
+ * AI-native component language (thinking trace, task rows, source chips, prompt
+ * bar — see DESIGN.md and .impeccable/surfaces/frontend-src-features-ask-askpage-tsx.md).
+ * The class is a structural hook only: colors follow the app atmosphere (Lamp
+ * toggle), so no token overrides here — light stays reading-room paper, midnight
+ * stays the dark baize theme.
+ */
+.ask-console {
+  color-scheme: inherit;
 }

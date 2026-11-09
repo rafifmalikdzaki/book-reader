@@ -63,6 +63,7 @@ export function ChatRail() {
   return (
     <Rail
       {...panel.railProps}
+      className="ask-console"
       label="Ask the library"
       title="Ask"
       closeLabel="Close chat"
@@ -83,22 +84,24 @@ export function ChatRail() {
       ) : null}
       <ModelEffortBar variant="compact" />
       <div className={styles.modeBar} role="group" aria-label="Teaching mode">
-        <button
-          type="button"
-          className={mode === 'teacher' ? `${styles.modeBtn} ${styles.modeActive}` : styles.modeBtn}
-          aria-pressed={mode === 'teacher'}
-          onClick={() => setMode('teacher')}
-        >
-          Explain
-        </button>
-        <button
-          type="button"
-          className={mode === 'tutor' ? `${styles.modeBtn} ${styles.modeActive}` : styles.modeBtn}
-          aria-pressed={mode === 'tutor'}
-          onClick={() => setMode('tutor')}
-        >
-          Socratic Tutor
-        </button>
+        <span className={styles.modeSegmented}>
+          <button
+            type="button"
+            className={mode === 'teacher' ? `${styles.modeBtn} ${styles.modeActive}` : styles.modeBtn}
+            aria-pressed={mode === 'teacher'}
+            onClick={() => setMode('teacher')}
+          >
+            Explain
+          </button>
+          <button
+            type="button"
+            className={mode === 'tutor' ? `${styles.modeBtn} ${styles.modeActive}` : styles.modeBtn}
+            aria-pressed={mode === 'tutor'}
+            onClick={() => setMode('tutor')}
+          >
+            Socratic Tutor
+          </button>
+        </span>
       </div>
       <div className={styles.status} title={line}>
         {line}

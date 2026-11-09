@@ -1,8 +1,12 @@
-/* Ports the .ask-shell / .ask-main / .ask-head / .ask-thread / .ask-composer rules. */
+/* Ask workspace in the beautifului.dev AI-native layout (the .ask-console class is a
+ * structural hook; colors follow the app atmosphere via tokens.css). Structure below:
+ * sessions rail, clean thread, task card, prompt bar. */
 .shell {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: calc(100dvh - var(--mast-h));
+  background: var(--paper);
+  color: var(--ink);
 }
 
 .main {
@@ -16,9 +20,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--rule);
-  background: var(--paper);
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--rule-soft);
 }
 
 .head .menu {
@@ -204,20 +207,37 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   width: 100%;
   min-height: 0;
   max-width: 940px;
   margin: 0 auto;
-  padding: 28px 24px 12px;
+  padding: 26px 24px 14px;
   overflow: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+
+.thread::-webkit-scrollbar {
+  width: 8px;
+}
+
+.thread::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border-radius: var(--radius-pill);
 }
 
 .heroWrap {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+/* Empty state: center when it fits, top-anchor when it overflows (the
+ * stick-to-bottom pin would otherwise clip the hero title). */
+.thread:has(> .heroWrap) {
+  justify-content: safe center;
 }
 
 .showcaseGrid {
@@ -234,18 +254,20 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  padding: 11px 13px;
+  padding: 12px 14px;
   border: 1px solid var(--rule);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--paper-lit);
   color: var(--ink);
   text-align: left;
   cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
 }
 
 .showcaseCard:hover {
   border-color: var(--brass);
   background: var(--paper-edge);
+  transform: translateY(-1px);
 }
 
 .showcaseCard:focus-visible {
@@ -328,10 +350,10 @@
   flex-direction: column;
   gap: 8px;
   max-width: min(100%, 560px);
-  padding: 10px 14px;
+  padding: 12px 14px;
   border: 1px solid var(--rule);
-  border-radius: var(--radius-md);
-  background: var(--paper-edge);
+  border-radius: var(--radius-lg);
+  background: var(--paper-lit);
   color: var(--ink);
   box-shadow: var(--shadow-bubble);
 }
@@ -396,12 +418,12 @@
 }
 
 .processElapsed {
-  padding: 2px 7px;
+  padding: 2px 8px;
   border: 1px solid var(--rule-soft);
   border-radius: var(--radius-pill);
-  background: var(--paper-lit);
+  background: var(--paper-edge);
   color: var(--muted);
-  font: 600 11px/1 var(--sans);
+  font: 600 11px/1.5 var(--mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -555,28 +577,37 @@
   width: 100%;
   max-width: 940px;
   margin: 0 auto;
+  padding: 0 24px 12px;
 }
 
 .modeBar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  padding: 4px 24px 0;
+  gap: 10px;
+  padding: 6px 0 8px;
+}
+
+.modeSegmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-pill);
+  background: var(--paper-edge);
 }
 
 .modeBtn {
-  padding: 3px 10px;
-  border: 1px solid var(--rule);
+  padding: 3px 11px;
+  border: 0;
   border-radius: var(--radius-pill);
-  background: var(--paper-lit);
+  background: transparent;
   color: var(--muted);
   font-size: 11.5px;
   cursor: pointer;
 }
 
 .modeBtn:hover {
-  border-color: var(--brass);
   color: var(--ink);
 }
 
@@ -585,10 +616,10 @@
   outline-offset: 2px;
 }
 
-.modeActive {
-  border-color: var(--brass);
-  background: var(--paper-edge);
-  color: var(--brass-deep);
+.modeActive,
+.modeActive:hover {
+  background: var(--brass);
+  color: var(--on-brass);
   font-weight: 600;
 }
 
@@ -599,27 +630,41 @@
 
 .composer {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
   width: 100%;
-  max-width: 940px;
-  margin: 0 auto;
-  padding: 8px 24px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--paper-lit);
+  padding: 7px 8px;
+  box-shadow: var(--shadow-bubble);
+}
+
+.composer:focus-within {
+  border-color: var(--brass);
 }
 
 .composer textarea {
   flex: 1;
-  min-height: 46px;
+  min-height: 40px;
   max-height: 180px;
-  padding: 11px 12px;
-  border-radius: 5px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
   line-height: 1.45;
   resize: none;
 }
 
+.composer textarea:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+
 .composer button {
-  min-width: 68px;
-  height: 44px;
+  min-width: 64px;
+  height: 40px;
 }
 
 .status {
@@ -671,12 +716,12 @@
     padding: 18px 12px 8px;
   }
 
-  .composer {
-    padding: 6px 12px 8px;
+  .composerWrap {
+    padding: 0 12px 10px;
   }
 
   .modeBar {
-    padding: 4px 12px 0;
+    padding: 4px 0 6px;
   }
 
   .modeHint {

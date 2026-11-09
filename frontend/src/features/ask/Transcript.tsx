@@ -49,14 +49,17 @@ export function Transcript({
     pending !== null && (!lastIsUser || lastMessage.content !== pending.text);
   const isThinking = pending !== null || sessionStatus === 'thinking';
   const handleTurnPrompt = onActionPrompt ?? onPrompt;
+  const blank = messages.length === 0 && !showOptimisticUser && !isThinking && !loading;
 
   const { ref: box, onScroll } = useStickToBottom<HTMLDivElement>(
     `${messages.length}|${isThinking}|${thoughtStep}|${liveSteps.length}|${liveFound.length}|${liveThought.length}|${streamingText.length}`,
     showOptimisticUser ? pending?.text : null,
     sessionId,
+    // The empty-state hero is taller than the viewport on short screens; a
+    // bottom pin would clip its title, so anchor to the top while blank.
+    blank ? 'hero' : undefined,
   );
 
-  const blank = messages.length === 0 && !showOptimisticUser && !isThinking && !loading;
   return (
     <div
       ref={box}
