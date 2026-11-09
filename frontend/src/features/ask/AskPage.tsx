@@ -37,7 +37,8 @@ export default function AskPage() {
     onError: setError,
     select: url.select,
   });
-  const locked = sender.busy || actions.scopeBusy;
+  const isAgentThinking = sender.busy || data.sessionStatus === 'thinking';
+  const locked = isAgentThinking || actions.scopeBusy;
   const shownError = error || data.listError;
 
   function newChat() {
@@ -109,6 +110,8 @@ export default function AskPage() {
           loading={data.loadingSession}
           aboutBook={Boolean(session?.book ?? url.book)}
           notice={data.notice}
+          thoughtStep={data.thoughtStep}
+          sessionStatus={data.sessionStatus}
           onPrompt={(prompt) => {
             setText(prompt);
             input.current?.focus();
@@ -120,7 +123,7 @@ export default function AskPage() {
         <Composer
           value={text}
           inputRef={input}
-          busy={sender.busy}
+          busy={isAgentThinking}
           disabled={locked || !(data.status?.available ?? true)}
           onChange={setText}
           onSubmit={() => void sender.send(text, actions.scopeBusy)}

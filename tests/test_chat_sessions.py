@@ -492,3 +492,27 @@ def test_session_api_is_registered_in_the_app(library: Path, tmp_path: Path) -> 
         assert [message["role"] for message in stored["messages"]] == ["user", "assistant"]
         assert stored["messages"][1]["sources"] == [{"book": "sub/a.pdf", "page": 2}]
         assert stored["title"] == "What is here?"
+
+
+def test_session_events_stream_and_conflict_when_thinking(tmp_path: Path) -> None:
+    harness = make_harness(tmp_path)
+    session = create_session(harness)
+
+    # Events endpoint streams initial status
+    with harness.client.stream("GET", f"/api/chat/sessions/{session['id']}/events") as response:
+        assert response.status_code == 200
+        assert "text/event-stream" in response.headers["content-type"]
+        line = next(response.iter_lines())
+        assert line.startswith("data: ")
+        data = json.loads(line.removeprefix("data: "))
+        assert data["type"] == "status"
+        assert data["status"] == "idle"
+
+    # Mark thinking to verify conflict guard
+    harness.chats.set_session_status(session["id"], "thinking", thought_step="Searching…")
+    conflict = harness.client.post(
+        f"/api/chat/sessions/{session['id']}/messages",
+        json={"content": "Duplicate send"},
+    )
+    assert conflict.status_code == 409
+    assert "already generating" in conflict.json()["detail"]

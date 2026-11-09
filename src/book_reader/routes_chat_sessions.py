@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import asyncio
+import inspect
+import json
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .chat_config import CHAT_MAX_MESSAGE_CHARS, select_model
@@ -50,6 +55,36 @@ class ProjectBody(BaseModel):
     name: str
 
 
+class SessionTaskHub:
+    """Coordinates background research tasks and SSE subscribers per chat session."""
+
+    def __init__(self) -> None:
+        self._subscribers: dict[str, set[asyncio.Queue[dict[str, Any]]]] = {}
+        self._tasks: dict[str, asyncio.Task[Any]] = {}
+
+    def is_running(self, session_id: str) -> bool:
+        task = self._tasks.get(session_id)
+        return task is not None and not task.done()
+
+    def register_task(self, session_id: str, task: asyncio.Task[Any]) -> None:
+        self._tasks[session_id] = task
+
+    def subscribe(self, session_id: str) -> asyncio.Queue[dict[str, Any]]:
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+        self._subscribers.setdefault(session_id, set()).add(queue)
+        return queue
+
+    def unsubscribe(self, session_id: str, queue: asyncio.Queue[dict[str, Any]]) -> None:
+        if session_id in self._subscribers:
+            self._subscribers[session_id].discard(queue)
+            if not self._subscribers[session_id]:
+                del self._subscribers[session_id]
+
+    def emit(self, session_id: str, event: dict[str, Any]) -> None:
+        for queue in list(self._subscribers.get(session_id, ())):
+            queue.put_nowait(event)
+
+
 def register(
     app: FastAPI,
     *,
@@ -62,6 +97,7 @@ def register(
 ) -> None:
     """Attach Ask session routes; dependencies are injected by the app factory."""
     router = APIRouter(prefix="/api/chat", tags=["chat"])
+    hub = SessionTaskHub()
 
     def session_or_404(session_id: str) -> ChatSession:
         session = chats.get_session(session_id)
@@ -209,9 +245,51 @@ def register(
             raise store_error(exc) from exc
         return {"ok": True}
 
-    @router.post("/sessions/{session_id}/messages")
-    def post_message(session_id: str, body: MessageBody) -> dict[str, object]:
+    @router.get("/sessions/{session_id}/events")
+    async def session_events(session_id: str) -> StreamingResponse:
         session = session_or_404(session_id)
+        queue = hub.subscribe(session_id)
+
+        async def generator() -> AsyncIterator[str]:
+            try:
+                initial = {
+                    "type": "status",
+                    "status": session.get("status", "idle"),
+                    "step": session.get("thought_step", ""),
+                }
+                yield f"data: {json.dumps(initial)}\n\n"
+                if session.get("status") != "thinking" and not hub.is_running(session_id):
+                    return
+
+                while True:
+                    try:
+                        event = await asyncio.wait_for(queue.get(), timeout=15.0)
+                        yield f"data: {json.dumps(event)}\n\n"
+                        if event.get("type") in {"done", "error"}:
+                            break
+                    except TimeoutError:
+                        yield ": ping\n\n"
+            finally:
+                hub.unsubscribe(session_id, queue)
+
+        return StreamingResponse(
+            generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    @router.post("/sessions/{session_id}/messages")
+    async def post_message(session_id: str, body: MessageBody) -> dict[str, object]:
+        session = session_or_404(session_id)
+        if session.get("status") == "thinking" or hub.is_running(session_id):
+            raise HTTPException(
+                status_code=409, detail="chat session is already generating a response"
+            )
+
         content = body.content.strip()
         if not content:
             raise HTTPException(status_code=400, detail="message content must not be empty")
@@ -267,41 +345,90 @@ def register(
         ]
         allowed = allowed_books(selected)
         book_in_scope = allowed is None or (book is not None and book in allowed)
-        try:
-            result = chat.ask(
-                history,
-                book=book if book_in_scope else None,
-                page=stored["page"] if book_in_scope else None,
-                model=select_model(None, preferences, chat),
-                allowed_books=allowed,
-                scope=scope_label(selected),
+
+        loop = asyncio.get_running_loop()
+
+        def background_work() -> dict[str, object]:
+            def on_step(step: str) -> None:
+                chats.set_session_status(session_id, "thinking", thought_step=step)
+                loop.call_soon_threadsafe(hub.emit, session_id, {"type": "step", "step": step})
+
+            chats.set_session_status(session_id, "thinking", thought_step="Searching library…")
+            loop.call_soon_threadsafe(
+                hub.emit, session_id, {"type": "step", "step": "Searching library…"}
             )
+
+            try:
+                ask_kwargs: dict[str, Any] = {
+                    "book": book if book_in_scope else None,
+                    "page": stored["page"] if book_in_scope else None,
+                    "model": select_model(None, preferences, chat),
+                    "allowed_books": allowed,
+                    "scope": scope_label(selected),
+                }
+                ask_sig = inspect.signature(chat.ask)
+                if "on_step" in ask_sig.parameters or any(
+                    p.kind == p.VAR_KEYWORD for p in ask_sig.parameters.values()
+                ):
+                    ask_kwargs["on_step"] = on_step
+                result = chat.ask(history, **ask_kwargs)
+            except Exception as exc:
+                chats.set_session_status(session_id, "error", thought_step="", last_error=str(exc))
+                loop.call_soon_threadsafe(
+                    hub.emit, session_id, {"type": "error", "error": str(exc)}
+                )
+                raise
+
+            answer = str(result.get("answer") or "").strip()
+            if not answer:
+                empty_err = HTTPException(
+                    status_code=502, detail="chat provider returned an empty answer"
+                )
+                chats.set_session_status(
+                    session_id, "error", thought_step="", last_error=str(empty_err.detail)
+                )
+                loop.call_soon_threadsafe(
+                    hub.emit, session_id, {"type": "error", "error": empty_err.detail}
+                )
+                raise empty_err
+            answer = answer[:CHAT_MAX_MESSAGE_CHARS]
+            raw_sources = result.get("sources")
+            sources: list[dict[str, object]] = (
+                [dict(item) for item in raw_sources if isinstance(item, dict)]
+                if isinstance(raw_sources, list)
+                else []
+            )
+            try:
+                chats.add_message(
+                    session_id,
+                    "assistant",
+                    answer,
+                    sources=sources,
+                    provider=str(result.get("provider") or ""),
+                    model=str(result.get("model") or ""),
+                )
+            except (ChatStorageError, ChatStoreError) as exc:
+                chats.set_session_status(session_id, "error", thought_step="", last_error=str(exc))
+                loop.call_soon_threadsafe(
+                    hub.emit, session_id, {"type": "error", "error": str(exc)}
+                )
+                raise store_error(exc) from exc
+
+            final_session = session_or_404(session_id)
+            loop.call_soon_threadsafe(
+                hub.emit, session_id, {"type": "done", "session": final_session}
+            )
+            return {"session": final_session}
+
+        task = asyncio.create_task(asyncio.to_thread(background_work))
+        hub.register_task(session_id, task)
+        try:
+            return await asyncio.shield(task)
         except ChatUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ProviderChatError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-        answer = str(result.get("answer") or "").strip()
-        if not answer:
-            raise HTTPException(status_code=502, detail="chat provider returned an empty answer")
-        answer = answer[:CHAT_MAX_MESSAGE_CHARS]
-        raw_sources = result.get("sources")
-        sources: list[dict[str, object]] = (
-            [dict(item) for item in raw_sources if isinstance(item, dict)]
-            if isinstance(raw_sources, list)
-            else []
-        )
-        try:
-            chats.add_message(
-                session_id,
-                "assistant",
-                answer,
-                sources=sources,
-                provider=str(result.get("provider") or ""),
-                model=str(result.get("model") or ""),
-            )
-        except (ChatStorageError, ChatStoreError) as exc:
+        except ChatStorageError as exc:
             raise store_error(exc) from exc
-        return {"session": session_or_404(session_id)}
 
     app.include_router(router)

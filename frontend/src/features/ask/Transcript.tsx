@@ -23,20 +23,36 @@ interface Props {
   loading: boolean;
   aboutBook: boolean;
   notice: string;
+  thoughtStep?: string;
+  sessionStatus?: 'idle' | 'thinking' | 'error';
   onPrompt: (text: string) => void;
 }
 
 /** The scrolling `role="log"` thread: stored turns, the optimistic turn, or the empty state. */
-export function Transcript({ messages, pending, loading, aboutBook, notice, onPrompt }: Props) {
+export function Transcript({
+  messages,
+  pending,
+  loading,
+  aboutBook,
+  notice,
+  thoughtStep,
+  sessionStatus = 'idle',
+  onPrompt,
+}: Props) {
   const box = useRef<HTMLDivElement>(null);
-  const showPending = pending !== null && messages.length <= pending.base;
+  const lastMessage = messages[messages.length - 1];
+  const lastIsUser = lastMessage?.role === 'user';
+  const showOptimisticUser =
+    pending !== null && (!lastIsUser || lastMessage.content !== pending.text);
+  const isThinking = pending !== null || sessionStatus === 'thinking';
+
   useEffect(() => {
     if (box.current) box.current.scrollTop = box.current.scrollHeight;
-  }, [messages.length, showPending]);
+  }, [messages.length, showOptimisticUser, isThinking, thoughtStep]);
 
-  const blank = messages.length === 0 && !showPending && !loading;
+  const blank = messages.length === 0 && !showOptimisticUser && !isThinking && !loading;
   return (
-    <div ref={box} className={styles.thread} role="log" aria-live="polite" aria-busy={loading}>
+    <div ref={box} className={styles.thread} role="log" aria-live="polite" aria-busy={loading || isThinking}>
       {blank ? (
         <EmptyState
           variant="hero"
@@ -56,15 +72,14 @@ export function Transcript({ messages, pending, loading, aboutBook, notice, onPr
       {messages.map((message) => (
         <ChatMessageView key={message.id} message={message} variant="thread" />
       ))}
-      {showPending ? (
-        <>
-          <ChatMessageView message={{ role: 'user', content: pending.text }} variant="thread" />
-          <ChatMessageView
-            message={{ role: 'assistant', content: 'Searching the library…' }}
-            variant="thread"
-            pending
-          />
-        </>
+      {showOptimisticUser ? (
+        <ChatMessageView message={{ role: 'user', content: pending.text }} variant="thread" />
+      ) : null}
+      {isThinking ? (
+        <div className={styles.thinkingCard} role="status" aria-live="polite">
+          <span className={styles.thinkingSpinner} />
+          <span>{thoughtStep || 'Searching the library…'}</span>
+        </div>
       ) : null}
     </div>
   );

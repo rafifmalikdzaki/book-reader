@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 
+import { ApiError } from '../../api/client';
 import { createChatSession, postMessage } from '../../api/endpoints';
 import type { ChatSession, ChatSessionCreate } from '../../api/types';
 import { SESSIONS_KEY, sessionKey } from './keys';
@@ -50,8 +51,17 @@ export function useSendMessage({ session, draft, canSend, setText, onError, sele
       client.setQueryData(sessionKey(id), data.session);
       await client.invalidateQueries({ queryKey: SESSIONS_KEY });
     } catch (error) {
-      setText((current) => (current.trim() ? current : raw));
-      onError(error instanceof Error ? error.message : 'The request failed.');
+      const isConflict = error instanceof ApiError && error.status === 409;
+      if (!isConflict) {
+        setText((current) => (current.trim() ? current : raw));
+      }
+      onError(
+        isConflict
+          ? 'The research agent is already generating an answer.'
+          : error instanceof Error
+            ? error.message
+            : 'The request failed.',
+      );
       if (id) await client.invalidateQueries({ queryKey: sessionKey(id) });
     } finally {
       inFlight.current = false;

@@ -168,6 +168,46 @@
   color: var(--brass-deep);
 }
 
+.thinkingCard {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: fit-content;
+  padding: 8px 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper-edge);
+  color: var(--ink);
+  font-size: 13.5px;
+  line-height: 1.4;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.thinkingSpinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--brass);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
 .error {
   width: 100%;
   max-width: 820px;

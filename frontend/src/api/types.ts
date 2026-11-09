@@ -419,6 +419,9 @@ export interface ChatSession {
   /** Category ids scoping retrieval; empty means the whole library. */
   categories: string[];
   messages: StoredMessage[];
+  status?: 'idle' | 'thinking' | 'error';
+  thought_step?: string;
+  last_error?: string | null;
 }
 
 export interface ChatProject {

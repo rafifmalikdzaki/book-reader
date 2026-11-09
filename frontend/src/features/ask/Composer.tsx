@@ -38,7 +38,7 @@ export function Composer({ value, inputRef, busy, disabled, onChange, onSubmit }
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={onKeyDown}
       />
-      <Button type="submit" disabled={disabled}>
+      <Button type="submit" loading={busy} disabled={disabled}>
         {busy ? 'Thinking…' : 'Send'}
       </Button>
     </form>

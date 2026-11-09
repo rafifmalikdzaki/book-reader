@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { ApiError } from '../../api/client';
@@ -17,13 +17,48 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
     queryFn: () => listChatSessions(),
     staleTime: 15_000,
   });
+  const client = useQueryClient();
+  const [liveStep, setLiveStep] = useState<string>('');
   const status = useQuery({ queryKey: CHAT_STATUS_KEY, queryFn: () => getChatStatus() });
   const detail = useQuery({
     queryKey: sessionKey(chatId ?? ''),
     queryFn: () => getChatSession(chatId ?? ''),
     enabled: chatId !== null,
     staleTime: 30_000,
+    refetchInterval: (q) => (q.state.data?.status === 'thinking' ? 1000 : false),
   });
+
+  useEffect(() => {
+    if (!chatId || detail.data?.status !== 'thinking') {
+      return;
+    }
+    if (typeof EventSource === 'undefined') return;
+    const source = new EventSource(`/api/chat/sessions/${encodeURIComponent(chatId)}/events`);
+    source.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type === 'step') {
+          setLiveStep(payload.step);
+        } else if (payload.type === 'done') {
+          client.setQueryData(sessionKey(chatId), payload.session);
+          setLiveStep('');
+          source.close();
+        } else if (payload.type === 'error') {
+          setLiveStep('');
+          source.close();
+        }
+      } catch {
+        // ignore
+      }
+    };
+    source.onerror = () => {
+      source.close();
+    };
+    return () => {
+      source.close();
+      setLiveStep('');
+    };
+  }, [chatId, detail.data?.status, client]);
 
   const [notice, setNotice] = useState(expired ? EXPIRED_NOTICE : '');
   const [failedFor, setFailedFor] = useState<string | null>(null);
@@ -52,6 +87,8 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
     status: status.data,
     statusFailed: status.isError,
     session,
+    sessionStatus: detail.data?.status ?? 'idle',
+    thoughtStep: liveStep || detail.data?.thought_step || '',
     loadingSession: chatId !== null && detail.isPending,
     /** A loaded session supersedes any earlier notice. */
     notice: session ? '' : notice,

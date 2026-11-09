@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
 import os
-from collections.abc import Mapping, Sequence
+import re
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, TypedDict
 
 from langchain_core.messages import (
@@ -228,6 +231,7 @@ class ChatService:
         model: str | None = None,
         allowed_books: set[str] | None = None,
         scope: str | None = None,
+        on_step: Callable[[str], None] | None = None,
     ) -> dict[str, object]:
         if not self._providers:
             raise ChatUnavailable(
@@ -246,14 +250,18 @@ class ChatService:
         failures: list[str] = []
         for provider in attempts:
             try:
-                return self._run(
-                    provider,
-                    messages,
-                    book=book,
-                    page=page,
-                    allowed_books=allowed_books,
-                    scope=scope,
-                )
+                run_kwargs: dict[str, Any] = {
+                    "book": book,
+                    "page": page,
+                    "allowed_books": allowed_books,
+                    "scope": scope,
+                }
+                sig = inspect.signature(self._run)
+                if "on_step" in sig.parameters or any(
+                    p.kind == p.VAR_KEYWORD for p in sig.parameters.values()
+                ):
+                    run_kwargs["on_step"] = on_step
+                return self._run(provider, messages, **run_kwargs)
             except Exception as exc:
                 logger.warning("chat provider %s failed: %s", provider.name, exc)
                 failures.append(f"{provider.name}: {exc}")
@@ -270,8 +278,11 @@ class ChatService:
         page: int | None,
         allowed_books: set[str] | None,
         scope: str | None,
+        on_step: Callable[[str], None] | None = None,
     ) -> dict[str, object]:
-        tools = list(self.tool_map(allowed_books=allowed_books).values())
+        if on_step:
+            on_step("Starting research agent…")
+        tools = list(self.tool_map(allowed_books=allowed_books, on_step=on_step).values())
         model = ChatOpenAI(
             model=provider.model,
             api_key=SecretStr(provider.api_key),
@@ -281,7 +292,7 @@ class ChatService:
             max_retries=0,
         )
         bound = model.bind_tools(tools)
-        graph = self._graph(bound, model, tools)
+        graph = self._graph(bound, model, tools, on_step=on_step)
         excerpt = self._page_excerpt(book, page, allowed_books=allowed_books)
         history: list[BaseMessage] = [
             SystemMessage(
@@ -328,6 +339,8 @@ class ChatService:
         bound: Runnable[Any, AIMessage],
         plain: Runnable[Any, AIMessage],
         tools: list[BaseTool],
+        *,
+        on_step: Callable[[str], None] | None = None,
     ) -> Any:
         def tool_rounds(state: MessagesState) -> int:
             return sum(
@@ -337,9 +350,13 @@ class ChatService:
             )
 
         def agent_node(state: MessagesState) -> dict[str, list[BaseMessage]]:
+            if on_step:
+                on_step("Reasoning about next step…")
             return {"messages": [bound.invoke(state["messages"])]}
 
         def finish_node(state: MessagesState) -> dict[str, list[BaseMessage]]:
+            if on_step:
+                on_step("Synthesizing answer from retrieved sources…")
             evidence = [
                 str(message.content)[:1500]
                 for message in state["messages"]
@@ -363,7 +380,28 @@ class ChatService:
             if tool_rounds(state) >= MAX_TOOL_ROUNDS:
                 return "finish"
             last = state["messages"][-1]
-            return "tools" if isinstance(last, AIMessage) and last.tool_calls else END
+            if isinstance(last, AIMessage) and last.tool_calls:
+                if on_step:
+                    steps = []
+                    for call in last.tool_calls:
+                        name = call.get("name")
+                        args = call.get("args") or {}
+                        if name == "search_library":
+                            q = args.get("query", "")
+                            b = args.get("book")
+                            target = f" in {Path(b).name}" if b else ""
+                            steps.append(f"Searching library for “{q}”{target}")
+                        elif name == "read_document":
+                            b = args.get("book", "")
+                            p = args.get("page")
+                            page_str = f" page {p}" if p else ""
+                            steps.append(f"Reading {Path(b).name}{page_str}")
+                        elif name == "add_note":
+                            steps.append("Saving note")
+                    if steps:
+                        on_step(" · ".join(steps) + "…")
+                return "tools"
+            return END
 
         def after_tools(state: MessagesState) -> str:
             last = state["messages"][-1]
@@ -456,8 +494,16 @@ class ChatService:
 
     # ---- tools -----------------------------------------------------------------
 
-    def tool_map(self, *, allowed_books: set[str] | None = None) -> dict[str, BaseTool]:
+    def tool_map(
+        self,
+        *,
+        allowed_books: set[str] | None = None,
+        on_step: Callable[[str], None] | None = None,
+    ) -> dict[str, BaseTool]:
         def search(query: str, book: str | None = None, limit: int = 5) -> str:
+            if on_step:
+                target = f" in {Path(book).name}" if book else ""
+                on_step(f"Searching library for “{query}”{target}…")
             return self._search_library(query, book, limit, allowed_books=allowed_books)
 
         def read_document(
@@ -466,6 +512,9 @@ class ChatService:
             line: int | None = None,
             count: int | None = None,
         ) -> str:
+            if on_step:
+                page_str = f" page {page}" if page else ""
+                on_step(f"Reading {Path(book).name}{page_str}…")
             return self._read_document(book, page, line, count, allowed_books=allowed_books)
 
         def add_note(
@@ -475,6 +524,8 @@ class ChatService:
             page: int | None = None,
             group: str = "",
         ) -> str:
+            if on_step:
+                on_step("Saving note to researcher notepad…")
             return self._add_note(book, quote, comment, page, group, allowed_books=allowed_books)
 
         return {
@@ -558,7 +609,11 @@ class ChatService:
             hits.append(hit)
             if len(hits) >= limit:
                 return hits
-        for rel in sorted(allowed_books):
+        words = [w.casefold() for w in re.findall(r"\w+", text) if len(w) > 2]
+        candidate_books = [
+            rel for rel in sorted(allowed_books) if any(w in rel.casefold() for w in words)
+        ] or sorted(allowed_books)[:5]
+        for rel in candidate_books:
             if len(hits) >= limit:
                 break
             target = self._library.find_book(rel)

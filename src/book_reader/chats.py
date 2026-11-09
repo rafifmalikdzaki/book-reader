@@ -45,7 +45,7 @@ class StoredMessage(TypedDict):
     created: float
 
 
-class ChatSession(TypedDict):
+class ChatSession(TypedDict, total=False):
     id: str
     title: str
     created: float
@@ -56,6 +56,9 @@ class ChatSession(TypedDict):
     page: int | None
     categories: list[str]
     messages: list[StoredMessage]
+    status: str
+    thought_step: str
+    last_error: str | None
 
 
 class ChatProject(TypedDict):
@@ -152,6 +155,9 @@ def _session(raw: object) -> ChatSession | None:
             category = _text(item).strip()
             if category and category not in categories:
                 categories.append(category)
+    status = _text(raw.get("status")) or "idle"
+    if status == "thinking":
+        status = "idle"
     return {
         "id": session_id,
         "title": " ".join(_text(raw.get("title"), limit=MAX_TITLE).split()) or "New chat",
@@ -163,6 +169,9 @@ def _session(raw: object) -> ChatSession | None:
         "page": page_number if page_number and page_number > 0 else None,
         "categories": categories,
         "messages": messages,
+        "status": status,
+        "thought_step": _text(raw.get("thought_step")),
+        "last_error": _text(raw.get("last_error")) if raw.get("last_error") is not None else None,
     }
 
 
@@ -316,6 +325,9 @@ class ChatStore:
                 "page": page,
                 "categories": list(dict.fromkeys(categories or [])),
                 "messages": [],
+                "status": "idle",
+                "thought_step": "",
+                "last_error": None,
             }
             data["sessions"].append(session)
             self._persist(data)
@@ -342,9 +354,30 @@ class ChatStore:
                         "categories": list(session["categories"]),
                         "message_count": len(session["messages"]),
                         "preview": " ".join(last.split())[:120],
+                        "status": session.get("status", "idle"),
+                        "thought_step": session.get("thought_step", ""),
                     }
                 )
             return result
+
+    def set_session_status(
+        self,
+        session_id: str,
+        status: str,
+        *,
+        thought_step: str = "",
+        last_error: str | None = None,
+    ) -> ChatSession:
+        with self._lock:
+            data = self._load()
+            session = self._find_session(session_id)
+            if session is None:
+                raise ChatError(f"unknown session: {session_id}")
+            session["status"] = status
+            session["thought_step"] = thought_step
+            session["last_error"] = last_error
+            self._persist(data)
+            return _copy_session(session)
 
     def get_session(self, session_id: str) -> ChatSession | None:
         with self._lock:
@@ -439,6 +472,10 @@ class ChatStore:
                 del session["messages"][:overflow]
             if clean_role == "user" and session["title"] == "New chat":
                 session["title"] = " ".join(clean_content.split())[:MAX_TITLE]
+            if clean_role == "assistant":
+                session["status"] = "idle"
+                session["thought_step"] = ""
+                session["last_error"] = None
             session["updated"] = now
             self._persist(data)
             return _copy_session(session)
