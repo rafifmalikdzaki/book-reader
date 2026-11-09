@@ -667,18 +667,79 @@ class Searcher:
         return self._local_library(query, limit)
 
     def _local_library(self, query: str, limit: int) -> list[SearchHit]:
-        """Scan page/line text when no index is available yet."""
+        """Scan candidate books and text when no full-text index is available yet."""
         needle = query.strip()
         if not needle:
             return []
+        books = self._library.scan()
+        if not books:
+            return []
+
+        # Tokenize query to identify candidate books by title / relative path
+        query_words = [w.casefold() for w in re.findall(r"\w+", needle) if len(w) > 1]
+        stop_words = {
+            "in",
+            "of",
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "for",
+            "to",
+            "with",
+            "on",
+            "at",
+            "by",
+            "from",
+            "regarding",
+            "about",
+            "me",
+            "books",
+            "book",
+            "recommend",
+        }
+        meaningful_words = [w for w in query_words if w not in stop_words]
+        match_words = meaningful_words or query_words
+
+        def score_book(book: Book) -> int:
+            rel_lower = book.rel.casefold()
+            score = 0
+            if needle.casefold() in rel_lower:
+                score += 100
+            for w in match_words:
+                if w in rel_lower:
+                    score += 20
+            if book.kind == "md":
+                score += 5
+            return score
+
+        scored_books = [(score_book(b), b) for b in books]
+        scored_books.sort(key=lambda item: (-item[0], item[1].rel.casefold()))
+
         hits: list[SearchHit] = []
-        for book in self._library.scan():
+        candidate_matches: list[SearchHit] = []
+        start_time = time.monotonic()
+        MAX_SEARCH_SECONDS = 2.0
+        MAX_CHECKED_BOOKS = 8
+
+        checked = 0
+        for score, book in scored_books:
+            if len(hits) >= limit or time.monotonic() - start_time > MAX_SEARCH_SECONDS:
+                break
+            if checked >= MAX_CHECKED_BOOKS and len(hits) > 0:
+                break
+
             target = self._library.find_book(book.rel)
             if target is None:
                 continue
+
+            checked += 1
             remaining = max(1, limit - len(hits))
+
             if book.kind == "md":
-                for hit in search_markdown(target, needle, remaining):
+                found = search_markdown(target, needle, remaining)
+                for hit in found:
                     hits.append(
                         SearchHit(
                             book=book.rel,
@@ -691,7 +752,8 @@ class Searcher:
                         )
                     )
             else:
-                for hit in self._pdf.search(target, needle, remaining):
+                found = self._pdf.search(target, needle, remaining)
+                for hit in found:
                     hits.append(
                         SearchHit(
                             book=book.rel,
@@ -705,8 +767,28 @@ class Searcher:
                             snippet=str(hit["snippet"]),
                         )
                     )
-            if len(hits) >= limit:
-                break
+                if not found and score >= 20:
+                    candidate_matches.append(
+                        SearchHit(
+                            book=book.rel,
+                            kind="pdf",
+                            page=1,
+                            line=None,
+                            line_end=None,
+                            section=self._sections.cached_section_for_page(book.rel, 1),
+                            snippet=f"Title match: {book.title} (candidate book for '{needle}')",
+                        )
+                    )
+
+        if len(hits) < limit and candidate_matches:
+            seen_books = {hit["book"] for hit in hits}
+            for candidate in candidate_matches:
+                if candidate["book"] not in seen_books:
+                    hits.append(candidate)
+                    seen_books.add(candidate["book"])
+                    if len(hits) >= limit:
+                        break
+
         return hits[:limit]
 
 

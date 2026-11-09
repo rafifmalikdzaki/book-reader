@@ -241,7 +241,9 @@ class LibraryViews:
             path = library.find_book(book.rel)
             if path is not None and book.kind == "pdf":
                 count_items.append((book.rel, path))
-        page_counts = self.pages.counts(count_items)
+        meta = self.pages.counts_and_titles(count_items)
+        page_counts = {rel: pages for rel, (pages, _) in meta.items()}
+        cached_titles = {rel: title for rel, (_, title) in meta.items()}
         taxonomy = self.categories.taxonomy()
         taxonomy_by_id = {item["id"]: item for item in taxonomy}
         assignments = self.categories.assignments()
@@ -260,9 +262,13 @@ class LibraryViews:
                             path.read_text(encoding="utf-8", errors="replace"), title
                         )
                 else:
-                    title = display_title(
-                        self.pdf, self.sections, path, book.rel, title, page_count
-                    )
+                    cached_title = cached_titles.get(book.rel)
+                    if cached_title:
+                        title = cached_title
+                    else:
+                        title = display_title(
+                            self.pdf, self.sections, path, book.rel, title, page_count
+                        )
             page = int(str(entry.get("page"))) if entry.get("page") else None
             scroll = float(str(entry.get("scroll"))) if entry.get("scroll") is not None else None
             if book.kind == "pdf" and page and page_count:

@@ -66,31 +66,46 @@ class PageIndex:
 
     def counts(self, items: Iterable[tuple[str, Path]]) -> dict[str, int | None]:
         """Page counts for ``(rel, path)`` pairs, writing the index at most once."""
+        meta = self.counts_and_titles(items)
+        return {rel: pages for rel, (pages, _) in meta.items()}
+
+    def counts_and_titles(
+        self, items: Iterable[tuple[str, Path]]
+    ) -> dict[str, tuple[int | None, str | None]]:
+        """Page counts and titles for ``(rel, path)`` pairs, writing the index at most once."""
         with self._lock:
             entries = self._load()
-            result: dict[str, int | None] = {}
+            result: dict[str, tuple[int | None, str | None]] = {}
             dirty = False
             for rel, path in items:
                 try:
                     stat = path.stat()
                 except OSError:
-                    result[rel] = None
+                    result[rel] = (None, None)
                     continue
                 entry = entries.get(rel)
                 if (
                     entry is not None
                     and entry.get("mtime") == stat.st_mtime
                     and entry.get("size") == stat.st_size
+                    and "title" in entry
                 ):
                     pages = entry.get("pages")
-                    result[rel] = pages if isinstance(pages, int) else None
+                    title = entry.get("title")
+                    result[rel] = (
+                        pages if isinstance(pages, int) else None,
+                        str(title) if isinstance(title, str) and title else None,
+                    )
                     continue
-                result[rel] = self._open(rel, path)
+                pages_val = self._open(rel, path)
+                title_val = self._open_title(rel, path)
                 entries[rel] = {
                     "mtime": stat.st_mtime,
                     "size": stat.st_size,
-                    "pages": result[rel],
+                    "pages": pages_val,
+                    "title": title_val,
                 }
+                result[rel] = (pages_val, title_val)
                 dirty = True
             if dirty:
                 self._write(entries)
@@ -101,6 +116,13 @@ class PageIndex:
             return self._pdf.page_count(path)
         except Exception as exc:
             logger.warning("cannot read %s: %s", rel, exc)
+            return None
+
+    def _open_title(self, rel: str, path: Path) -> str | None:
+        try:
+            return self._pdf.title(path)
+        except Exception as exc:
+            logger.warning("cannot read title of %s: %s", rel, exc)
             return None
 
     def remap(self, mapping: dict[str, str]) -> set[str]:

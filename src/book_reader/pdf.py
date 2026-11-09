@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import threading
+import time
 from collections import OrderedDict
 from pathlib import Path
 
@@ -220,15 +221,19 @@ class PdfCache:
             logger.warning("cannot read outline of %s: %s", path.name, exc)
             return []
 
-    def search(self, path: Path, query: str, limit: int = 200) -> list[dict[str, object]]:
+    def search(
+        self, path: Path, query: str, limit: int = 200, *, max_pages: int = 150
+    ) -> list[dict[str, object]]:
         needle = query.casefold().strip()
         if not needle:
             return []
         hits: list[dict[str, object]] = []
+        start_t = time.monotonic()
         with self._lock:
             doc = self._doc(path)
-            for index in range(doc.page_count):
-                if len(hits) >= limit:
+            total = min(int(doc.page_count), max_pages)
+            for index in range(total):
+                if len(hits) >= limit or (index > 20 and time.monotonic() - start_t > 1.2):
                     break
                 text = " ".join(doc.load_page(index).get_text("text").split())
                 position = text.casefold().find(needle)
