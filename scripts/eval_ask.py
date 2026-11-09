@@ -22,7 +22,7 @@ from book_reader.evals import (
 )
 from book_reader.library.scan import Library
 from book_reader.notes.store import NotepadStore
-from book_reader.organize import CategoryStore
+from book_reader.organize.categories import CategoryStore
 from book_reader.reading.pages import PageIndex
 from book_reader.reading.pdf import PdfCache
 from book_reader.reading.sections import SectionIndex

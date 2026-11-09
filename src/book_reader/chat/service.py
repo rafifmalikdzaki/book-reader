@@ -28,7 +28,7 @@ from .tools import ToolsMixin
 from .types import AskCallbacks, AskOptions, ChatError, ChatMessage, ChatUnavailable, ProviderConfig
 
 if TYPE_CHECKING:
-    from ..organize import CategoryStore
+    from ..organize.categories import CategoryStore
     from ..reading.pages import PageIndex
     from ..reconcile import LibraryReconciler
 

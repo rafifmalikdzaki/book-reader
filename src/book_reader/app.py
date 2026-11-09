@@ -35,7 +35,9 @@ from .chat.sessions import ChatStore
 from .chat.types import AskOptions, ChatBackend, ChatError, ChatMessage, ChatUnavailable
 from .library.scan import Library
 from .notes.store import NotepadStore
-from .organize import CategoryStore, LibraryOrganizer, MistralClient
+from .organize.categories import CategoryStore
+from .organize.mistral import MistralClient
+from .organize.service import LibraryOrganizer
 from .reading.pages import PageIndex
 from .reading.pdf import PdfCache
 from .reading.progress import ProgressStore

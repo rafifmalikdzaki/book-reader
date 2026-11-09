@@ -26,7 +26,7 @@ from .chat.sessions import ChatError as ChatStoreError
 from .chat.types import AskCallbacks, AskOptions, ChatBackend, ChatMessage, ChatUnavailable
 from .chat.types import ChatError as ProviderChatError
 from .library.scan import Library
-from .organize import CategoryStore
+from .organize.categories import CategoryStore
 from .reconcile import LibraryReconciler
 from .state.preferences import Preferences
 

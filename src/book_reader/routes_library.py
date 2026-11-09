@@ -19,7 +19,8 @@ from fastapi import FastAPI, HTTPException, Query
 
 from .library.scan import Library
 from .notes.store import NotepadStore
-from .organize import CategoryStore, LibraryOrganizer
+from .organize.categories import CategoryStore
+from .organize.service import LibraryOrganizer
 from .reading.markdown import render_markdown_file
 from .reading.pages import PageIndex
 from .reading.pdf import PdfCache

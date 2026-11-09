@@ -17,7 +17,7 @@ from book_reader.chat.service import ChatService
 from book_reader.chat.sessions import ChatStore
 from book_reader.chat.types import AskCallbacks, AskOptions, ChatMessage, ProviderConfig
 from book_reader.library.scan import Library
-from book_reader.organize import CategoryStore
+from book_reader.organize.categories import CategoryStore
 from book_reader.routes_chat_sessions import register
 from book_reader.state.preferences import Preferences
 

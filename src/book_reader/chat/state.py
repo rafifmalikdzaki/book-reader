@@ -13,7 +13,7 @@ from ..search.service import Searcher
 from .types import ProviderConfig
 
 if TYPE_CHECKING:
-    from ..organize import CategoryStore
+    from ..organize.categories import CategoryStore
     from ..reading.pages import PageIndex
     from ..reconcile import LibraryReconciler
 

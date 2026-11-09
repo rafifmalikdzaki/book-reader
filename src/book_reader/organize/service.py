@@ -1,244 +1,35 @@
-"""Mistral + PageIndex categorization for the local library.
-
-Categories are virtual and keyed by the same SHA-256 content identity used by
-the reindexer. No file is moved. The organizer only sends a document's title,
-section headings, and a short first-page excerpt to Mistral after the UI
-confirms that request.
-"""
+"""LibraryOrganizer: the background job that asks Mistral to categorize the library."""
 
 from __future__ import annotations
 
 import contextlib
 import json
 import logging
-import os
 import re
 import threading
 import time
 from contextlib import AbstractContextManager
 from pathlib import Path
-from typing import Protocol, TypedDict
 
-import httpx
-
-from .library.models import UNFILED
-from .library.scan import Library
-from .reading.pdf import PdfCache
-from .reading.sections import SectionIndex
-from .reconcile import LibraryReconciler
+from ..library.models import UNFILED
+from ..library.scan import Library
+from ..reading.pdf import PdfCache
+from ..reading.sections import SectionIndex
+from ..reconcile import LibraryReconciler
+from .categories import (
+    CATEGORY_ID,
+    Assignment,
+    CategoryRecord,
+    CategoryStore,
+)
+from .mistral import JSONClient
 
 logger = logging.getLogger(__name__)
 
-TAXONOMY_VERSION = 1
-CATEGORY_ID = re.compile(r"^[a-z][a-z0-9_-]{1,30}$")
 BATCH_SIZE = 20
 TAXONOMY_SAMPLE = 40
 MAX_TAXONOMY_CHARS = 18_000
 MAX_BATCH_CHARS = 12_000
-
-
-class CategoryRecord(TypedDict):
-    id: str
-    name: str
-    description: str
-
-
-class Assignment(TypedDict):
-    category: str
-    confidence: float
-    updated: float
-
-
-class CategoryData(TypedDict):
-    version: int
-    taxonomy: list[CategoryRecord]
-    assignments: dict[str, Assignment]
-    generated_at: float
-
-
-class JSONClient(Protocol):
-    def json(self, system: str, user: str) -> dict[str, object] | None: ...
-
-
-class MistralClient:
-    """Minimal JSON-mode client for the user's configured Mistral key."""
-
-    def __init__(
-        self,
-        api_key: str,
-        *,
-        model: str = "mistral-small-latest",
-        base_url: str = "https://api.mistral.ai/v1",
-    ) -> None:
-        self.api_key = api_key
-        self.model = model
-        self.base_url = base_url.rstrip("/")
-
-    @classmethod
-    def from_env(cls) -> MistralClient | None:
-        key = (os.environ.get("MISTRAL_API_KEY") or os.environ.get("MISTRAL_API") or "").strip()
-        if not key:
-            return None
-        return cls(
-            key,
-            model=os.environ.get("BOOK_READER_MISTRAL_MODEL", "mistral-small-latest"),
-            base_url=os.environ.get("BOOK_READER_MISTRAL_BASE_URL", "https://api.mistral.ai/v1"),
-        )
-
-    def json(self, system: str, user: str) -> dict[str, object] | None:
-        payload = {
-            "model": self.model,
-            "temperature": 0,
-            "response_format": {"type": "json_object"},
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        }
-        for attempt in range(3):
-            try:
-                response = httpx.post(
-                    f"{self.base_url}/chat/completions",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    json=payload,
-                    timeout=90,
-                )
-                if response.status_code == 400 and "response_format" in response.text:
-                    payload.pop("response_format", None)
-                    response = httpx.post(
-                        f"{self.base_url}/chat/completions",
-                        headers={"Authorization": f"Bearer {self.api_key}"},
-                        json=payload,
-                        timeout=90,
-                    )
-                response.raise_for_status()
-                content = response.json()["choices"][0]["message"]["content"]
-                return _decode_json(str(content))
-            except Exception as exc:
-                logger.warning("mistral organize attempt %d failed: %s", attempt + 1, exc)
-                time.sleep(1.2 * (attempt + 1))
-        return None
-
-
-class CategoryStore:
-    """Persistent taxonomy and content-hash assignments."""
-
-    def __init__(
-        self, state_dir: Path, *, lock: AbstractContextManager[object] | None = None
-    ) -> None:
-        self.path = Path(state_dir) / "categories.json"
-        self._lock = lock or threading.RLock()
-        self._data: CategoryData | None = None
-
-    def _load(self) -> CategoryData:
-        with self._lock:
-            if self._data is None:
-                self._data = self._read()
-            return self._data
-
-    def _read(self) -> CategoryData:
-        try:
-            raw: object = json.loads(self.path.read_text(encoding="utf-8"))
-        except FileNotFoundError:
-            return {
-                "version": TAXONOMY_VERSION,
-                "taxonomy": [],
-                "assignments": {},
-                "generated_at": 0.0,
-            }
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("ignoring unreadable categories %s: %s", self.path, exc)
-            return {
-                "version": TAXONOMY_VERSION,
-                "taxonomy": [],
-                "assignments": {},
-                "generated_at": 0.0,
-            }
-        raw_taxonomy = raw.get("taxonomy") if isinstance(raw, dict) else None
-        raw_assignments = raw.get("assignments") if isinstance(raw, dict) else None
-        taxonomy: list[CategoryRecord] = []
-        if isinstance(raw_taxonomy, list):
-            for item in raw_taxonomy:
-                if not isinstance(item, dict):
-                    continue
-                cid = item.get("id")
-                name = item.get("name")
-                description = item.get("description", "")
-                if isinstance(cid, str) and isinstance(name, str) and CATEGORY_ID.match(cid):
-                    taxonomy.append({"id": cid, "name": name, "description": str(description)})
-        assignments: dict[str, Assignment] = {}
-        if isinstance(raw_assignments, dict):
-            valid = {item["id"] for item in taxonomy}
-            for digest, item in raw_assignments.items():
-                if not isinstance(item, dict):
-                    continue
-                category = item.get("category")
-                if not isinstance(category, str) or category not in valid:
-                    continue
-                try:
-                    confidence = max(0.0, min(1.0, float(item.get("confidence", 0.0))))
-                except (TypeError, ValueError):
-                    confidence = 0.0
-                assignments[str(digest)] = {
-                    "category": category,
-                    "confidence": confidence,
-                    "updated": float(item.get("updated") or 0.0),
-                }
-        generated = raw.get("generated_at", 0.0) if isinstance(raw, dict) else 0.0
-        return {
-            "version": TAXONOMY_VERSION,
-            "taxonomy": taxonomy,
-            "assignments": assignments,
-            "generated_at": float(generated) if isinstance(generated, (int, float)) else 0.0,
-        }
-
-    def _write(self) -> bool:
-        data = self._load()
-        payload = {
-            "version": TAXONOMY_VERSION,
-            "taxonomy": data["taxonomy"],
-            "assignments": data["assignments"],
-            "generated_at": data["generated_at"],
-        }
-        try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.path.with_name(self.path.name + ".tmp")
-            tmp.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-            os.replace(tmp, self.path)
-        except OSError as exc:
-            logger.warning("cannot persist categories %s: %s", self.path, exc)
-            return False
-        return True
-
-    def taxonomy(self) -> list[CategoryRecord]:
-        return [dict(item) for item in self._load()["taxonomy"]]  # type: ignore[misc]
-
-    def assignments(self) -> dict[str, Assignment]:
-        return dict(self._load()["assignments"])
-
-    def category_for(self, content_id: str) -> CategoryRecord | None:
-        assignment = self.assignments().get(content_id)
-        if assignment is None:
-            return None
-        return next(
-            (item for item in self.taxonomy() if item["id"] == assignment["category"]),
-            None,
-        )
-
-    def save_taxonomy(self, taxonomy: list[CategoryRecord]) -> None:
-        with self._lock:
-            data = self._load()
-            data["taxonomy"] = taxonomy
-            data["generated_at"] = time.time()
-            self._write()
-
-    def save_assignments(self, assignments: dict[str, Assignment]) -> None:
-        if not assignments:
-            return
-        with self._lock:
-            data = self._load()
-            data["assignments"].update(assignments)
-            self._write()
 
 
 class LibraryOrganizer:
@@ -457,24 +248,6 @@ class LibraryOrganizer:
             offset += len(batch)
             done += len(batch)
             self._set(done=done)
-
-
-def _decode_json(content: str) -> dict[str, object] | None:
-    text = content.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", text, re.DOTALL)
-        if not match:
-            return None
-        try:
-            parsed = json.loads(match.group(0))
-        except json.JSONDecodeError:
-            return None
-    return parsed if isinstance(parsed, dict) else None
 
 
 def _taxonomy_from_result(result: dict[str, object] | None) -> list[CategoryRecord]:

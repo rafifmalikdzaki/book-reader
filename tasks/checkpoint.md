@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 6 done. Task 7: split organize.py into organize/ (categories, mistral, service).
+Task 7 done. Task 8: move reconcile.py into reindex/ (manifest, reconciler, redirects).
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 6 done. Task 7: split organize.py into organize/ (categories, mistral, serv
 
 ## Next action
 
-Task 7: split organize.py into organize/ (categories, mistral, service).
+Task 8: move reconcile.py into reindex/ (manifest, reconciler, redirects).
 
 ## Blockers
 
