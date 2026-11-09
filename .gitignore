@@ -26,3 +26,6 @@ src/book_reader/static/app/
 
 # Local planning scratch (finished plans live in git history)
 tasks/
+
+# Session handover notes (local only, never committed)
+HANDOVER.md

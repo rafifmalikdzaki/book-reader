@@ -38,3 +38,20 @@ Lighthouse/RUM budget gate for this localhost single-user app; the measurements 
 recorded baseline for any future change.
 
 Reverted/not kept: none of the measured changes were neutral; all were retained after re-measuring the transfer sizes or resource directories.
+
+## 2026-11-09 baseline (redesign/ask-ui @ a17ef8a, docker `book-reader-local`)
+
+Measured with Playwright/Chromium 1440×900 on loopback against the running container, plus curl and docker stats.
+
+| Metric | Value | Budget | Verdict |
+|---|---|---|---|
+| Initial JS (`index-*.js`) | 526 KB raw / **162 KB gzip** | < 200 KB gzip | keep as-is |
+| Lazy `ui-*.js` chunk | 270 KB raw / 90 KB gzip | off initial path | fine |
+| `index-*.css` | 40 KB raw / 8.9 KB gzip | < 50 KB gzip | fine |
+| TTFB `/` and `/ask` | 4–6 ms | — | fine |
+| `/api/library` warm | 83–111 ms | < 200 ms p95 | fine |
+| LCP `/` / `/ask` | 976 ms / 660 ms | ≤ 2.5 s | Good |
+| Long tasks >50 ms | one 195 ms (hydrate) on `/`, one 147 ms on `/ask` | — | no pattern |
+| Container idle | 0.12 % CPU, 207 MB RSS | — | fine |
+
+System heat on the same machine at that time was **not** the app: a `pytest` run in `~/Research/kalbe/crd-dem-surrogate` (PID 946779) sat at ~97 % CPU and browser renderers (msedge 43 %, firefox RDD 33 %) held cores at 61–84 °C; the container stayed at 0.12 %. No app change made — per measure-first, nothing here justified one.
