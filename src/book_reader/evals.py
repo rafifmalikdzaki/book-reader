@@ -9,7 +9,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from .chat import ChatMessage, ChatService
+from .chat import ChatService
+from .chat_types import AskOptions, ChatMessage
 from .library import Library
 
 _FENCE_RE = re.compile(
@@ -450,10 +451,7 @@ def run_eval_suite(
         t0 = time.perf_counter()
         response = chat.ask(
             messages,
-            book=case.book,
-            page=case.page,
-            model=model,
-            mode=case.mode,
+            AskOptions(book=case.book, page=case.page, model=model, mode=case.mode),
         )
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
         results.append(

@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import functools
-import inspect
 import json
 import logging
 import os
 import re
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.messages import (
     AIMessage,
@@ -27,6 +25,12 @@ from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
+from .chat_types import AskCallbacks as AskCallbacks
+from .chat_types import AskOptions as AskOptions
+from .chat_types import ChatError as ChatError
+from .chat_types import ChatMessage as ChatMessage
+from .chat_types import ChatUnavailable as ChatUnavailable
+from .chat_types import ProviderConfig as ProviderConfig
 from .library import Library
 from .notepad import NotepadError, NotepadStore
 from .pdf import PdfCache
@@ -158,22 +162,6 @@ PROVIDER_KEY_ENVS: dict[str, tuple[str, ...]] = {
 }
 
 
-class ChatError(RuntimeError):
-    """Every configured provider failed."""
-
-
-class ChatUnavailable(RuntimeError):
-    """No provider is configured."""
-
-
-@dataclass(frozen=True)
-class ProviderConfig:
-    name: str
-    base_url: str
-    model: str
-    api_key: str
-
-
 class SearchArgs(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -254,11 +242,6 @@ class NoteArgs(BaseModel):
     comment: str = Field(default="", description="Why the passage matters.")
     page: int | None = Field(default=None, description="PDF page number (1-based).")
     group: str = Field(default="", description="Notepad group id; empty means Inbox.")
-
-
-class ChatMessage(TypedDict):
-    role: str
-    content: str
 
 
 @functools.lru_cache(maxsize=1)
@@ -388,24 +371,18 @@ class ChatService:
     def ask(
         self,
         messages: list[ChatMessage],
-        *,
-        book: str | None = None,
-        page: int | None = None,
-        model: str | None = None,
-        allowed_books: set[str] | None = None,
-        scope: str | None = None,
-        mode: str | None = None,
-        effort: str | None = None,
-        on_step: Callable[[str], None] | None = None,
-        on_token: Callable[[str], None] | None = None,
-        on_thought: Callable[[str], None] | None = None,
+        options: AskOptions | None = None,
+        callbacks: AskCallbacks | None = None,
     ) -> dict[str, object]:
+        options = options or AskOptions()
+        callbacks = callbacks or AskCallbacks()
         if not self._providers:
             raise ChatUnavailable(
                 "no chat provider configured; set MISTRAL_API_KEY, INCEPTION_API_KEY, "
                 "OPENROUTER_API_KEY, or OLLAMA_API_KEY"
             )
         attempts = self._providers
+        model = options.model
         if model and model != "auto":
             attempts = [
                 provider
@@ -417,25 +394,7 @@ class ChatService:
         failures: list[str] = []
         for provider in attempts:
             try:
-                run_kwargs: dict[str, Any] = {
-                    "book": book,
-                    "page": page,
-                    "allowed_books": allowed_books,
-                    "scope": scope,
-                }
-                sig = inspect.signature(self._run)
-                accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())
-                if "on_step" in sig.parameters or accepts_var_kw:
-                    run_kwargs["on_step"] = on_step
-                if "on_token" in sig.parameters or accepts_var_kw:
-                    run_kwargs["on_token"] = on_token
-                if "on_thought" in sig.parameters or accepts_var_kw:
-                    run_kwargs["on_thought"] = on_thought
-                if "mode" in sig.parameters or accepts_var_kw:
-                    run_kwargs["mode"] = mode
-                if "effort" in sig.parameters or accepts_var_kw:
-                    run_kwargs["effort"] = effort
-                return self._run(provider, messages, **run_kwargs)
+                return self._run(provider, messages, options, callbacks)
             except Exception as exc:
                 logger.warning("chat provider %s failed: %s", provider.name, exc)
                 failures.append(f"{provider.name}: {exc}")
@@ -447,30 +406,26 @@ class ChatService:
         self,
         provider: ProviderConfig,
         messages: list[ChatMessage],
-        *,
-        book: str | None,
-        page: int | None,
-        allowed_books: set[str] | None,
-        scope: str | None,
-        mode: str | None = None,
-        effort: str | None = None,
-        on_step: Callable[[str], None] | None = None,
-        on_token: Callable[[str], None] | None = None,
-        on_thought: Callable[[str], None] | None = None,
+        options: AskOptions,
+        callbacks: AskCallbacks,
     ) -> dict[str, object]:
+        book, page = options.book, options.page
+        allowed_books, scope = options.allowed_books, options.scope
         steps_recorded: list[str] = []
 
         def step_tracker(step: str) -> None:
             clean = step.strip()
-            if clean and (not steps_recorded or steps_recorded[-1] != clean):
+            if not clean:
+                return
+            if not steps_recorded or steps_recorded[-1] != clean:
                 steps_recorded.append(clean)
-            if on_step:
-                on_step(clean)
+            if callbacks.on_step:
+                callbacks.on_step(clean)
 
         step_tracker("Starting research agent…")
         tools = list(self.tool_map(allowed_books=allowed_books, on_step=step_tracker).values())
         try:
-            model = _chat_model(provider, effort)
+            model = _chat_model(provider, options.effort)
         except Exception:
             model = _chat_model(provider)
         bound = model.bind_tools(tools)
@@ -479,12 +434,12 @@ class ChatService:
             model,
             tools,
             on_step=step_tracker,
-            on_token=on_token,
-            on_thought=on_thought,
+            on_token=callbacks.on_token,
+            on_thought=callbacks.on_thought,
             provider=provider,
         )
         excerpt = self._page_excerpt(book, page, allowed_books=allowed_books)
-        socratic = _is_socratic_request(mode, messages)
+        socratic = _is_socratic_request(options.mode, messages)
         history: list[BaseMessage] = [
             SystemMessage(
                 content=self._system_prompt(

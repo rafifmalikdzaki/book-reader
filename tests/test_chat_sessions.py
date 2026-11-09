@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from book_reader.app import create_app
-from book_reader.chat import ChatService, ProviderConfig
+from book_reader.chat import AskCallbacks, AskOptions, ChatMessage, ChatService, ProviderConfig
 from book_reader.chats import ChatStore
 from book_reader.library import Library
 from book_reader.organize import CategoryStore
@@ -44,31 +44,28 @@ class StubChat:
 
     def ask(
         self,
-        messages: list[dict[str, str]],
-        *,
-        book: str | None = None,
-        page: int | None = None,
-        model: str | None = None,
-        allowed_books: set[str] | None = None,
-        scope: str | None = None,
+        messages: list[ChatMessage],
+        options: AskOptions | None = None,
+        callbacks: AskCallbacks | None = None,
     ) -> dict[str, object]:
+        options = options or AskOptions()
         self.calls.append(
             {
                 "messages": messages,
-                "book": book,
-                "page": page,
-                "model": model,
-                "allowed_books": allowed_books,
-                "scope": scope,
+                "book": options.book,
+                "page": options.page,
+                "model": options.model,
+                "allowed_books": options.allowed_books,
+                "scope": options.scope,
             }
         )
         if self.failure is not None:
             raise self.failure
         return {
             "answer": ANSWER,
-            "sources": [{"book": book, "page": page}],
+            "sources": [{"book": options.book, "page": options.page}],
             "provider": "stub",
-            "model": model or "auto",
+            "model": options.model or "auto",
         }
 
 
@@ -82,7 +79,9 @@ class Harness:
     reconciler: FakeReconciler
 
 
-def make_harness(tmp_path: Path, *, with_chat: bool = True) -> Harness:
+def make_harness(
+    tmp_path: Path, *, with_chat: bool = True, chat: StubChat | None = None
+) -> Harness:
     library_root = tmp_path / "library"
     library_root.mkdir()
     (library_root / "alpha.md").write_text(
@@ -107,7 +106,7 @@ def make_harness(tmp_path: Path, *, with_chat: bool = True) -> Harness:
         }
     )
     reconciler = FakeReconciler({"alpha.md": "hash-alpha", "beta.md": "hash-beta"})
-    stub = StubChat()
+    stub = chat or StubChat()
     app = FastAPI()
     register(
         app,
@@ -450,19 +449,16 @@ class StubAppChat:
 
     def ask(
         self,
-        messages: list[dict[str, str]],
-        *,
-        book: str | None = None,
-        page: int | None = None,
-        model: str | None = None,
-        allowed_books: set[str] | None = None,
-        scope: str | None = None,
+        messages: list[ChatMessage],
+        options: AskOptions | None = None,
+        callbacks: AskCallbacks | None = None,
     ) -> dict[str, object]:
+        options = options or AskOptions()
         return {
             "answer": "echo:" + messages[-1]["content"],
-            "sources": [{"book": book or "sub/a.pdf", "page": page or 1}],
+            "sources": [{"book": options.book or "sub/a.pdf", "page": options.page or 1}],
             "provider": "stub",
-            "model": model or "m",
+            "model": options.model or "m",
         }
 
 
@@ -536,3 +532,53 @@ def test_thought_steps_round_trip_through_store(tmp_path: Path) -> None:
     user, assistant = reloaded["messages"]
     assert "thought_steps" not in user
     assert assistant["thought_steps"] == ["Searching library…", "Reading"]
+
+
+class StepsOnlyChat(StubChat):
+    """A backend that echoes steps in its result without calling on_step."""
+
+    def ask(
+        self,
+        messages: list[ChatMessage],
+        options: AskOptions | None = None,
+        callbacks: AskCallbacks | None = None,
+    ) -> dict[str, object]:
+        result = super().ask(messages, options, callbacks)
+        result["thought_steps"] = ["Read page 2", "", "Read page 3"]
+        return result
+
+
+class CallbackChat(StubChat):
+    """A backend that reports blank, repeated and real steps through the callbacks."""
+
+    def ask(
+        self,
+        messages: list[ChatMessage],
+        options: AskOptions | None = None,
+        callbacks: AskCallbacks | None = None,
+    ) -> dict[str, object]:
+        assert callbacks is not None and callbacks.on_step is not None
+        for step in ("  ", "Searching…", "Searching…", "Reading"):
+            callbacks.on_step(step)
+        return super().ask(messages, options, callbacks)
+
+
+def last_message_steps(harness: Harness) -> list[str]:
+    session = create_session(harness)
+    response = harness.client.post(
+        f"/api/chat/sessions/{session['id']}/messages", json={"content": "why?"}
+    )
+    assert response.status_code == 200, response.text
+    stored = harness.chats.get_session(str(session["id"]))
+    assert stored is not None
+    return list(stored["messages"][-1].get("thought_steps", []))
+
+
+def test_persisted_steps_come_from_the_callbacks_not_the_result(tmp_path: Path) -> None:
+    harness = make_harness(tmp_path, chat=StepsOnlyChat())
+    assert last_message_steps(harness) == ["Searching library…"]
+
+
+def test_blank_and_repeated_callback_steps_are_dropped(tmp_path: Path) -> None:
+    harness = make_harness(tmp_path, chat=CallbackChat())
+    assert last_message_steps(harness) == ["Searching library…", "Searching…", "Reading"]

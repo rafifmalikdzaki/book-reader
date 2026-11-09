@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from .preferences import Preferences
 
 if TYPE_CHECKING:
-    from .chat import ChatService
+    from .chat_types import ChatBackend
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +19,11 @@ CHAT_MAX_MESSAGE_CHARS = 8000
 CHAT_EFFORTS = frozenset({"default", "low", "medium", "high"})
 
 
-def chat_model_ids(chat: ChatService) -> set[str]:
+def chat_model_ids(chat: ChatBackend) -> set[str]:
     return {option["id"] for option in chat.model_options()}
 
 
-def select_model(explicit: str | None, preferences: Preferences, chat: ChatService) -> str:
+def select_model(explicit: str | None, preferences: Preferences, chat: ChatBackend) -> str:
     selected = explicit or preferences.get("chat_model", "auto") or "auto"
     if selected == "auto":
         return selected

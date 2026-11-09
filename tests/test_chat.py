@@ -9,6 +9,9 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 
 from book_reader.app import create_app
 from book_reader.chat import (
+    AskCallbacks,
+    AskOptions,
+    ChatMessage,
     ChatService,
     ProviderConfig,
     _with_context_source,
@@ -108,17 +111,16 @@ class StubChat:
 
     def ask(
         self,
-        messages: list[dict[str, str]],
-        *,
-        book: str | None = None,
-        page: int | None = None,
-        model: str | None = None,
+        messages: list[ChatMessage],
+        options: AskOptions | None = None,
+        callbacks: AskCallbacks | None = None,
     ) -> dict[str, object]:
+        options = options or AskOptions()
         return {
             "answer": f"echo:{messages[-1]['content']}",
-            "sources": [{"book": book or "sub/a.pdf", "page": page or 1}],
+            "sources": [{"book": options.book or "sub/a.pdf", "page": options.page or 1}],
             "provider": "stub",
-            "model": model or "m",
+            "model": options.model or "m",
         }
 
 
@@ -212,13 +214,12 @@ class RecordingChat(StubChat):
 
     def ask(
         self,
-        messages: list[dict[str, str]],
-        *,
-        book: str | None = None,
-        page: int | None = None,
-        model: str | None = None,
+        messages: list[ChatMessage],
+        options: AskOptions | None = None,
+        callbacks: AskCallbacks | None = None,
     ) -> dict[str, object]:
-        self.seen.append([dict(message) for message in messages])
+        model = (options or AskOptions()).model
+        self.seen.append([{"role": m["role"], "content": m["content"]} for m in messages])
         self.models.append(model)
         return {
             "answer": "ok",
@@ -293,11 +294,8 @@ def test_ask_falls_through_when_a_provider_returns_no_answer(
     def fake_run(
         provider: ProviderConfig,
         messages: list[ChatMessage],
-        *,
-        book: str | None,
-        page: int | None,
-        allowed_books: set[str] | None,
-        scope: str | None,
+        options: AskOptions,
+        callbacks: AskCallbacks,
     ) -> dict[str, object]:
         calls.append(provider.name)
         if provider.name == "test":

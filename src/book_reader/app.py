@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import inspect
 import logging
 import mimetypes
 import os
@@ -15,7 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
 if TYPE_CHECKING:
-    from .chat import ChatMessage, ChatService
+    from .chat import ChatService
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -31,6 +30,7 @@ from .chat_config import (
     chat_model_ids,
     select_model,
 )
+from .chat_types import AskOptions, ChatBackend, ChatError, ChatMessage, ChatUnavailable
 from .chats import ChatStore
 from .library import Library
 from .notepad import NotepadStore
@@ -134,7 +134,7 @@ class Services:
     sections: SectionIndex
     elastic: ElasticSearch | None
     searcher: Searcher
-    chat: ChatService | None
+    chat: ChatBackend | None
     preferences: Preferences
     reconciler: LibraryReconciler
     categories: CategoryStore
@@ -261,7 +261,7 @@ def create_app(
     es_url: str | None = None,
     es_index: str | None = None,
     search_mode: str | None = None,
-    chat: ChatService | None = None,
+    chat: ChatBackend | None = None,
     static_dir: Path | None = None,
     allowed_hosts: Sequence[str] | None = None,
 ) -> FastAPI:
@@ -598,14 +598,6 @@ def create_app(
 
     @app.post("/api/chat")
     def api_chat(body: ChatBody) -> dict[str, object]:
-        try:
-            from .chat import ChatError, ChatUnavailable
-        except ImportError as exc:
-            raise HTTPException(
-                status_code=503,
-                detail="chat is not configured; install the agent extra",
-            ) from exc
-
         if chat_service is None:
             raise HTTPException(
                 status_code=503,
@@ -617,18 +609,14 @@ def create_app(
         selected = select_model(body.model, preferences, chat_service)
         selected_effort = body.effort or preferences.get("chat_effort", "medium")
         try:
-            ask_kwargs: dict[str, object] = {
-                "book": body.book,
-                "page": body.page,
-                "model": selected,
-            }
-            sig = inspect.signature(chat_service.ask)
-            accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())
-            if "effort" in sig.parameters or accepts_var_kw:
-                ask_kwargs["effort"] = selected_effort
-            if body.mode and ("mode" in sig.parameters or accepts_var_kw):
-                ask_kwargs["mode"] = body.mode
-            return chat_service.ask(messages, **ask_kwargs)  # type: ignore[arg-type]
+            options = AskOptions(
+                book=body.book,
+                page=body.page,
+                model=selected,
+                mode=body.mode or None,
+                effort=selected_effort,
+            )
+            return chat_service.ask(messages, options)
         except ChatUnavailable as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ChatError as exc:

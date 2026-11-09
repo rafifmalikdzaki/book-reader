@@ -3,17 +3,24 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import json
 import time
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .chat_config import CHAT_MAX_MESSAGE_CHARS, select_model
+from .chat_types import (
+    AskCallbacks,
+    AskOptions,
+    ChatBackend,
+    ChatMessage,
+    ChatUnavailable,
+)
+from .chat_types import ChatError as ProviderChatError
 from .chats import (
     _UNSET,
     RETENTION_DAYS,
@@ -30,9 +37,6 @@ from .library import Library
 from .organize import CategoryStore
 from .preferences import Preferences
 from .reconcile import LibraryReconciler
-
-if TYPE_CHECKING:
-    from .chat import ChatMessage, ChatService
 
 
 class SessionCreate(BaseModel):
@@ -102,7 +106,7 @@ def register(
     chats: ChatStore,
     library: Library,
     categories: CategoryStore,
-    chat: ChatService | None,
+    chat: ChatBackend | None,
     preferences: Preferences,
     reconciler: LibraryReconciler,
 ) -> None:
@@ -314,15 +318,6 @@ def register(
                 status_code=503,
                 detail="chat is not configured; install the agent extra and set a provider key",
             )
-        try:
-            from .chat import ChatError as ProviderChatError
-            from .chat import ChatUnavailable
-        except ImportError as exc:
-            raise HTTPException(
-                status_code=503,
-                detail="chat is not configured; install the agent extra",
-            ) from exc
-
         book = session["book"]
         if book is not None:
             current = reconciler.resolve(book)
@@ -365,7 +360,9 @@ def register(
 
             def on_step(step: str) -> None:
                 clean = step.strip()
-                if clean and (not steps_recorded or steps_recorded[-1] != clean):
+                if not clean:
+                    return
+                if not steps_recorded or steps_recorded[-1] != clean:
                     steps_recorded.append(clean)
                 elapsed = round(time.perf_counter() - t_start, 1)
                 chats.set_session_status(session_id, "thinking", thought_step=clean)
@@ -392,26 +389,17 @@ def register(
             try:
                 selected_model = select_model(body.model, preferences, chat)
                 selected_effort = body.effort or preferences.get("chat_effort", "medium")
-                ask_kwargs: dict[str, Any] = {
-                    "book": book if book_in_scope else None,
-                    "page": stored["page"] if book_in_scope else None,
-                    "model": selected_model,
-                    "allowed_books": allowed,
-                    "scope": scope_label(selected),
-                }
-                ask_sig = inspect.signature(chat.ask)
-                accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in ask_sig.parameters.values())
-                if "on_step" in ask_sig.parameters or accepts_var_kw:
-                    ask_kwargs["on_step"] = on_step
-                if "on_token" in ask_sig.parameters or accepts_var_kw:
-                    ask_kwargs["on_token"] = on_token
-                if "on_thought" in ask_sig.parameters or accepts_var_kw:
-                    ask_kwargs["on_thought"] = on_thought
-                if body.mode and ("mode" in ask_sig.parameters or accepts_var_kw):
-                    ask_kwargs["mode"] = body.mode
-                if "effort" in ask_sig.parameters or accepts_var_kw:
-                    ask_kwargs["effort"] = selected_effort
-                result = chat.ask(history, **ask_kwargs)
+                options = AskOptions(
+                    book=book if book_in_scope else None,
+                    page=stored["page"] if book_in_scope else None,
+                    model=selected_model,
+                    allowed_books=allowed,
+                    scope=scope_label(selected),
+                    mode=body.mode or None,
+                    effort=selected_effort,
+                )
+                callbacks = AskCallbacks(on_step=on_step, on_token=on_token, on_thought=on_thought)
+                result = chat.ask(history, options, callbacks)
             except Exception as exc:
                 chats.set_session_status(session_id, "error", thought_step="", last_error=str(exc))
                 loop.call_soon_threadsafe(
@@ -438,13 +426,6 @@ def register(
                 if isinstance(raw_sources, list)
                 else []
             )
-            # Combine steps from result if provided
-            final_steps = list(steps_recorded)
-            raw_thought_steps = result.get("thought_steps")
-            if isinstance(raw_thought_steps, list):
-                for s in raw_thought_steps:
-                    if isinstance(s, str) and s and s not in final_steps:
-                        final_steps.append(s)
             try:
                 chats.add_message(
                     session_id,
@@ -453,7 +434,7 @@ def register(
                     sources=sources,
                     provider=str(result.get("provider") or ""),
                     model=str(result.get("model") or ""),
-                    thought_steps=final_steps,
+                    thought_steps=steps_recorded,
                 )
             except (ChatStorageError, ChatStoreError) as exc:
                 chats.set_session_status(session_id, "error", thought_step="", last_error=str(exc))
