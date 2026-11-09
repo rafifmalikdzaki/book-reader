@@ -43,7 +43,7 @@ def test_reindex_cli_refuses_while_the_server_owns_state(library: Path, tmp_path
                     "--state-dir",
                     str(state),
                 ],
-                cwd=Path(__file__).resolve().parents[1],
+                cwd=Path(__file__).resolve().parents[2],
                 capture_output=True,
                 text=True,
                 timeout=30,

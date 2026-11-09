@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 12 done. Task 13: mirror tests under tests/<package>/ and update mypy overrides.
+Task 13 done. Task 14: docs (ADR-009, README, AGENTS, CLAUDE, architecture diagrams, changelog) and final gate.
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 12 done. Task 13: mirror tests under tests/<package>/ and update mypy overr
 
 ## Next action
 
-Task 13: mirror tests under tests/<package>/ and update mypy overrides.
+Task 14: docs (ADR-009, README, AGENTS, CLAUDE, architecture diagrams, changelog) and final gate.
 
 ## Blockers
 

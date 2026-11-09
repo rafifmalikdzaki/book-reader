@@ -59,7 +59,8 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
 
 ## Phase 4: Tests and docs
 
-- [ ] Task 13: Mirror tests under `tests/<package>/` (incl. `tests/chat`, `tests/evals`).
+- [x] Task 13: Mirror tests under `tests/<package>/` (incl. `tests/chat`, `tests/evals`).
+      tests/{api,reading,search,chat,organize,state,reindex,evals}/ mirror packages; conftest + test_cli stay at root; pytest 224 passed; mypy src tests clean; state-lock subprocess cwd fixed (parents[2]).
 - [ ] Task 14: Update docs, ADR-009, changelog; final gate and packaging check.
 
 ## Checkpoint: Complete
