@@ -46,7 +46,8 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
       api/{security,errors}.py; library/errors.py (InvalidPath, PathNotFound); chat/config.UnknownModel; no fastapi in domain packages; pytest 224 passed; ruff + mypy clean.
 - [x] Task 10: Extract library/reading/search routes and views.
       api/views.py + api/routes/{library,reading,search}.py; OpenAPI path/method table identical before/after (34 paths); pytest 224 passed; ruff + mypy clean.
-- [ ] Task 11: Extract organize/chat/system routes; move remaining routes.
+- [x] Task 11: Extract organize/chat/system routes; move remaining routes.
+      api/routes/{chat,organize,system} extracted; routes_notepad/chat_sessions/spa moved into api/routes/; no @app.<verb> left in app.py; OpenAPI table identical (34 paths); pytest 224 passed.
 - [ ] Task 12: Slim `app.py`; move `Services`/`build_services` to `services.py`.
 
 ## Checkpoint: API

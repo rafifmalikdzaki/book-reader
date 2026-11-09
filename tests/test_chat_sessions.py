@@ -13,13 +13,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from book_reader.api.errors import install as install_errors
+from book_reader.api.routes.chat_sessions import register
 from book_reader.app import create_app
 from book_reader.chat.service import ChatService
 from book_reader.chat.sessions import ChatStore
 from book_reader.chat.types import AskCallbacks, AskOptions, ChatMessage, ProviderConfig
 from book_reader.library.scan import Library
 from book_reader.organize.categories import CategoryStore
-from book_reader.routes_chat_sessions import register
 from book_reader.state.preferences import Preferences
 
 ANSWER = "Equilibrium optimization is discussed in alpha."

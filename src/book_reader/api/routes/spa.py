@@ -9,11 +9,11 @@ from urllib.parse import quote
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from .api.errors import status_for
-from .library.errors import LibraryError, PathNotFound
-from .library.scan import Library
-from .reindex.reconciler import LibraryReconciler
-from .reindex.redirects import moved_book_target
+from ...library.errors import LibraryError, PathNotFound
+from ...library.scan import Library
+from ...reindex.reconciler import LibraryReconciler
+from ...reindex.redirects import moved_book_target
+from ..errors import status_for
 
 logger = logging.getLogger(__name__)
 

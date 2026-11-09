@@ -12,8 +12,8 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from .chat.config import CHAT_MAX_MESSAGE_CHARS, DEFAULT_CHAT_EFFORT, select_model
-from .chat.sessions import (
+from ...chat.config import CHAT_MAX_MESSAGE_CHARS, DEFAULT_CHAT_EFFORT, select_model
+from ...chat.sessions import (
     _UNSET,
     RETENTION_DAYS,
     ChatProject,
@@ -22,13 +22,13 @@ from .chat.sessions import (
     ChatStore,
     _Unset,
 )
-from .chat.sessions import ChatError as ChatStoreError
-from .chat.types import AskCallbacks, AskOptions, ChatBackend, ChatMessage, ChatUnavailable
-from .chat.types import ChatError as ProviderChatError
-from .library.scan import Library
-from .organize.categories import CategoryStore
-from .reindex.reconciler import LibraryReconciler
-from .state.preferences import Preferences
+from ...chat.sessions import ChatError as ChatStoreError
+from ...chat.types import AskCallbacks, AskOptions, ChatBackend, ChatMessage, ChatUnavailable
+from ...chat.types import ChatError as ProviderChatError
+from ...library.scan import Library
+from ...organize.categories import CategoryStore
+from ...reindex.reconciler import LibraryReconciler
+from ...state.preferences import Preferences
 
 
 class SessionCreate(BaseModel):

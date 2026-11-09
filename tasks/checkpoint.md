@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 10 done. Task 11: extract organize/chat/system routes; move routes_notepad, routes_chat_sessions, routes_spa into api/routes/.
+Task 11 done. Task 12: move Services/build_services to services.py; slim app.py (move GzipStaticFiles + cache middleware to api/static.py).
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 10 done. Task 11: extract organize/chat/system routes; move routes_notepad,
 
 ## Next action
 
-Task 11: extract organize/chat/system routes; move routes_notepad, routes_chat_sessions, routes_spa into api/routes/.
+Task 12: move Services/build_services to services.py; slim app.py (move GzipStaticFiles + cache middleware to api/static.py).
 
 ## Blockers
 

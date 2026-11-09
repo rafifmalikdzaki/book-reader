@@ -15,30 +15,27 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .chat.service import ChatService
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 from starlette.datastructures import Headers
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
 from .api.errors import install as install_errors
+from .api.routes.chat import register as register_chat
+from .api.routes.chat_sessions import register as register_chat_sessions
 from .api.routes.library import register as register_library
+from .api.routes.notepad import register as register_notepad
+from .api.routes.organize import register as register_organize
 from .api.routes.reading import register as register_reading
 from .api.routes.search import register as register_search
+from .api.routes.spa import register as register_spa
+from .api.routes.system import register as register_system
 from .api.security import install as install_security_headers
 from .api.security import install_host_check
 from .api.views import LibraryViews
-from .chat.config import (
-    CHAT_EFFORTS,
-    CHAT_MAX_MESSAGE_CHARS,
-    CHAT_MAX_MESSAGES,
-    DEFAULT_CHAT_EFFORT,
-    chat_model_ids,
-    select_model,
-)
 from .chat.sessions import ChatStore
-from .chat.types import AskOptions, ChatBackend, ChatError, ChatMessage, ChatUnavailable
+from .chat.types import ChatBackend
 from .library.scan import Library
 from .notes.store import NotepadStore
 from .organize.categories import CategoryStore
@@ -49,9 +46,6 @@ from .reading.pdf import PdfCache
 from .reading.progress import ProgressStore
 from .reading.sections import SectionIndex
 from .reindex.reconciler import LibraryReconciler
-from .routes_chat_sessions import register as register_chat_sessions
-from .routes_notepad import register as register_notepad
-from .routes_spa import register as register_spa
 from .search.elastic import ElasticSearch
 from .search.service import Searcher
 from .state.lock import StateDirectoryLock
@@ -64,46 +58,6 @@ mimetypes.add_type("text/javascript", ".mjs")
 PACKAGE_DIR = Path(__file__).parent
 RECENT_LIMIT = 5
 DEFAULT_ES_INDEX = "book-reader"
-
-
-class ChatMessageBody(BaseModel):
-    role: str
-    content: str
-
-
-class ChatBody(BaseModel):
-    messages: list[ChatMessageBody] = []
-    book: str | None = None
-    page: int | None = None
-    model: str | None = None
-    mode: str | None = None
-    effort: str | None = None
-
-
-class ModelChoice(BaseModel):
-    model: str | None = None
-    effort: str | None = None
-
-
-class OrganizeBody(BaseModel):
-    confirm: bool = False
-    force_taxonomy: bool = False
-
-
-def _chat_messages(items: list[ChatMessageBody]) -> list[ChatMessage]:
-    if not items:
-        raise HTTPException(status_code=400, detail="messages must not be empty")
-    messages: list[ChatMessage] = []
-    for item in items[-CHAT_MAX_MESSAGES:]:
-        role = item.role.strip()
-        content = item.content.strip()
-        if role not in {"user", "assistant"} or not content:
-            raise HTTPException(
-                status_code=400,
-                detail="messages need role user|assistant and non-empty content",
-            )
-        messages.append({"role": role, "content": content[:CHAT_MAX_MESSAGE_CHARS]})
-    return messages
 
 
 @dataclass(frozen=True)
@@ -362,122 +316,10 @@ def create_app(
     register_spa(app, library=library, reconciler=reconciler, spa_dir=static_root / "app")
     install_security_headers(app)
 
-    @app.post("/api/library/reindex")
-    def api_library_reindex() -> dict[str, object]:
-        try:
-            report = reconciler.sync()
-        except Exception as exc:
-            logger.exception("manual reindex failed")
-            raise HTTPException(status_code=500, detail=f"reindex failed: {exc}") from exc
-        return report.as_dict()
-
-    @app.get("/api/organize/status")
-    def api_organize_status() -> dict[str, object]:
-        if organizer is None:
-            return {"available": False, "running": False, "reason": "Mistral is not configured"}
-        return organizer.status()
-
-    @app.post("/api/organize", status_code=202)
-    def api_organize(body: OrganizeBody) -> dict[str, object]:
-        if organizer is None:
-            raise HTTPException(
-                status_code=503,
-                detail="Mistral is not configured; set MISTRAL_API_KEY or MISTRAL_API",
-            )
-        if not body.confirm:
-            raise HTTPException(status_code=400, detail="organize requires confirm=true")
-        if not organizer.start(force_taxonomy=body.force_taxonomy):
-            raise HTTPException(status_code=409, detail="organize is already running")
-        return {"started": True, "status": organizer.status()}
-
-    @app.get("/api/chat/status")
-    def api_chat_status() -> dict[str, object]:
-        selected = preferences.get("chat_model", "auto")
-        if chat_service is None:
-            return {
-                "available": False,
-                "providers": [],
-                "reason": "agent extra not installed",
-                "selected": selected,
-            }
-        return {
-            "available": chat_service.available(),
-            "providers": chat_service.model_options(),
-            "selected": selected,
-        }
-
-    @app.get("/api/chat/options")
-    def api_chat_options() -> dict[str, object]:
-        if chat_service is None:
-            return {
-                "available": False,
-                "models": [],
-                "selected": "auto",
-                "effort": DEFAULT_CHAT_EFFORT,
-            }
-        return {
-            "available": chat_service.available(),
-            "models": chat_service.model_options(),
-            "selected": preferences.get("chat_model", "auto"),
-            "effort": preferences.get("chat_effort", DEFAULT_CHAT_EFFORT),
-        }
-
-    @app.post("/api/chat/options")
-    def api_chat_options_save(choice: ModelChoice) -> dict[str, object]:
-        model: str | None = None
-        if choice.model is not None:
-            model = choice.model.strip() or "auto"
-            if model != "auto":
-                if chat_service is None:
-                    raise HTTPException(status_code=503, detail="chat is not configured")
-                if model not in chat_model_ids(chat_service):
-                    raise HTTPException(status_code=400, detail=f"unknown model: {model}")
-        effort: str | None = None
-        if choice.effort is not None:
-            effort = choice.effort.strip().lower()
-            if effort not in CHAT_EFFORTS:
-                raise HTTPException(status_code=400, detail=f"unknown effort: {choice.effort}")
-        resp: dict[str, object] = {"ok": True}
-        if model is not None:
-            preferences.set("chat_model", model)
-            resp["selected"] = model
-        if effort is not None:
-            preferences.set("chat_effort", effort)
-            resp["effort"] = effort
-        return resp
-
-    @app.post("/api/chat")
-    def api_chat(body: ChatBody) -> dict[str, object]:
-        if chat_service is None:
-            raise HTTPException(
-                status_code=503,
-                detail="chat is not configured; install the agent extra and set a provider key",
-            )
-        messages = _chat_messages(body.messages)
-        if body.book is not None:
-            library.book_file(body.book)
-        selected = select_model(body.model, preferences, chat_service)
-        selected_effort = body.effort or preferences.get("chat_effort", DEFAULT_CHAT_EFFORT)
-        try:
-            options = AskOptions(
-                book=body.book,
-                page=body.page,
-                model=selected,
-                mode=body.mode or None,
-                effort=selected_effort,
-            )
-            return chat_service.ask(messages, options)
-        except ChatUnavailable as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
-        except ChatError as exc:
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
-
     install_errors(app)
-
-    @app.get("/healthz")
-    def healthz() -> dict[str, bool]:
-        return {"ok": True}
-
+    register_chat(app, chat=chat_service, library=library, preferences=preferences)
+    register_organize(app, organizer=organizer)
+    register_system(app, reconciler=reconciler)
     if allowed_hosts:
         install_host_check(app, allowed_hosts)
     return app
