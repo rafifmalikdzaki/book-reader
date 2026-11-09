@@ -26,7 +26,8 @@ from .reading.pages import PageIndex
 from .reading.pdf import PdfCache
 from .reading.progress import ProgressStore
 from .reading.sections import SectionIndex
-from .reconcile import LibraryReconciler, ReindexReport
+from .reindex.reconciler import LibraryReconciler, ReindexReport
+from .reindex.redirects import moved_book_target
 
 logger = logging.getLogger(__name__)
 
@@ -131,18 +132,6 @@ def markdown_outline(text: str) -> list[dict[str, object]]:
         if title:
             outline.append({"level": len(match.group(1)), "title": title, "line": number})
     return outline
-
-
-def moved_book_target(rel: str, *, library: Library, reconciler: LibraryReconciler) -> str | None:
-    """The book's new path if a reindex shows ``rel`` moved, else ``None``."""
-    try:
-        reconciler.sync()
-    except Exception:
-        logger.exception("reindex failed while resolving a moved book")
-    moved = reconciler.resolve(rel)
-    if moved != rel and library.find_book(moved) is not None:
-        return moved
-    return None
 
 
 class LibraryViews:

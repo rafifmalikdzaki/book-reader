@@ -10,8 +10,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from .library.scan import Library
-from .reconcile import LibraryReconciler
-from .routes_library import moved_book_target
+from .reindex.reconciler import LibraryReconciler
+from .reindex.redirects import moved_book_target
 
 logger = logging.getLogger(__name__)
 

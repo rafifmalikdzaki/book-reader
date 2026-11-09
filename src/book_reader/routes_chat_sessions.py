@@ -27,7 +27,7 @@ from .chat.types import AskCallbacks, AskOptions, ChatBackend, ChatMessage, Chat
 from .chat.types import ChatError as ProviderChatError
 from .library.scan import Library
 from .organize.categories import CategoryStore
-from .reconcile import LibraryReconciler
+from .reindex.reconciler import LibraryReconciler
 from .state.preferences import Preferences
 
 

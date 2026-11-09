@@ -30,7 +30,7 @@ from .types import AskCallbacks, AskOptions, ChatError, ChatMessage, ChatUnavail
 if TYPE_CHECKING:
     from ..organize.categories import CategoryStore
     from ..reading.pages import PageIndex
-    from ..reconcile import LibraryReconciler
+    from ..reindex.reconciler import LibraryReconciler
 
 logger = logging.getLogger(__name__)
 

@@ -42,7 +42,7 @@ from .reading.pages import PageIndex
 from .reading.pdf import PdfCache
 from .reading.progress import ProgressStore
 from .reading.sections import SectionIndex
-from .reconcile import LibraryReconciler
+from .reindex.reconciler import LibraryReconciler
 from .routes_chat_sessions import register as register_chat_sessions
 from .routes_library import LibraryViews
 from .routes_library import register as register_library

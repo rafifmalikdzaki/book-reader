@@ -23,7 +23,6 @@ the app's state directory.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -34,19 +33,23 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from .chat.sessions import ChatStore
-from .library.scan import Library
-from .notes.store import NotepadStore
-from .reading.pages import PageIndex
-from .reading.progress import ProgressStore
-from .reading.sections import SectionIndex
+from ..chat.sessions import ChatStore
+from ..library.scan import Library
+from ..notes.store import NotepadStore
+from ..reading.pages import PageIndex
+from ..reading.progress import ProgressStore
+from ..reading.sections import SectionIndex
+from .manifest import (
+    MANIFEST_VERSION,
+    FileStamp,
+    hash_file,
+    manifest_changed,
+    match_by_content,
+)
+from .redirects import MoveLog
 
 logger = logging.getLogger(__name__)
 
-MANIFEST_VERSION = 1
-MOVES_VERSION = 1
-MOVE_HISTORY_LIMIT = 2000
-HASH_CHUNK = 1024 * 1024
 STATE_FILES = (
     "progress.json",
     "notepad.json",
@@ -57,53 +60,6 @@ STATE_FILES = (
     "relocations.json",
     "last_reindex.json",
 )
-
-
-@dataclass(slots=True)
-class FileStamp:
-    """The identity of one file: content hash plus cheap stat metadata."""
-
-    hash: str
-    size: int
-    mtime_ns: int
-    dev: int
-    ino: int
-    present: bool = True
-    retired: bool = False
-
-    def signature(self) -> tuple[int, int, int, int]:
-        return (self.dev, self.ino, self.size, self.mtime_ns)
-
-    def to_json(self) -> dict[str, object]:
-        return {
-            "hash": self.hash,
-            "size": self.size,
-            "mtime_ns": self.mtime_ns,
-            "dev": self.dev,
-            "ino": self.ino,
-            "present": self.present,
-            "retired": self.retired,
-        }
-
-    @classmethod
-    def from_json(cls, value: object) -> FileStamp | None:
-        if not isinstance(value, dict):
-            return None
-        digest = value.get("hash")
-        if not isinstance(digest, str) or len(digest) != 64:
-            return None
-        try:
-            return cls(
-                hash=digest,
-                size=int(str(value.get("size") or 0)),
-                mtime_ns=int(str(value.get("mtime_ns") or 0)),
-                dev=int(str(value.get("dev") or 0)),
-                ino=int(str(value.get("ino") or 0)),
-                present=bool(value.get("present", True)),
-                retired=bool(value.get("retired", False)),
-            )
-        except (TypeError, ValueError):
-            return None
 
 
 @dataclass(slots=True)
@@ -158,79 +114,6 @@ class ReindexReport:
         }
 
 
-class _MoveLog:
-    """Old path -> current path, compressed so a chain settles on the last URL."""
-
-    def __init__(self, path: Path) -> None:
-        self.path = path
-        self._lock = threading.RLock()
-        self._moves: dict[str, str] | None = None
-
-    def _load(self) -> dict[str, str]:
-        with self._lock:
-            if self._moves is None:
-                try:
-                    raw: object = json.loads(self.path.read_text(encoding="utf-8"))
-                except FileNotFoundError:
-                    raw = {}
-                except (OSError, json.JSONDecodeError) as exc:
-                    logger.warning("ignoring unreadable move log %s: %s", self.path, exc)
-                    raw = {}
-                moves = raw.get("moves") if isinstance(raw, dict) else None
-                self._moves = {
-                    str(old): str(new)
-                    for old, new in (moves.items() if isinstance(moves, dict) else [])
-                    if isinstance(old, str) and isinstance(new, str) and old != new
-                }
-            return self._moves
-
-    def record(self, pairs: dict[str, str]) -> bool:
-        if not pairs:
-            return True
-        with self._lock:
-            moves = self._load()
-            for old, new in pairs.items():
-                if old == new:
-                    continue
-                for key, value in list(moves.items()):
-                    if value == old:
-                        moves[key] = new
-                moves[old] = new
-            while len(moves) > MOVE_HISTORY_LIMIT:
-                moves.pop(next(iter(moves)))
-            return self._save(moves)
-
-    def reload(self) -> None:
-        with self._lock:
-            self._moves = None
-
-    def resolve(self, rel: str) -> str:
-        """Follow a recorded rename chain; returns ``rel`` when unknown."""
-        with self._lock:
-            moves = self._load()
-            current = rel
-            seen = {rel}
-            for _ in range(32):
-                nxt = moves.get(current)
-                if not nxt or nxt in seen:
-                    break
-                seen.add(nxt)
-                current = nxt
-            return current
-
-    def _save(self, moves: dict[str, str]) -> bool:
-        payload = {"version": MOVES_VERSION, "moves": moves}
-        try:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self.path.with_name(self.path.name + ".tmp")
-            tmp.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-            os.replace(tmp, self.path)
-        except OSError as exc:
-            logger.warning("cannot persist move log %s: %s", self.path, exc)
-            return False
-        return True
-
-
 class LibraryReconciler:
     """Keep saved state attached when books are moved or renamed."""
 
@@ -256,7 +139,7 @@ class LibraryReconciler:
         self.manifest_path = self.state_dir / "library_manifest.json"
         self.notice_path = self.state_dir / "last_reindex.json"
         self.transaction_path = self.state_dir / "reindex_transaction.json"
-        self.moves = _MoveLog(self.state_dir / "relocations.json")
+        self.moves = MoveLog(self.state_dir / "relocations.json")
         self._lock: AbstractContextManager[object] = lock or threading.RLock()
         self._manifest: dict[str, FileStamp] | None = None
 
@@ -351,7 +234,7 @@ class LibraryReconciler:
                 else:
                     digest = previous_by_signature.get(signature, "")
                     if not digest:
-                        digest = _hash_file(path)
+                        digest = hash_file(path)
                         if digest:
                             hashed += 1
                 current[rel] = FileStamp(
@@ -375,7 +258,7 @@ class LibraryReconciler:
             report.added = len(appeared)
             report.missing = len(vanished)
 
-            pairs = _match_by_content(previous, current)
+            pairs = match_by_content(previous, current)
             if pairs:
                 report.moved = pairs
                 try:
@@ -428,7 +311,7 @@ class LibraryReconciler:
                 for rel, stamp in merged.items():
                     if rel not in current:
                         stamp.present = False
-                if _manifest_changed(before, merged) and not self._save_manifest(merged):
+                if manifest_changed(before, merged) and not self._save_manifest(merged):
                     report.failed = ["manifest"]
                     self._roll_back(report)
                     return report
@@ -447,7 +330,7 @@ class LibraryReconciler:
             for rel, stamp in merged.items():
                 if rel not in current:
                     stamp.present = False
-            if _manifest_changed(before, merged) and not self._save_manifest(merged):
+            if manifest_changed(before, merged) and not self._save_manifest(merged):
                 report.failed = ["manifest"]
             return report
 
@@ -622,64 +505,3 @@ class LibraryReconciler:
         self.chats.reload()
         self.moves.reload()
         self._manifest = None
-
-
-def _manifest_changed(before: dict[str, dict[str, object]], current: dict[str, FileStamp]) -> bool:
-    if before.keys() != current.keys():
-        return True
-    return any(before[rel] != current[rel].to_json() for rel in current)
-
-
-def _hash_file(path: Path) -> str:
-    """SHA-256 of the whole file; the name and timestamps never enter it."""
-    digest = hashlib.sha256()
-    try:
-        with path.open("rb") as handle:
-            while chunk := handle.read(HASH_CHUNK):
-                digest.update(chunk)
-    except OSError as exc:
-        logger.warning("cannot hash %s: %s", path, exc)
-        return ""
-    return digest.hexdigest()
-
-
-def _match_by_content(
-    previous: dict[str, FileStamp],
-    current: dict[str, FileStamp],
-) -> dict[str, str]:
-    """One-to-one matches keyed only by content hash.
-
-    Paths whose content is unchanged are neither sources nor destinations;
-    their state is already correct. Everything else is matched, which also
-    handles a swap: A holding B's old content and B holding A's, with both
-    paths still present.
-    """
-    sources: dict[str, FileStamp] = {}
-    for rel, stamp in previous.items():
-        if stamp.retired or not stamp.hash:
-            continue
-        now = current.get(rel)
-        if now is not None and now.hash == stamp.hash:
-            continue
-        sources[rel] = stamp
-
-    destinations: dict[str, FileStamp] = {}
-    for rel, stamp in current.items():
-        if stamp.hash:
-            # An unchanged path is still a valid destination when the source
-            # disappeared: a copy made earlier may now be the only survivor.
-            destinations[rel] = stamp
-
-    sources_by_hash: dict[str, list[str]] = {}
-    destinations_by_hash: dict[str, list[str]] = {}
-    for rel, stamp in sources.items():
-        sources_by_hash.setdefault(stamp.hash, []).append(rel)
-    for rel, stamp in destinations.items():
-        destinations_by_hash.setdefault(stamp.hash, []).append(rel)
-
-    pairs: dict[str, str] = {}
-    for digest, olds in sources_by_hash.items():
-        news = destinations_by_hash.get(digest, [])
-        if len(olds) == 1 and len(news) == 1:
-            pairs[olds[0]] = news[0]
-    return pairs

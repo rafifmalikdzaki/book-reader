@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 7 done. Task 8: move reconcile.py into reindex/ (manifest, reconciler, redirects).
+Task 8 done. Task 9: extract api/security.py + api/errors.py; replace HTTPException in library/scan.py and chat/config.py with domain errors.
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 7 done. Task 8: move reconcile.py into reindex/ (manifest, reconciler, redi
 
 ## Next action
 
-Task 8: move reconcile.py into reindex/ (manifest, reconciler, redirects).
+Task 9: extract api/security.py + api/errors.py; replace HTTPException in library/scan.py and chat/config.py with domain errors.
 
 ## Blockers
 

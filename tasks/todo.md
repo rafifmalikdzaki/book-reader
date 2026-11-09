@@ -20,8 +20,8 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
 
 ## Checkpoint: Foundations
 
-- [ ] `uv run pytest -q`
-- [ ] Old state/library/reading/notes paths removed.
+- [x] `uv run pytest -q`
+- [x] Old state/library/reading/notes paths removed.
 
 ## Phase 2: Large domains
 
@@ -32,12 +32,13 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
       pytest 224 passed; ruff + mypy clean; import smoke with langchain blocked ok; eval_ask --help ok; chat/__init__ empty; old paths gone.
 - [x] Task 7: Split `organize.py` into `organize/`.
       organize/ = categories, mistral, service; pytest 224 passed; ruff + mypy clean.
-- [ ] Task 8: Move reindex into `reindex/` with manifest/reconciler split.
+- [x] Task 8: Move reindex into `reindex/` with manifest/reconciler split.
+      reindex/ = manifest, reconciler, redirects (MoveLog + moved_book_target moved out of routes_library); pytest 224 passed; ruff + mypy clean.
 
 ## Checkpoint: Domains
 
-- [ ] `uv run pytest -q`
-- [ ] Domain import graph is acyclic; `import book_reader.app` works with langchain blocked.
+- [x] `uv run pytest -q` (224 passed)
+- [x] Domain import graph is acyclic (stores never import `reindex`); `import book_reader.app` works with langchain blocked.
 
 ## Phase 3: API boundary
 

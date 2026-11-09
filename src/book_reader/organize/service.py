@@ -15,7 +15,7 @@ from ..library.models import UNFILED
 from ..library.scan import Library
 from ..reading.pdf import PdfCache
 from ..reading.sections import SectionIndex
-from ..reconcile import LibraryReconciler
+from ..reindex.reconciler import LibraryReconciler
 from .categories import (
     CATEGORY_ID,
     Assignment,
