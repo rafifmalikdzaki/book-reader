@@ -38,7 +38,6 @@ from .notepad import NotepadStore
 from .organize import CategoryStore, LibraryOrganizer, MistralClient
 from .pages import PageIndex
 from .pdf import PdfCache
-from .preferences import Preferences
 from .progress import ProgressStore
 from .reconcile import LibraryReconciler
 from .routes_chat_sessions import register as register_chat_sessions
@@ -50,7 +49,8 @@ from .search import ElasticSearch, Searcher, SearchUnavailable
 from .sections import SectionIndex
 from .security_headers import install as install_security_headers
 from .security_headers import install_host_check
-from .state_lock import StateDirectoryLock
+from .state.lock import StateDirectoryLock
+from .state.preferences import Preferences
 
 logger = logging.getLogger(__name__)
 

@@ -35,8 +35,8 @@ from .chats import (
 )
 from .library import Library
 from .organize import CategoryStore
-from .preferences import Preferences
 from .reconcile import LibraryReconciler
+from .state.preferences import Preferences
 
 
 class SessionCreate(BaseModel):

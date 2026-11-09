@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 
 from .app import DEFAULT_ES_INDEX, PACKAGE_DIR, build_services, create_app
 from .security_headers import allowed_hosts_for
-from .state_lock import StateDirectoryLock, StateLockedError
+from .state.lock import StateDirectoryLock, StateLockedError
 
 DEFAULT_LIBRARY = Path.home() / "Documents" / "Books"
 REPO_ROOT = PACKAGE_DIR.parent.parent

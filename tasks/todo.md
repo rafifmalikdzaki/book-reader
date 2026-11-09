@@ -5,11 +5,12 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
 
 ## Phase 0: Baseline
 
-- [ ] Confirm baseline (`./scripts/ci.sh`) and capture the module/import map.
+- [x] Baseline at `3bffff1`: pytest 224 passed, vitest 249 passed (this session); import map via `rg`.
 
 ## Phase 1: Foundations
 
-- [ ] Task 1: Create `state/` and move lock, remap, preferences.
+- [x] Task 1: Create `state/` and move lock, remap, preferences.
+      pytest 224 passed; ruff + mypy src/tests clean; import smoke ok; old paths gone (`rg`).
 - [ ] Task 2: Create `library/` and split scan/models.
 - [ ] Task 3: Create `reading/` and move reader modules.
 - [ ] Task 4: Create `notes/` and move the notepad store.

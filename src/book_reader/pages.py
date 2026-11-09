@@ -11,7 +11,7 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 
 from .pdf import PdfCache
-from .statemove import RemapError, apply_remap, plan_remap
+from .state.remap import RemapError, apply_remap, plan_remap
 
 logger = logging.getLogger(__name__)
 

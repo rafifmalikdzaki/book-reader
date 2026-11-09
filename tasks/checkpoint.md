@@ -2,8 +2,7 @@
 
 ## Current phase
 
-Plan revised for the current repo; not started. No source, test, or configuration
-changes have been made for the backend restructure.
+Phase 1, Task 1 done (`state/` package: `lock.py`, `remap.py`, `preferences.py`). Tasks 2-14 not started.
 
 ## Last verified state
 
@@ -14,8 +13,7 @@ changes have been made for the backend restructure.
 
 ## Next action
 
-Start Task 1 after plan approval: create `state/` and move `state_lock.py`,
-`statemove.py`, and `preferences.py`; update imports; run the focused test gate.
+Task 2: create `library/` (`scan.py`, `models.py`), move `library.py`, update imports.
 
 ## Blockers
 

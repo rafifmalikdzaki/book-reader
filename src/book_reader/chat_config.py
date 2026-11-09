@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
 
-from .preferences import Preferences
+from .state.preferences import Preferences
 
 if TYPE_CHECKING:
     from .chat_types import ChatBackend

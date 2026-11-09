@@ -17,8 +17,8 @@ from book_reader.chat import AskCallbacks, AskOptions, ChatMessage, ChatService,
 from book_reader.chats import ChatStore
 from book_reader.library import Library
 from book_reader.organize import CategoryStore
-from book_reader.preferences import Preferences
 from book_reader.routes_chat_sessions import register
+from book_reader.state.preferences import Preferences
 
 ANSWER = "Equilibrium optimization is discussed in alpha."
 

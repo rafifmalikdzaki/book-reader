@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from book_reader.app import create_app
-from book_reader.state_lock import StateDirectoryLock, StateLockedError
+from book_reader.state.lock import StateDirectoryLock, StateLockedError
 
 
 def test_lock_is_exclusive(tmp_path: Path) -> None:

@@ -18,7 +18,7 @@ from contextlib import AbstractContextManager
 from pathlib import Path
 from typing import TypedDict
 
-from .statemove import RemapError
+from .state.remap import RemapError
 
 logger = logging.getLogger(__name__)
 
