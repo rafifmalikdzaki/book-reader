@@ -1,11 +1,11 @@
 # Backend restructure — task checklist
 
-Plan: `tasks/plan.md`
-Baseline: `7b16aa1`; `./scripts/ci.sh` green (171 Python, 187 frontend).
+Plan: `tasks/plan.md` (revised for HEAD `3bffff1`)
+Baseline: `3bffff1`; 224 Python, 249 frontend tests.
 
 ## Phase 0: Baseline
 
-- [ ] Confirm baseline and module/import map.
+- [ ] Confirm baseline (`./scripts/ci.sh`) and capture the module/import map.
 
 ## Phase 1: Foundations
 
@@ -22,22 +22,22 @@ Baseline: `7b16aa1`; `./scripts/ci.sh` green (171 Python, 187 frontend).
 ## Phase 2: Large domains
 
 - [ ] Task 5: Split `search.py` into `search/`.
-- [ ] Task 6: Split `chat.py` into agent, providers, and tools.
-- [ ] Task 7: Move chat config and sessions into `chat/`.
-- [ ] Task 8: Split `organize.py` into `organize/`.
-- [ ] Task 9: Move reindex into `reindex/`.
+- [ ] Task 6: Fold flat chat modules (`chat_types`, `chat_providers`, `chat_config`, `chats`,
+      `models`) into `chat/`; empty `chat/__init__.py`.
+- [ ] Task 7: Split `organize.py` into `organize/`.
+- [ ] Task 8: Move reindex into `reindex/` with manifest/reconciler split.
 
 ## Checkpoint: Domains
 
 - [ ] `uv run pytest -q`
-- [ ] Domain import graph is acyclic; optional chat imports lazy.
+- [ ] Domain import graph is acyclic; `import book_reader.app` works with langchain blocked.
 
 ## Phase 3: API boundary
 
-- [ ] Task 10: Extract `api/security.py`, `api/errors.py`; decouple domain errors.
-- [ ] Task 11: Extract library/reading/search routes and views.
-- [ ] Task 12: Extract organize/chat/system routes; move remaining routes.
-- [ ] Task 13: Slim `app.py`; move `Services`/`build_services` to `services.py`.
+- [ ] Task 9: Extract `api/security.py`, `api/errors.py`; decouple domain errors.
+- [ ] Task 10: Extract library/reading/search routes and views.
+- [ ] Task 11: Extract organize/chat/system routes; move remaining routes.
+- [ ] Task 12: Slim `app.py`; move `Services`/`build_services` to `services.py`.
 
 ## Checkpoint: API
 
@@ -47,13 +47,13 @@ Baseline: `7b16aa1`; `./scripts/ci.sh` green (171 Python, 187 frontend).
 
 ## Phase 4: Tests and docs
 
-- [ ] Task 14: Mirror tests under `tests/<package>/`.
-- [ ] Task 15: Update docs, ADR-006, changelog; final gate.
+- [ ] Task 13: Mirror tests under `tests/<package>/` (incl. `tests/chat`, `tests/evals`).
+- [ ] Task 14: Update docs, ADR-009, changelog; final gate and packaging check.
 
 ## Checkpoint: Complete
 
 - [ ] `./scripts/ci.sh`
-- [ ] Wheel SPA check.
+- [ ] Wheel has SPA, `chat/models.json`, prompts, skills; excludes `evals/`.
 - [ ] Browser smoke at 1440 and 390.
 - [ ] No old paths or shims remain.
 - [ ] Every verification command outcome recorded.

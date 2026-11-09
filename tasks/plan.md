@@ -2,13 +2,19 @@
 
 ## Overview
 
-The React application is organized by feature, but the Python backend is a flat
-directory of 25 modules. HTTP adapters, domain services, JSON persistence, and
-infrastructure concerns are mixed together: `app.py` is 602 lines and owns both
-application construction and a dozen inline routes; `search.py` (821 lines),
-`chat.py` (752), `reconcile.py` (685), and `organize.py` (556) combine several
-responsibilities; `library.py` and `chat_config.py` import FastAPI solely to
-raise HTTP errors.
+The React application is organized by feature, but the Python backend is still a flat
+directory of ~30 modules (plus the already-split `chat/` and `evals/` packages). HTTP
+adapters, domain services, JSON persistence, and infrastructure concerns are mixed
+together: `app.py` is 641 lines and owns both application construction and 17 inline
+routes; `search.py` (903 lines), `reconcile.py` (685), and `organize.py` (556) combine
+several responsibilities; `routes_chat_sessions.py` (499) and `routes_library.py` (490)
+sit beside the domain modules; `library.py` and `chat_config.py` import FastAPI solely
+to raise HTTP errors.
+
+**Revision note (HEAD `3bffff1`).** This plan was first written at `7b16aa1`. Since
+then `chat.py` was split into the `chat/` package and `evals.py` into `evals/`, and the
+model registry (`models.py`, `models.json`), `chat_types.py`, and `chat_providers.py`
+were added. The chat tasks below are rewritten for that state; the rest is unchanged.
 
 This plan turns the backend into a feature-first modular monolith. The HTTP and
 CLI contracts, the React frontend, the vendored assets, and all user-visible
@@ -62,11 +68,15 @@ src/book_reader/
     store.py                  NotepadStore, groups, notes, export
   chat/
     __init__.py               Empty on purpose: keeps optional imports lazy
-    agent.py                  ChatService, LangGraph graph, prompt
-    providers.py              ProviderConfig, resolve_providers, model options
-    tools.py                  search_library/read_document/add_note tools
-    config.py                 Request limits, model selection (no FastAPI)
-    sessions.py               Chat sessions, projects, retention
+    types.py                  ChatMessage, AskOptions/AskCallbacks, ChatBackend, errors (no langchain)
+    providers.py              resolve_providers, PROVIDER_DEFAULTS, DEFAULT_PRIORITY (no langchain)
+    config.py                 Request limits, model selection (no FastAPI, no langchain)
+    sessions.py               ChatStore, sessions, projects, retention (no langchain)
+    registry.py               Model registry loader (models.json beside it; no langchain)
+    service.py                ChatService (provider fallback chain)   [exists]
+    graph.py                  LangGraph agent loop                    [exists]
+    tools.py                  Agent tools and found-document reporting [exists]
+    context.py, prompts.py, sources.py, model.py, state.py, limits.py   [exist, unchanged]
   organize/
     __init__.py
     categories.py             CategoryStore, category records
@@ -82,7 +92,8 @@ src/book_reader/
     lock.py                   StateDirectoryLock
     preferences.py            Preferences store
     remap.py                  statemove/remap primitives
-  static/                     unchanged
+  evals/                      already a package; stays top-level, excluded from the wheel
+  prompts/, skills/, static/  data directories, unchanged
 ```
 
 `frontend/`, `static/vendor/`, `static/app/`, HTTP paths, CLI flags, state file
@@ -112,19 +123,22 @@ independent features.
    locator. This preserves test seams and makes dependencies visible.
 6. **Clean cutover, no shims.** Old modules are deleted and all imports, tests,
    scripts, and docs are updated in the same task. No re-export compatibility
-   modules remain.
+   modules remain. This includes the re-exports in today's `chat/__init__.py`:
+   callers import from `chat.service`, `chat.sources`, `chat.types`, etc.
 7. **No behavior change.** Move and split first; do not rename endpoints, alter
    state keys, change error text, or add validation.
-8. **Lazy optional imports.** `chat/__init__.py` must not import `agent`,
-   `providers`, or `tools`, because LangChain/LangGraph are optional. Import
-   those modules only inside `build_services()` and request handlers.
+8. **Lazy optional imports.** `chat/__init__.py` must be empty. Only `chat/service.py`,
+   `graph.py`, `tools.py`, `model.py`, `prompts.py`, `sources.py`, and `context.py`
+   import LangChain/LangGraph; `types`, `providers`, `config`, `sessions`, and
+   `registry` must stay langchain-free because routes import them eagerly. Import
+   the langchain-backed modules only inside `build_services()` and request handlers.
 
 ## Task List
 
 ### Phase 0: Baseline
 
-- [ ] Record baseline: `./scripts/ci.sh` at `7b16aa1` (171 Python, 187 frontend).
-- [ ] Capture current module/import map; confirm no pre-existing `tasks/plan.md`.
+- [ ] Record baseline: `./scripts/ci.sh` at `3bffff1` (224 Python, 249 frontend).
+- [ ] Capture current module/import map (`rg '^from \.|^import \.' src/book_reader`).
 
 ### Phase 1: Foundations
 
@@ -141,10 +155,9 @@ independent features.
 ### Phase 2: Large domains
 
 - [ ] Task 5: Split `search.py` into `search/`.
-- [ ] Task 6: Split `chat.py` into agent, providers, and tools.
-- [ ] Task 7: Move chat config and sessions into `chat/`.
-- [ ] Task 8: Split `organize.py` into `organize/`.
-- [ ] Task 9: Move reindex into `reindex/` with manifest/reconciler split.
+- [ ] Task 6: Fold the flat chat modules into `chat/` and empty its `__init__`.
+- [ ] Task 7: Split `organize.py` into `organize/`.
+- [ ] Task 8: Move reindex into `reindex/` with manifest/reconciler split.
 
 ### Checkpoint: Domains
 
@@ -154,10 +167,10 @@ independent features.
 
 ### Phase 3: API boundary and composition root
 
-- [ ] Task 10: Extract `api/security.py`, `api/errors.py`; decouple domain errors.
-- [ ] Task 11: Extract library/reading/search routes and shared views.
-- [ ] Task 12: Extract organize/chat/system routes; move existing route modules.
-- [ ] Task 13: Slim `app.py`; move `Services` and `build_services` to `services.py`.
+- [ ] Task 9: Extract `api/security.py`, `api/errors.py`; decouple domain errors.
+- [ ] Task 10: Extract library/reading/search routes and shared views.
+- [ ] Task 11: Extract organize/chat/system routes; move existing route modules.
+- [ ] Task 12: Slim `app.py`; move `Services` and `build_services` to `services.py`.
 
 ### Checkpoint: API
 
@@ -167,8 +180,8 @@ independent features.
 
 ### Phase 4: Tests and documentation
 
-- [ ] Task 14: Mirror tests under `tests/<package>/`; update mypy/CI paths.
-- [ ] Task 15: Update docs, ADR-006, changelog; final full gate and browser smoke.
+- [ ] Task 13: Mirror tests under `tests/<package>/`; update mypy/CI paths.
+- [ ] Task 14: Update docs, ADR-009, changelog; final full gate, packaging check, browser smoke.
 
 ### Checkpoint: Complete
 
@@ -210,7 +223,7 @@ import-only call sites.
 
 **Description:** Move `library.py` into `library/scan.py`, extract `Book` and
 `UNFILED` into `library/models.py`, and add an empty package `__init__`. Keep the
-current `HTTPException` behavior until Task 10; this task only changes ownership.
+current `HTTPException` behavior until Task 9; this task only changes ownership.
 
 **Acceptance criteria:**
 - [ ] `Library`, `Book`, and `UNFILED` import from their new modules.
@@ -283,7 +296,7 @@ tests.
 
 **Type:** `implementation`
 
-**Description:** Replace the 821-line `search.py` with four focused modules:
+**Description:** Replace the 903-line `search.py` with four focused modules:
 `types.py` (`SearchHit`, `SearchUnavailable`), `elastic.py` (`ElasticSearch`,
 `RebuildJob` and Elasticsearch helpers), `pageindex.py` (`PageIndexSearch`), and
 `service.py` (`Searcher` plus local scan/snippet helpers). No retrieval behavior
@@ -307,60 +320,41 @@ benchmark.
 
 **Estimated scope:** Medium (4 owned files; one module deletion; import updates).
 
-### Task 6: Split `chat.py` into agent, providers, and tools
+### Task 6: Fold the flat chat modules into `chat/` and empty its `__init__`
 
 **Type:** `implementation`
 
-**Description:** Move provider configuration and resolution to
-`chat/providers.py`, tool schemas/builders and source helpers to `chat/tools.py`,
-and `ChatService` plus the LangGraph graph to `chat/agent.py`. Keep
-`chat/__init__.py` empty to preserve lazy optional imports. No prompt or tool
-behavior changes.
+**Description:** `chat/` already holds the langchain-backed pieces (`service`, `graph`,
+`tools`, `context`, `prompts`, `sources`, `model`, `state`, `limits`). Move the flat
+chat modules in beside them: `chat_types.py` -> `chat/types.py`, `chat_providers.py`
+-> `chat/providers.py`, `chat_config.py` -> `chat/config.py`, `chats.py` ->
+`chat/sessions.py`, and `models.py` + `models.json` -> `chat/registry.py` +
+`chat/models.json` (named `registry` so it does not clash with `chat/model.py`).
+Then empty `chat/__init__.py` and point every caller at the submodule that owns the
+name. The five moved modules must stay langchain-free. Keep `chat/model.py` where it
+is so patches of `book_reader.chat.model.ChatOpenAI` stay valid. No behavior change.
 
 **Acceptance criteria:**
-- [ ] Importing `book_reader.app` without LangChain installed still succeeds.
-- [ ] `ChatService`, `ProviderConfig`, and tool builders import from their new modules.
-- [ ] Provider fallback, bounded tool rounds, and source collection tests pass.
+- [ ] `chat/__init__.py` contains only a docstring; no re-exports remain.
+- [ ] `rg 'book_reader\.(chat_types|chat_providers|chat_config|chats|models)\b|from \.(chat_types|chat_providers|chat_config|chats|models) '` returns nothing.
+- [ ] `import book_reader.app` succeeds with langchain/langgraph blocked.
+- [ ] `chat/models.json` is still found by the registry and shipped in the wheel.
+- [ ] Retention tests that monkeypatch `book_reader.chats.time` target `book_reader.chat.sessions.time`.
 
 **Verification:**
-- [ ] `uv run pytest -q tests/test_chat.py tests/test_chat_sessions.py`
-- [ ] `uv run ruff check src tests && uv run mypy src tests`
-- [ ] `uv run python -c "import book_reader.app; import book_reader.chat"`
+- [ ] `uv run pytest -q tests/test_chat.py tests/test_chat_sessions.py tests/test_chats.py tests/test_models.py tests/test_ask_evals.py tests/test_openui_contract.py`
+- [ ] `uv run ruff check src tests scripts && uv run mypy src tests`
+- [ ] `uv run python -c "import sys; sys.modules['langchain_core']=None; sys.modules['langgraph']=None; import book_reader.app; from book_reader.chat.types import AskOptions; from book_reader.chat.sessions import ChatStore; from book_reader.chat.config import select_model; from book_reader.chat.registry import model_info"`
+- [ ] `uv run python scripts/eval_ask.py --help`
 
-**Dependencies:** Tasks 1-5
+**Dependencies:** Tasks 1-5 (sessions import `state/remap`; tools import `notes`, `reading`, `search`)
 
-**Files likely touched:** `chat.py`, new `chat/agent.py`, `chat/providers.py`,
-`chat/tools.py`, `chat/__init__.py`, routes/tests.
+**Files likely touched:** five moved modules + `models.json`, `chat/__init__.py`, `app.py`,
+`routes_chat_sessions.py`, `reconcile.py`, `evals/*`, `scripts/eval_ask.py`, four test modules.
 
-**Estimated scope:** Large (4 owned files; one module deletion; import updates).
+**Estimated scope:** Large (5 owned modules; import churn only).
 
-### Task 7: Move chat config and sessions into `chat/`
-
-**Type:** `implementation`
-
-**Description:** Move `chat_config.py` to `chat/config.py` and `chats.py` to
-`chat/sessions.py`. Remove FastAPI from the config model selection path only in
-Task 10; this task preserves behavior and updates tests that monkeypatch
-`book_reader.chats.time`.
-
-**Acceptance criteria:**
-- [ ] Session/project types and `ChatStore` import from `chat/sessions.py`.
-- [ ] Model limits and selection import from `chat/config.py`.
-- [ ] Retention monkeypatches target the new module path and still pass.
-- [ ] No `book_reader.chats` or `book_reader.chat_config` imports remain.
-
-**Verification:**
-- [ ] `uv run pytest -q tests/test_chats.py tests/test_chat_sessions.py tests/test_reindex.py`
-- [ ] `uv run ruff check src tests && uv run mypy src tests`
-- [ ] `uv run python -c "from book_reader.chat.sessions import ChatStore; from book_reader.chat.config import select_model"`
-
-**Dependencies:** Task 6
-
-**Files likely touched:** two moved modules, three route/app/reindex modules, tests.
-
-**Estimated scope:** Small (2 owned files; import updates).
-
-### Task 8: Split `organize.py` into `organize/`
+### Task 7: Split `organize.py` into `organize/`
 
 **Type:** `implementation`
 
@@ -386,7 +380,7 @@ tests.
 
 **Estimated scope:** Medium (3 owned files; one module deletion; import updates).
 
-### Task 9: Move reindex into `reindex/`
+### Task 8: Move reindex into `reindex/`
 
 **Type:** `implementation`
 
@@ -406,7 +400,7 @@ between stores and the reconciler.
 - [ ] `uv run ruff check src tests && uv run mypy src tests`
 - [ ] `uv run python -c "import book_reader.reindex.reconciler; import book_reader.reading.progress; import book_reader.chat.sessions"`
 
-**Dependencies:** Tasks 1-8
+**Dependencies:** Tasks 1-7
 
 **Files likely touched:** `reconcile.py`, new `reindex/*.py`, app/routes/services,
 tests.
@@ -416,11 +410,11 @@ tests.
 ## Checkpoint: Domains
 
 - [ ] Full Python suite passes.
-- [ ] `rg 'book_reader\.(library|pdf|mdrender|pages|progress|sections|notepad|search|chat|chats|chat_config|organize|reconcile|state_lock|statemove|preferences)' src tests scripts` is empty.
+- [ ] `rg 'book_reader\.(library|pdf|mdrender|pages|progress|sections|notepad|search|chats|chat_config|chat_types|chat_providers|models|organize|reconcile|state_lock|statemove|preferences)\b' src tests scripts` is empty, and `rg 'from book_reader.chat import|from \.chat import'` is empty.
 - [ ] Optional chat import remains lazy.
 - [ ] No behavior or state-file changes in the diff.
 
-### Task 10: Extract `api/security.py`, `api/errors.py`; decouple domain errors
+### Task 9: Extract `api/security.py`, `api/errors.py`; decouple domain errors
 
 **Type:** `implementation`
 
@@ -441,7 +435,7 @@ existing HTTP status codes in `api/errors.py`; retain the JSON
 - [ ] `uv run ruff check src tests && uv run mypy src tests`
 - [ ] `uv run python -c "import book_reader.library.scan; import book_reader.chat.config"`
 
-**Dependencies:** Tasks 2, 7, 9
+**Dependencies:** Tasks 2, 6, 8
 
 **Files likely touched:** `security_headers.py`, new `api/security.py`,
 `api/errors.py`, `library/errors.py`, `library/scan.py`, `chat/config.py`, app,
@@ -449,7 +443,7 @@ tests.
 
 **Estimated scope:** Medium (6 owned files; behavior-preserving error mapping).
 
-### Task 11: Extract library/reading/search routes and shared views
+### Task 10: Extract library/reading/search routes and shared views
 
 **Type:** `implementation`
 
@@ -469,14 +463,14 @@ path and payload identical.
 - [ ] `uv run ruff check src tests && uv run mypy src tests`
 - [ ] `uv run python -c "from book_reader.api.routes.library import register; from book_reader.api.routes.search import register"`
 
-**Dependencies:** Tasks 9-10
+**Dependencies:** Tasks 8-9
 
 **Files likely touched:** `routes_library.py`, new `api/views.py`, three route
 modules, app, tests.
 
 **Estimated scope:** Large (5 owned files; route moves only).
 
-### Task 12: Extract organize/chat/system routes; move remaining routes
+### Task 11: Extract organize/chat/system routes; move remaining routes
 
 **Type:** `implementation`
 
@@ -485,6 +479,9 @@ modules, app, tests.
 `api/routes/organize.py`, `api/routes/chat.py`, and `api/routes/system.py`.
 Move `routes_notepad.py`, `routes_chat_sessions.py`, and `routes_spa.py` into
 `api/routes/`. All route modules expose `register(app, **deps)`.
+`routes_chat_sessions.py` (499 lines, owns `SessionTaskHub` and the run/SSE
+orchestration) moves as-is; splitting the hub and runner out of the route module is a
+separate follow-up, not part of this restructure.
 
 **Acceptance criteria:**
 - [ ] No route decorators remain in `app.py`.
@@ -496,13 +493,13 @@ Move `routes_notepad.py`, `routes_chat_sessions.py`, and `routes_spa.py` into
 - [ ] `uv run ruff check src tests && uv run mypy src tests`
 - [ ] `rg '@app\\.(get|post|patch|delete)' src/book_reader/app.py` is empty.
 
-**Dependencies:** Task 11
+**Dependencies:** Task 10
 
 **Files likely touched:** seven route modules, app, tests.
 
 **Estimated scope:** Large (7 route files; moves/extraction only).
 
-### Task 13: Slim `app.py`; move services composition
+### Task 12: Slim `app.py`; move services composition
 
 **Type:** `implementation`
 
@@ -523,7 +520,7 @@ tests, and scripts.
 - [ ] `uv run ruff check src tests && uv run mypy src tests`
 - [ ] `uv run python -c "from book_reader.app import create_app; from book_reader.services import Services, build_services"`
 
-**Dependencies:** Task 12
+**Dependencies:** Task 11
 
 **Files likely touched:** `app.py`, new `services.py`, `__main__.py`, tests.
 
@@ -536,19 +533,24 @@ tests, and scripts.
 - [ ] No domain module imports `fastapi`.
 - [ ] Full Python suite and SPA shell tests pass.
 
-### Task 14: Mirror tests under `tests/<package>/`
+### Task 13: Mirror tests under `tests/<package>/`
 
 **Type:** `verification`
 
 **Description:** Move test modules into `tests/api`, `tests/library`,
-`tests/reading`, `tests/search`, `tests/chat`, `tests/organize`, and
-`tests/state`. Keep `conftest.py` at the root. Update `pyproject.toml` mypy
-overrides and any documented focused-test commands.
+`tests/reading`, `tests/search`, `tests/chat`, `tests/organize`, `tests/state`, and
+`tests/evals`. Keep `conftest.py` at the root. Mapping for the chat-era tests:
+`test_chat.py`, `test_chat_sessions.py`, `test_chats.py`, `test_models.py`, and
+`test_openui_contract.py` -> `tests/chat/`; `test_ask_evals.py` -> `tests/evals/`.
+Update `pyproject.toml` mypy overrides (`book_reader.pdf` ->
+`book_reader.reading.pdf`, plus relaxed test-module names) and any documented
+focused-test commands in `CLAUDE.md`.
 
 **Acceptance criteria:**
 - [ ] Test directories mirror backend packages.
 - [ ] `uv run pytest -q` discovers all tests without path-specific configuration.
-- [ ] Mypy overrides reference the new `book_reader.reading.pdf` path.
+- [ ] Mypy overrides reference the new `book_reader.reading.pdf` path and the moved test modules.
+- [ ] Test module basenames stay unique, or each test directory has an `__init__.py` (pytest rootdir import mode).
 - [ ] No test imports old module paths.
 
 **Verification:**
@@ -556,38 +558,42 @@ overrides and any documented focused-test commands.
 - [ ] `uv run ruff check src tests && uv run mypy src tests`
 - [ ] `./scripts/ci.sh`
 
-**Dependencies:** Tasks 1-13
+**Dependencies:** Tasks 1-12
 
 **Files likely touched:** test moves, `pyproject.toml`, `CLAUDE.md`.
 
 **Estimated scope:** Medium (test moves; no behavior changes).
 
-### Task 15: Update documentation and final gate
+### Task 14: Update documentation and final gate
 
 **Type:** `delivery`
 
-**Description:** Add ADR-006 for the feature-first backend layout, update the
-README project layout, `AGENTS.md`, `CLAUDE.md`, architecture diagram paths, and
-the changelog. Run the full gate, packaging check, and a browser smoke test.
+**Description:** Add ADR-009 for the feature-first backend layout (ADR-006 is already
+taken by the frontend auto-build record; ADR-008 is the latest) and add its row to
+`docs/decisions/README.md`. Update the README project layout, `AGENTS.md`, `CLAUDE.md`
+(its architecture bullets cite `chat.py`, `chat_config.py`, `chats.py`, and `models.py`
+paths), `docs/book-reader-architecture.html` and `docs/diagrams/` paths, and
+`CHANGELOG.md`. Run the full gate, packaging check, and a browser smoke test.
 
 **Acceptance criteria:**
-- [ ] ADR-006 documents the layout and import-direction rules.
+- [ ] ADR-009 documents the layout and import-direction rules.
 - [ ] README/AGENTS/CLAUDE show only the new paths.
 - [ ] Changelog notes the internal restructure with no behavior change.
 - [ ] `./scripts/ci.sh` is green.
-- [ ] Wheel contains the SPA; Docker build or an explicit unavailable-daemon note is recorded.
+- [ ] Wheel contains `static/app/index.html`, `chat/models.json`, `prompts/openui_prompt*.txt`, and `skills/*`, and excludes `evals/`.
+- [ ] Docker build or an explicit unavailable-daemon note is recorded.
 - [ ] Browser smoke at 1440 and 390 covers library, `/ask`, PDF, Markdown, notepad, chat rail, and options.
 
 **Verification:**
 - [ ] `./scripts/ci.sh`
-- [ ] `uv build --out-dir /tmp/br-wheel && unzip -l /tmp/br-wheel/*.whl | rg 'static/app/index.html'`
+- [ ] `uv build --out-dir /tmp/br-wheel && unzip -l /tmp/br-wheel/*.whl | rg 'static/app/index.html|chat/models.json|prompts/openui_prompt|skills/'` and `! unzip -l /tmp/br-wheel/*.whl | rg 'book_reader/evals'`
 - [ ] `docker build -t book-reader:backend-layout .` (if daemon available)
 - [ ] Browser checklist against a temporary library and state directory.
 
-**Dependencies:** Task 14
+**Dependencies:** Task 13
 
-**Files likely touched:** ADR, README, AGENTS, CLAUDE, architecture diagram,
-changelog.
+**Files likely touched:** ADR-009, `docs/decisions/README.md`, README, AGENTS, CLAUDE,
+architecture diagram, changelog.
 
 **Estimated scope:** Medium (docs only).
 
@@ -607,9 +613,11 @@ changelog.
 | Optional LangChain import becomes eager | High | Keep `chat/__init__.py` empty; import agent/providers/tools inside `build_services` and handlers. |
 | Domain error mapping changes status codes | High | Map invalid path → 400, missing/hidden → 404, unknown model → 400; preserve existing tests before/after. |
 | Test monkeypatches break after module moves | Medium | Update paths explicitly (`book_reader.chat.sessions.time`); run focused suites per task. |
-| Mypy strict overrides drift | Medium | Update `book_reader.reading.pdf` and test module names in Task 14; run mypy each task. |
+| Mypy strict overrides drift | Medium | Update `book_reader.reading.pdf` and test module names in Task 13; run mypy each task. |
 | Mechanical import churn hides a behavior edit | Medium | Move-only diffs first; no logic edits in move tasks; review by module boundary. |
 | Route extraction changes registration order | Medium | Keep `register()` order and middleware/mount order identical; SPA shell fallback tests catch precedence errors. |
+| Emptying `chat/__init__.py` breaks callers or eagerly imports langchain | High | Task 6 import-smoke runs with langchain blocked; grep for `from book_reader.chat import`; `scripts/eval_ask.py --help` as a CLI smoke. |
+| Registry JSON not packaged after moving to `chat/` | Medium | Wheel check in Task 14 lists `chat/models.json`; `tests/test_models.py` loads it. |
 | Static/vendor paths break | Low | Do not move `static/`; `PACKAGE_DIR` remains the package root. |
 
 ## Open questions
@@ -618,7 +626,7 @@ changelog.
   of introducing `Depends`/`app.state` service lookup. This keeps optional
   imports and test seams visible.
 - **Test layout:** mirror packages (recommended) or keep flat test modules. The
-  plan assumes mirrored directories in Task 14.
+  plan assumes mirrored directories in Task 13.
 - **Reindex naming:** `reindex/` is preferred over `maintenance/` because the
   package owns the specific manifest/backup/remap transaction.
 - **Public imports:** there are no external Python consumers; old module paths
@@ -630,7 +638,7 @@ changelog.
 - [ ] Verification commands were actually run; outcomes are recorded in
       `tasks/todo.md`.
 - [ ] `./scripts/ci.sh` passes at the final tree.
-- [ ] Python and frontend tests remain at least at the baseline coverage.
+- [ ] Python (224) and frontend (249) tests remain at least at the baseline count.
 - [ ] Wheel/Docker packaging contracts are unchanged.
 - [ ] README/AGENTS/CLAUDE/ADR/changelog reflect the new layout.
 - [ ] No HTTP types in domain packages, no old flat-module imports, no shims.
