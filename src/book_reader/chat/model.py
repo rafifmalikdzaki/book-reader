@@ -19,6 +19,26 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# Gemini 3 rejects replayed function calls that lack a thought signature, and LangChain drops the
+# one Gemini returns. Google documents this value as the way to skip validation for such turns.
+_GEMINI_SKIP_SIGNATURE = "skip_thought_signature_validator"
+
+
+class GeminiChatOpenAI(ChatOpenAI):
+    """ChatOpenAI that adds the signature Gemini requires on replayed tool calls."""
+
+    def _get_request_payload(
+        self, input_: Any, *, stop: list[str] | None = None, **kwargs: Any
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = super()._get_request_payload(input_, stop=stop, **kwargs)
+        for message in payload.get("messages", []):
+            for call in message.get("tool_calls") or []:
+                call.setdefault(
+                    "extra_content", {"google": {"thought_signature": _GEMINI_SKIP_SIGNATURE}}
+                )
+        return payload
+
+
 def _chat_model(provider: ProviderConfig, effort: str | None = None) -> ChatOpenAI:
     kwargs: dict[str, Any] = {
         "model": provider.model,
@@ -30,6 +50,8 @@ def _chat_model(provider: ProviderConfig, effort: str | None = None) -> ChatOpen
     }
     if effort in {"low", "medium", "high"}:
         kwargs["reasoning_effort"] = effort
+    if provider.name == "gemini":
+        return GeminiChatOpenAI(**kwargs)
     return ChatOpenAI(**kwargs)
 
 

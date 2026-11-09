@@ -131,7 +131,7 @@ MISTRAL_API_KEY=...          # or MISTRAL_API
 OPENROUTER_API_KEY=...
 OLLAMA_API_KEY=...
 GEMINI_API_KEY=...           # or GEMINI_API / GOOGLE_API_KEY
-BOOK_READER_CHAT_PRIORITY=inception:mercury-3,mistral:mistral-small-latest,mistral:ministral-8b-latest,mistral:zai-glm-5-3-flash,openrouter:openrouter/free,openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,ollama:gpt-oss:20b,gemini:gemini-2.5-flash
+BOOK_READER_CHAT_PRIORITY=inception:mercury-3,mistral:mistral-small-latest,mistral:ministral-8b-latest,mistral:zai-glm-5-3-flash,openrouter:openrouter/free,openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,ollama:gpt-oss:20b,gemini:gemini-3.8-flash
 ```
 
 ---

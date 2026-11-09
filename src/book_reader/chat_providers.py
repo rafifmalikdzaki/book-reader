@@ -18,7 +18,7 @@ DEFAULT_PRIORITY = (
     "openrouter:openrouter/free,"
     "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,"
     "ollama:gpt-oss:20b,"
-    "gemini:gemini-2.5-flash"
+    "gemini:gemini-3.8-flash"
 )
 
 PROVIDER_DEFAULTS: dict[str, tuple[str, str, str, str]] = {
@@ -50,7 +50,7 @@ PROVIDER_DEFAULTS: dict[str, tuple[str, str, str, str]] = {
     "gemini": (
         "https://generativelanguage.googleapis.com/v1beta/openai/",
         "GEMINI_API_KEY",
-        "gemini-2.5-flash",
+        "gemini-3.8-flash",
         "BOOK_READER_GEMINI_MODEL",
     ),
 }

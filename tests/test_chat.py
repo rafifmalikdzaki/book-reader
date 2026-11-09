@@ -41,11 +41,30 @@ def test_gemini_provider_accepts_alias_keys_and_uses_the_openai_endpoint() -> No
         [provider] = resolve_providers({key_env: "g", "BOOK_READER_CHAT_PRIORITY": "gemini"})
         assert (provider.name, provider.model, provider.api_key) == (
             "gemini",
-            "gemini-2.5-flash",
+            "gemini-3.8-flash",
             "g",
         )
         assert provider.base_url.startswith("https://generativelanguage.googleapis.com/")
     assert resolve_providers({"BOOK_READER_CHAT_PRIORITY": "gemini"}) == []
+
+
+def test_gemini_replayed_tool_calls_carry_a_thought_signature() -> None:
+    from book_reader.chat.model import _chat_model
+
+    messages = [
+        HumanMessage("hi"),
+        AIMessage(content="", tool_calls=[{"id": "c1", "name": "t", "args": {}}]),
+        ToolMessage(content="ok", tool_call_id="c1"),
+    ]
+    gemini = ProviderConfig(name="gemini", base_url="http://x/v1", model="g", api_key="k")
+    other = ProviderConfig(name="mistral", base_url="http://x/v1", model="m", api_key="k")
+
+    def tool_call(provider: ProviderConfig) -> dict[str, Any]:
+        payload = _chat_model(provider)._get_request_payload(messages)
+        return cast(dict[str, Any], payload["messages"][1]["tool_calls"][0])
+
+    assert "thought_signature" in tool_call(gemini)["extra_content"]["google"]
+    assert "extra_content" not in tool_call(other)
 
 
 def test_provider_order_and_missing_keys() -> None:
