@@ -49,3 +49,78 @@
     min-height: var(--touch-min);
   }
 }
+
+/* Base UI Select parts (trigger keeps the old .select skin; popup is new). */
+.select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.positioner {
+  z-index: var(--z-menu);
+}
+
+.popup {
+  min-width: var(--anchor-width, 160px);
+  max-height: 280px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper-lit);
+  box-shadow: var(--shadow-menu);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+
+.item[data-highlighted] {
+  background: var(--paper-edge);
+}
+
+.item[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.itemText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indicator {
+  display: none;
+  color: var(--brass-deep);
+}
+
+.item[data-selected] .indicator {
+  display: inline-flex;
+}

@@ -77,7 +77,7 @@
 .modeActive,
 .modeActive:hover {
   background: var(--brass);
-  color: var(--on-brass);
+  color: var(--wood-ink); /* dark on brass: readable in both atmospheres */
   font-weight: 600;
 }
 
@@ -129,33 +129,3 @@
   content: 'Ask about the page you are on, or switch to Socratic Tutor mode to master this section. Answers cite the book, page, and section they used.';
 }
 
-.form {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin: 0 12px 12px;
-  padding: 6px 8px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-lg);
-  background: var(--paper-lit);
-  box-shadow: var(--shadow-bubble);
-}
-
-.form:focus-within {
-  border-color: var(--brass);
-}
-
-.input {
-  flex: 1;
-  min-height: 38px;
-  max-height: 140px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--ink);
-}
-
-.input:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 1px;
-}

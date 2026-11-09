@@ -1,4 +1,5 @@
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { Button as BaseButton } from '@base-ui/react/button';
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode, type Ref } from 'react';
 
 import styles from './IconButton.module.css';
 import { cx } from './cx';
@@ -20,8 +21,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   ref,
 ) {
   return (
-    <button
-      ref={ref}
+    <BaseButton
+      ref={ref as Ref<HTMLElement>}
       type={type}
       aria-label={label}
       title={title ?? label}
@@ -31,6 +32,6 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       <span aria-hidden="true" className={styles.glyph}>
         {icon}
       </span>
-    </button>
+    </BaseButton>
   );
 });

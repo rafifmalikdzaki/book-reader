@@ -6,6 +6,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installFakeApi } from './fakeApi';
 import { newQueryClient, renderShell } from './testing';
 
+/** Open a Base UI combobox and pick the option with the given name. */
+async function pickOption(user: ReturnType<typeof userEvent.setup>, combobox: HTMLElement, optionName: RegExp | string) {
+  await user.click(combobox);
+  await user.click(await screen.findByRole('option', { name: optionName }));
+}
+
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -25,9 +32,8 @@ describe('Options dialog', () => {
 
     await openOptions(user);
     const select = await screen.findByRole('combobox', { name: 'Chat model' });
-    await screen.findByRole('option', { name: 'mistral · small' });
-    expect(select).toHaveValue('auto');
-    await user.selectOptions(select, 'mistral:small');
+    expect(select).toHaveTextContent('Auto — follow the provider chain');
+    await pickOption(user, select, /mistral · small/);
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -41,7 +47,7 @@ describe('Options dialog', () => {
     const user = userEvent.setup();
     renderShell('/');
     await openOptions(user);
-    await screen.findByRole('option', { name: 'mistral · small' });
+    await screen.findByRole('combobox', { name: 'Chat model' });
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Unknown model');
     expect(screen.getByRole('dialog')).toBeInTheDocument();

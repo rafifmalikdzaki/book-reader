@@ -1,0 +1,87 @@
+/* Ported from beautiful-ui primitives/PromptBar.tsx — window-radius bar,
+ * hairline ring + layered shadow, brass focus ring, circular send action. */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border-radius: var(--radius-window);
+  background: var(--paper-lit);
+  box-shadow: 0 0 0 1px var(--rule), var(--shadow-bubble);
+  padding: 7px 8px;
+  transition:
+    box-shadow 150ms ease,
+    border-color 150ms ease;
+}
+
+.bar[data-focused='true'] {
+  box-shadow: 0 0 0 1px var(--brass), var(--shadow-bubble);
+}
+
+.leading {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.input {
+  flex: 1;
+  min-height: 40px;
+  max-height: 180px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink);
+  padding: 8px 10px;
+  font: inherit;
+  line-height: 1.45;
+  resize: none;
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--placeholder);
+}
+
+.action {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--brass);
+  color: var(--wood-ink);
+  cursor: pointer;
+  transition:
+    transform 150ms var(--ease-out-strong),
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+
+.action:hover:not(:disabled) {
+  background: var(--brass-lit);
+  transform: translateY(-1px);
+}
+
+.action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.action:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.action[data-variant='stop'] {
+  background: var(--paper-edge);
+  color: var(--danger);
+  box-shadow: 0 0 0 1px var(--rule);
+}

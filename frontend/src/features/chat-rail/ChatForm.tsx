@@ -1,8 +1,6 @@
-import { useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
+import { useState, type RefObject } from 'react';
 
-import { Button, Textarea } from '../../ui';
-
-import styles from './ChatRail.module.css';
+import { PromptBar } from '../chat-render/agent/PromptBar';
 
 interface Props {
   busy: boolean;
@@ -11,7 +9,7 @@ interface Props {
   onSend: (question: string) => Promise<boolean>;
 }
 
-/** Enter sends, Shift+Enter inserts a newline (legacy chat.js keydown handler). */
+/** Reader-rail composer on the shared PromptBar (ported beautiful-ui primitive). */
 export function ChatForm({ busy, inputRef, onSend }: Props) {
   const [draft, setDraft] = useState('');
 
@@ -23,33 +21,16 @@ export function ChatForm({ busy, inputRef, onSend }: Props) {
   }
 
   return (
-    <form
-      className={styles.form}
-      autoComplete="off"
-      onSubmit={(event: FormEvent) => {
-        event.preventDefault();
-        submit();
-      }}
-    >
-      <Textarea
-        ref={inputRef}
-        name="question"
-        rows={2}
-        value={draft}
-        aria-label="Your question"
-        placeholder="Ask about your books… (Enter to send)"
-        className={styles.input}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event: KeyboardEvent<HTMLTextAreaElement>) => {
-          if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-            event.preventDefault();
-            submit();
-          }
-        }}
-      />
-      <Button type="submit" loading={busy} disabled={busy}>
-        Send
-      </Button>
-    </form>
+    <PromptBar
+      value={draft}
+      inputRef={inputRef}
+      ariaLabel="Your question"
+      placeholder="Ask about your books… (Enter to send)"
+      busy={busy}
+      disabled={busy}
+      actionLabel="Send"
+      onChange={setDraft}
+      onSubmit={submit}
+    />
   );
 }

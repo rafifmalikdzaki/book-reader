@@ -6,6 +6,7 @@ import { cx } from './cx';
 /** Props to spread on the control inside a `<Field>`. */
 export interface FieldControlProps {
   id: string;
+  'aria-labelledby': string;
   'aria-describedby': string | undefined;
   'aria-invalid': true | undefined;
   'aria-required': true | undefined;
@@ -35,11 +36,12 @@ export function Field({ label, hideLabel, hint, error, required, className, chil
 
   return (
     <div className={cx(styles.field, className)}>
-      <label htmlFor={id} className={hideLabel ? styles.hidden : styles.label}>
+      <label id={`${id}-label`} htmlFor={id} className={hideLabel ? styles.hidden : styles.label}>
         {label}
       </label>
       {children({
         id,
+        'aria-labelledby': `${id}-label`,
         'aria-describedby': describedBy,
         'aria-invalid': error ? true : undefined,
         'aria-required': required ? true : undefined,

@@ -16,21 +16,22 @@ function Harness() {
 }
 
 describe('Segmented', () => {
-  it('marks exactly the current option with aria-pressed inside a named group', () => {
+  it('marks exactly the current option as selected inside a named tab list', () => {
     render(<Harness />);
-    expect(screen.getByRole('group', { name: 'Library view' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tiles' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('tablist', { name: 'Library view' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Tiles' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'false');
   });
 
   it('switches by click and by keyboard', async () => {
     const user = userEvent.setup();
     render(<Harness />);
-    await user.click(screen.getByRole('button', { name: 'List' }));
-    expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true');
-    await user.tab({ shift: true });
-    expect(screen.getByRole('button', { name: 'Tiles' })).toHaveFocus();
+    await user.click(screen.getByRole('tab', { name: 'List' }));
+    expect(screen.getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'true');
+    // Arrow keys move focus between tabs; Enter activates (Base UI tablist).
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.getByRole('tab', { name: 'Tiles' })).toHaveFocus();
     await user.keyboard('{Enter}');
-    expect(screen.getByRole('button', { name: 'Tiles' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('tab', { name: 'Tiles' })).toHaveAttribute('aria-selected', 'true');
   });
 });

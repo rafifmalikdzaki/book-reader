@@ -104,7 +104,7 @@
 
 .effortBtn[aria-pressed='true'] {
   background: var(--brass);
-  color: var(--on-brass);
+  color: var(--wood-ink); /* dark on brass: readable in both atmospheres */
   font-weight: 600;
 }
 

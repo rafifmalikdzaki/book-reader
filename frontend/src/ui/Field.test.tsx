@@ -39,8 +39,9 @@ describe('Field', () => {
         )}
       </Field>,
     );
-    const select = screen.getByRole('combobox', { name: 'Chat model' });
-    await user.selectOptions(select, 'm1');
-    expect(select).toHaveValue('m1');
+    const trigger = screen.getByRole('combobox', { name: 'Chat model' });
+    await user.click(trigger);
+    await user.click(await screen.findByRole('option', { name: 'Model one' }));
+    expect(trigger).toHaveTextContent('Model one');
   });
 });

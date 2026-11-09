@@ -1,10 +1,18 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as endpoints from '../../api/endpoints';
 import type { StoredMessage } from '../../api/types';
 import { stubScrollGeometry, stubViewport } from '../../ui/test-utils';
 import { installServer, makeSession, renderAsk } from './ask.harness';
+
+/** Open a Base UI combobox and pick the option with the given name. */
+async function pickOption(user: ReturnType<typeof userEvent.setup>, combobox: HTMLElement, optionName: RegExp | string) {
+  await user.click(combobox);
+  await user.click(await screen.findByRole('option', { name: optionName }));
+}
+
 
 vi.mock('../../api/endpoints');
 vi.mock('../../app', () => ({
@@ -141,7 +149,7 @@ describe('Ask: session controls', () => {
     await user.click(screen.getByRole('button', { name: '+ Project' }));
     await user.type(screen.getByRole('textbox', { name: 'Project name' }), 'Thesis{Enter}');
     expect(endpoints.createChatProject).toHaveBeenCalledWith('Thesis');
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Chat project' }), 'Thesis');
+    await pickOption(user, await screen.findByRole('combobox', { name: 'Chat project' }), 'Thesis');
     expect(endpoints.updateChatSession).toHaveBeenCalledWith('s9', { project_id: 'p1' });
     const group = (await screen.findByRole('heading', { level: 2, name: 'Thesis' })).closest('section');
     expect(within(group as HTMLElement).getByRole('button', { name: /^Open/ })).toBeInTheDocument();
@@ -154,7 +162,7 @@ describe('Ask: session controls', () => {
     const recent = (await screen.findByRole('heading', { level: 2, name: 'Recent' })).closest('section');
     expect(within(recent as HTMLElement).getByRole('button', { name: /^Open/ })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Thesis' })).not.toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Chat project' })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: 'Chat project' })).toHaveTextContent('No project');
   });
 });
 

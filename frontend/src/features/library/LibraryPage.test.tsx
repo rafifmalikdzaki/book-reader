@@ -4,6 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { installLibraryApi, makeLibrary, renderLibrary } from './testHarness';
 
+/** Open a Base UI combobox and pick the option with the given name. */
+async function pickOption(user: ReturnType<typeof userEvent.setup>, combobox: HTMLElement, optionName: RegExp | string) {
+  await user.click(combobox);
+  await user.click(await screen.findByRole('option', { name: optionName }));
+}
+
+
 beforeEach(() => {
   window.localStorage.clear();
 });
@@ -80,8 +87,8 @@ describe('library page', () => {
     const first = renderLibrary();
 
     await tiles();
-    expect(screen.getByRole('button', { name: 'Tiles' })).toHaveAttribute('aria-pressed', 'true');
-    await user.click(screen.getByRole('button', { name: 'List' }));
+    expect(screen.getByRole('tab', { name: 'Tiles' })).toHaveAttribute('aria-selected', 'true');
+    await user.click(screen.getByRole('tab', { name: 'List' }));
     expect(window.localStorage.getItem('br-view')).toBe('list');
     const table = screen.getByRole('table');
     expect(within(table).getByRole('link', { name: 'Field Notes' })).toHaveAttribute(
@@ -95,7 +102,7 @@ describe('library page', () => {
 
     renderLibrary();
     expect(await screen.findByRole('table')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('tab', { name: 'List' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('filters titles live from ?q= in both views', async () => {
@@ -109,7 +116,7 @@ describe('library page', () => {
     expect(grid.queryByRole('heading', { name: 'Miscellaneous' })).not.toBeInTheDocument();
     expect(grid.getByText('1')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'List' }));
+    await user.click(screen.getByRole('tab', { name: 'List' }));
     expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2);
     api.unmount();
   });
@@ -127,7 +134,7 @@ describe('library page', () => {
 
     const select = await screen.findByRole('combobox', { name: 'Filter by category' });
     expect(select).toHaveValue('');
-    await user.selectOptions(select, 'cat-misc');
+    await pickOption(user, select, /Miscellaneous/);
     const grid = await tiles();
     expect(grid.getByRole('link', { name: /Field Notes/ })).toBeInTheDocument();
     expect(grid.queryByRole('link', { name: /Pattern Recognition/ })).not.toBeInTheDocument();

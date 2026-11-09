@@ -1,7 +1,7 @@
-import type { KeyboardEvent, Ref } from 'react';
+import type { Ref } from 'react';
 
 import type { ChatMode } from '../../api/types';
-import { Button, Textarea } from '../../ui';
+import { PromptBar } from '../chat-render/agent/PromptBar';
 import styles from './AskPage.module.css';
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
   onSubmit: () => void;
 }
 
-/** Enter sends, Shift+Enter inserts a newline (ask.js keydown handler). */
+/** Mode segmented control above the shared PromptBar (ported beautiful-ui primitive). */
 export function Composer({
   value,
   inputRef,
@@ -28,12 +28,6 @@ export function Composer({
   onChange,
   onSubmit,
 }: Props) {
-  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-      event.preventDefault();
-      onSubmit();
-    }
-  }
   return (
     <div className={styles.composerWrap}>
       {onModeChange ? (
@@ -63,37 +57,24 @@ export function Composer({
           </span>
         </div>
       ) : null}
-      <form
-        className={styles.composer}
-        autoComplete="off"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onSubmit();
-        }}
-      >
-        <Textarea
-          ref={inputRef}
-          name="question"
-          rows={2}
-          value={value}
-          placeholder={
-            mode === 'tutor'
-              ? 'Pick a chapter or concept to master Socratically… (Enter to send)'
-              : 'Ask about your books… (Enter to send)'
-          }
-          aria-label="Ask about your books"
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={onKeyDown}
-        />
-        {busy && onCancel ? (
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            Stop
-          </Button>
-        ) : null}
-        <Button type="submit" loading={busy} disabled={disabled}>
-          {busy ? 'Thinking…' : 'Send'}
-        </Button>
-      </form>
+      <PromptBar
+        value={value}
+        inputRef={inputRef}
+        ariaLabel="Ask about your books"
+        placeholder={
+          mode === 'tutor'
+            ? 'Pick a chapter or concept to master Socratically… (Enter to send)'
+            : 'Ask about your books… (Enter to send)'
+        }
+        busy={busy}
+        disabled={disabled || busy}
+        actionLabel="Send"
+        busyLabel="Thinking…"
+        stopLabel="Stop"
+        onCancel={onCancel}
+        onChange={onChange}
+        onSubmit={onSubmit}
+      />
     </div>
   );
 }

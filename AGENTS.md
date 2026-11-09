@@ -8,6 +8,7 @@ served by FastAPI from the generated `static/app/` bundle.
 
 - FastAPI, PyMuPDF, PageIndex Flash (optional), Elasticsearch (optional)
 - React 19 + Vite + TypeScript (strict) SPA in `frontend/`, built to `src/book_reader/static/app/` (gitignored)
+- UI libraries: `@base-ui/react` for unstyled a11y primitives (Button, Dialog, Select, Tabs, Menu — wrapped in `frontend/src/ui/`, styled via CSS Modules + `styles/tokens.css`); beautiful-ui primitives (MIT, `slev12397/beautiful-ui`) ported into `frontend/src/features/chat-render/agent/` (AgentTrace, TaskRows, ContextCards, PromptBar); `react-pdf` v11 with vendored pdfjs for the reader; vendored KaTeX for math; `@tanstack/react-query`, `react-router-dom`, `zod`, `@openuidev/react-lang` for OpenUI blocks; `@radix-ui/react-toast` + `@radix-ui/react-visually-hidden` remain for toasts/a11y
 - `react-pdf` v11 (`pdfjs-dist` 6.x) native React PDF viewer; local CMap/font assets and KaTeX 0.19.1 vendored under `src/book_reader/static/vendor/`
 - LangGraph/LangChain chat with Mistral, Inception, OpenRouter, or Ollama
 - State is plain JSON in a state directory; one process owns it at a time.

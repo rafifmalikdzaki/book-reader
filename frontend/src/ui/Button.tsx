@@ -1,4 +1,5 @@
-import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { Button as BaseButton } from '@base-ui/react/button';
+import { forwardRef, type ButtonHTMLAttributes, type Ref } from 'react';
 
 import styles from './Button.module.css';
 import { cx } from './cx';
@@ -6,6 +7,7 @@ import { cx } from './cx';
 /**
  * primary = legacy `.btn`, ghost = `.btn.secondary`, danger = destructive,
  * onDark = masthead `.ghost-btn` (brass outline on baize; `aria-pressed` fills it).
+ * Wraps Base UI's Button (unstyled a11y button: focus-visible, disabled semantics).
  */
 export type ButtonVariant = 'primary' | 'ghost' | 'danger' | 'onDark';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -32,8 +34,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 ) {
   const isDisabled = disabled || loading;
   return (
-    <button
-      ref={ref}
+    <BaseButton
+      ref={ref as Ref<HTMLElement>}
       type={type}
       disabled={isDisabled}
       aria-busy={loading ? 'true' : undefined}
@@ -42,6 +44,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     >
       {loading ? <span aria-hidden="true" className={styles.spinner} /> : null}
       {children}
-    </button>
+    </BaseButton>
   );
 });

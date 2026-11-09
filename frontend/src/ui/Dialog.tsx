@@ -1,5 +1,5 @@
-import * as RadixDialog from '@radix-ui/react-dialog';
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { Dialog as BaseDialog } from '@base-ui/react/dialog';
+import type { ReactNode } from 'react';
 
 import styles from './Dialog.module.css';
 import { cx } from './cx';
@@ -20,8 +20,8 @@ export interface DialogProps {
 }
 
 /**
- * Modal dialog (legacy `<dialog class="options">` look). Radix supplies the focus trap,
- * Esc handling, aria-modal, scroll lock and focus restore to the opener.
+ * Modal dialog (legacy `<dialog class="options">` look). Base UI supplies the focus
+ * trap, Esc handling, aria-modal, scroll lock and focus restore to the opener.
  */
 export function Dialog({
   open,
@@ -33,39 +33,24 @@ export function Dialog({
   showClose = true,
   className,
 }: DialogProps) {
-  // Controlled dialogs have no Radix <Trigger>, so remember the opener ourselves.
-  const opener = useRef<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    if (open && document.activeElement instanceof HTMLElement) opener.current = document.activeElement;
-  }, [open]);
-
   return (
-    <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
-      <RadixDialog.Portal>
-        <RadixDialog.Overlay className={styles.overlay} />
-        <RadixDialog.Content
-          className={cx(styles.content, size === 'sm' && styles.sm, className)}
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            opener.current?.focus({ preventScroll: true });
-          }}
-          {...(description ? {} : { 'aria-describedby': undefined })}
-        >
-          <RadixDialog.Title className={styles.title}>{title}</RadixDialog.Title>
+    <BaseDialog.Root open={open} onOpenChange={onOpenChange}>
+      <BaseDialog.Portal>
+        <BaseDialog.Backdrop className={styles.overlay} />
+        <BaseDialog.Popup className={cx(styles.content, size === 'sm' && styles.sm, className)}>
+          <BaseDialog.Title className={styles.title}>{title}</BaseDialog.Title>
           {description ? (
-            <RadixDialog.Description className={styles.description}>
-              {description}
-            </RadixDialog.Description>
+            <BaseDialog.Description className={styles.description}>{description}</BaseDialog.Description>
           ) : null}
           {children}
           {showClose ? (
-            <RadixDialog.Close asChild>
-              <IconButton label="Close" icon="×" className={styles.close} />
-            </RadixDialog.Close>
+            <BaseDialog.Close
+              render={<IconButton label="Close" icon="×" className={styles.close} />}
+            />
           ) : null}
-        </RadixDialog.Content>
-      </RadixDialog.Portal>
-    </RadixDialog.Root>
+        </BaseDialog.Popup>
+      </BaseDialog.Portal>
+    </BaseDialog.Root>
   );
 }
 

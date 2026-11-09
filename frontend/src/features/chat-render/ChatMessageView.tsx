@@ -4,7 +4,7 @@ import type { ChatRole, ChatSource } from '../../api/types';
 import { cx } from '../../ui/cx';
 
 import styles from './ChatRender.module.css';
-import { BulbIcon } from './icons';
+import { AgentTrace } from './agent/AgentTrace';
 import { MarkdownAnswer } from './MarkdownAnswer';
 import { SourceList } from './SourceList';
 
@@ -59,31 +59,17 @@ export function ChatMessageView({
       )}
     >
       {message.role === 'assistant' && !pending && (message.thought_steps?.length || message.thought) ? (
-        <details className={styles.thoughtTrace}>
-          <summary className={styles.thoughtTraceSummary}>
-            <BulbIcon className={styles.thoughtTraceIcon} />
-            <span className={styles.thoughtTraceTitle}>
-              Research & reasoning process ({message.thought_steps?.length || 1} step{(message.thought_steps?.length || 1) === 1 ? '' : 's'})
-            </span>
-          </summary>
-          <div className={styles.thoughtTraceBody}>
-            {message.thought_steps?.length ? (
-              <ol className={styles.thoughtStepList}>
-                {message.thought_steps.map((step, idx) => (
-                  <li key={idx} className={styles.thoughtStepItem}>
-                    <span className={styles.thoughtStepNumber}>{idx + 1}</span>
-                    <span className={styles.thoughtStepText}>{step}</span>
-                  </li>
-                ))}
-              </ol>
-            ) : null}
-            {message.thought ? (
-              <div className={styles.thoughtContentText}>
-                {message.thought}
-              </div>
-            ) : null}
-          </div>
-        </details>
+        <div className={styles.thoughtTrace}>
+          <AgentTrace
+            working={false}
+            active=""
+            done={`Research & reasoning process (${message.thought_steps?.length || 1} step${(message.thought_steps?.length || 1) === 1 ? '' : 's'})`}
+            rows={(message.thought_steps ?? []).map((text) => ({ text }))}
+          />
+          {message.thought ? (
+            <div className={styles.thoughtContentText}>{message.thought}</div>
+          ) : null}
+        </div>
       ) : null}
       {message.role === 'assistant' ? (
         <MarkdownAnswer text={message.content} onPrompt={onPrompt} />

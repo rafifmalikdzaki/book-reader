@@ -72,11 +72,11 @@
   box-shadow: 0 0 6px var(--indicator-emerald);
 }
 
-.menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
+.positioner {
   z-index: var(--z-menu);
+}
+
+.menu {
   width: 220px;
   padding: 6px;
   margin: 0;
@@ -101,18 +101,17 @@
   gap: 10px;
   width: 100%;
   padding: 8px 10px;
-  border: 0;
   border-radius: var(--radius-xs);
   background: transparent;
   color: var(--ink-on-dark);
   text-align: left;
   cursor: pointer;
+  outline: none;
   transition: background-color var(--dur-fast) var(--ease),
               color var(--dur-fast) var(--ease);
 }
 
-.menuItem:hover,
-.menuItem:focus-visible {
+.menuItem[data-highlighted] {
   background: var(--on-dark-hover);
   color: var(--on-brass);
   outline: none;

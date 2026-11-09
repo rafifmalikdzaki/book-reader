@@ -15,8 +15,8 @@
     "gen:openui-prompt": "OPENUI_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 openui generate src/features/chat-render/openui/library.tsx --export openuiLibrary --prompt-options openuiPromptOptions --out ../src/book_reader/prompts/openui_prompt.txt --no-interactive --no-telemetry"
   },
   "dependencies": {
+    "@base-ui/react": "^1.9.0",
     "@openuidev/react-lang": "1.1.0",
-    "@radix-ui/react-dialog": "1.3.1",
     "@radix-ui/react-toast": "1.3.1",
     "@radix-ui/react-visually-hidden": "1.2.13",
     "@tanstack/react-query": "5.104.5",

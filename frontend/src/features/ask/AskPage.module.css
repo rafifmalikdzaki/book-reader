@@ -619,52 +619,13 @@
 .modeActive,
 .modeActive:hover {
   background: var(--brass);
-  color: var(--on-brass);
+  color: var(--wood-ink); /* dark on brass: readable in both atmospheres */
   font-weight: 600;
 }
 
 .modeHint {
   color: var(--muted);
   font-size: 11px;
-}
-
-.composer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-lg);
-  background: var(--paper-lit);
-  padding: 7px 8px;
-  box-shadow: var(--shadow-bubble);
-}
-
-.composer:focus-within {
-  border-color: var(--brass);
-}
-
-.composer textarea {
-  flex: 1;
-  min-height: 40px;
-  max-height: 180px;
-  padding: 8px 10px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--ink);
-  line-height: 1.45;
-  resize: none;
-}
-
-.composer textarea:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 1px;
-}
-
-.composer button {
-  min-width: 64px;
-  height: 40px;
 }
 
 .status {

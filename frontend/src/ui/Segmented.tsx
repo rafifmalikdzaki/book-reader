@@ -1,3 +1,5 @@
+import { Tabs } from '@base-ui/react/tabs';
+
 import styles from './Segmented.module.css';
 import { cx } from './cx';
 
@@ -12,14 +14,15 @@ export interface SegmentedProps<T extends string> {
   options: ReadonlyArray<SegmentedOption<T>>;
   value: T;
   onChange: (value: T) => void;
-  /** Accessible name of the group, e.g. "Library view". */
+  /** Accessible name of the tab list, e.g. "Library view". */
   label: string;
   className?: string;
 }
 
 /**
- * Legacy `.view-toggle`: a row of toggle buttons where the current one has
- * `aria-pressed="true"` (a button group, not a tablist).
+ * Segmented view switcher on Base UI Tabs: arrow-key navigation between options,
+ * `tab`/`tablist` semantics with `aria-selected` (previously a button group with
+ * `aria-pressed`). Same look as the legacy `.view-toggle`.
  */
 export function Segmented<T extends string>({
   options,
@@ -29,19 +32,23 @@ export function Segmented<T extends string>({
   className,
 }: SegmentedProps<T>) {
   return (
-    <div role="group" aria-label={label} className={cx(styles.segmented, className)}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-label={option.ariaLabel}
-          aria-pressed={option.value === value}
-          className={styles.option}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+    <Tabs.Root
+      value={value}
+      onValueChange={(next) => onChange(next as T)}
+      className={cx(styles.segmented, className)}
+    >
+      <Tabs.List aria-label={label} className={styles.list}>
+        {options.map((option) => (
+          <Tabs.Tab
+            key={option.value}
+            value={option.value}
+            aria-label={option.ariaLabel}
+            className={styles.option}
+          >
+            {option.label}
+          </Tabs.Tab>
+        ))}
+      </Tabs.List>
+    </Tabs.Root>
   );
 }

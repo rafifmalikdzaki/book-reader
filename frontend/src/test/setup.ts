@@ -14,3 +14,12 @@ if (typeof Element.prototype.hasPointerCapture === 'undefined') {
 afterEach(() => {
   cleanup();
 });
+
+// Base UI (@base-ui/react) floating-ui positioning needs ResizeObserver in jsdom.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}

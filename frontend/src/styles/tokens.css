@@ -72,6 +72,16 @@
   --radius-md: 4px;
   --radius-lg: 8px;
   --radius-pill: 999px;
+  /* beautiful-ui foundation radii (ported agent primitives) */
+  --radius-chip: 6px;
+  --radius-control: 8px;
+  --radius-card: 10px;
+  --radius-window: 14px;
+
+  /* status tints for agent primitives (badges, pills) */
+  --ok: #3f9d63;
+  --ok-tint: #e4f2e9;
+  --bad-tint: #f7e5e1;
 
   /* ---- layering ---- */
   --z-sticky: 2;
@@ -87,6 +97,7 @@
   --dur-fast: 0.18s;
   --dur-base: 0.25s;
   --ease: ease;
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1); /* beautiful-ui foundation curve */
 
   /* ---- layout ---- */
   /* Breakpoint (cannot be a var in @media): 900px phone/tablet, 1100px index grid. */
@@ -162,6 +173,67 @@ body.atmosphere-midnight {
   --shadow-plate: 0 16px 30px -26px #000000ee;
   --shadow-cover: 0 14px 26px -24px #000000fa;
   --shadow-dialog: 0 30px 60px -30px #000000ff;
+
+  --ok: #7ecba5;
+  --ok-tint: #7ecba526;
+  --bad-tint: #e26d5c26;
+}
+
+/* Shared keyframes for the ported beautiful-ui agent primitives. */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer-text {
+  from {
+    background-position: 150% center;
+  }
+  to {
+    background-position: -50% center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /*

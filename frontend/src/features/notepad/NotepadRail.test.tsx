@@ -7,6 +7,13 @@ import { renderShell } from '../../app/testing';
 import { AUTOSAVE_MS } from './NoteCard';
 import { useNotepad, type NoteDraft } from './index';
 
+/** Open a Base UI combobox and pick the option with the given name. */
+async function pickOption(user: ReturnType<typeof userEvent.setup>, combobox: HTMLElement, optionName: RegExp | string) {
+  await user.click(combobox);
+  await user.click(await screen.findByRole('option', { name: optionName }));
+}
+
+
 function Capture({ draft }: { draft: NoteDraft }) {
   const { compose } = useNotepad();
   return (
@@ -146,7 +153,7 @@ describe('Notepad notes and groups', () => {
     const user = userEvent.setup();
     renderShell('/');
     await openNotes(user);
-    await user.selectOptions(await screen.findByRole('combobox', { name: 'Move note to group' }), 'g1');
+    await pickOption(user, await screen.findByRole('combobox', { name: 'Move note to group' }), /Ideas/);
     expect(await screen.findByRole('heading', { name: 'Ideas (1)' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Inbox (0)' })).toBeInTheDocument();
 

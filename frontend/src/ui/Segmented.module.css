@@ -1,5 +1,9 @@
 .segmented {
   display: inline-flex;
+}
+
+.list {
+  display: inline-flex;
   overflow: hidden;
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
@@ -22,14 +26,14 @@
   color: var(--ink);
 }
 
-.option[aria-pressed='true'] {
+.option[aria-selected='true'] {
   --focus: var(--focus-on-dark);
   background: var(--baize);
   color: var(--ink-on-dark);
 }
 
-:global(body[data-atmosphere='midnight']) .option[aria-pressed='true'],
-:global(body.atmosphere-midnight) .option[aria-pressed='true'] {
+:global(body[data-atmosphere='midnight']) .option[aria-selected='true'],
+:global(body.atmosphere-midnight) .option[aria-selected='true'] {
   background: var(--rule);
   color: var(--ink-on-dark);
 }

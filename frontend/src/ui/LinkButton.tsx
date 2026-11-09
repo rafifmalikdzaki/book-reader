@@ -1,4 +1,5 @@
-import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import { Button as BaseButton } from '@base-ui/react/button';
+import { forwardRef, type ButtonHTMLAttributes, type Ref } from 'react';
 
 import styles from './LinkButton.module.css';
 import { cx } from './cx';
@@ -15,5 +16,12 @@ export const LinkButton = forwardRef<HTMLButtonElement, LinkButtonProps>(functio
   { tone = 'brass', type = 'button', className, ...rest },
   ref,
 ) {
-  return <button ref={ref} type={type} className={cx(styles.link, styles[tone], className)} {...rest} />;
+  return (
+    <BaseButton
+      ref={ref as Ref<HTMLElement>}
+      type={type}
+      className={cx(styles.link, styles[tone], className)}
+      {...rest}
+    />
+  );
 });
