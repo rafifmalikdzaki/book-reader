@@ -2,7 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
 import { getChatStatus } from '../../api/endpoints';
-import { ChatMessageView, ensureKatex } from '../chat-render';
+import type { ChatMode } from '../../api/types';
+import { ChatMessageView, SmartLink, ensureKatex } from '../chat-render';
 import { Rail, RailResizeHandle, usePanel, useRailResize } from '../../ui';
 
 import { useBookContext } from './bookContext';
@@ -23,6 +24,7 @@ export function ChatRail() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const resize = useRailResize();
+  const [mode, setMode] = useState<ChatMode>('teacher');
   const status = useQuery({
     queryKey: STATUS_KEY,
     queryFn: ({ signal }) => getChatStatus({ signal }),
@@ -54,6 +56,9 @@ export function ChatRail() {
       ? answered.text
       : statusText(status.data, status.isError);
   const name = context.book ? context.book.split('/').pop() : null;
+  const askHref = context.book
+    ? `/ask?book=${encodeURIComponent(context.book)}${context.page ? `&page=${context.page}` : ''}`
+    : '/ask';
 
   return (
     <Rail
@@ -71,8 +76,29 @@ export function ChatRail() {
           <span>Asking about</span>
           <b>{name}</b>
           {context.page ? <b>p.{context.page}</b> : null}
+          <SmartLink href={askHref} className={styles.fullLink}>
+            Open in /ask →
+          </SmartLink>
         </div>
       ) : null}
+      <div className={styles.modeBar} role="group" aria-label="Teaching mode">
+        <button
+          type="button"
+          className={mode === 'teacher' ? `${styles.modeBtn} ${styles.modeActive}` : styles.modeBtn}
+          aria-pressed={mode === 'teacher'}
+          onClick={() => setMode('teacher')}
+        >
+          Explain
+        </button>
+        <button
+          type="button"
+          className={mode === 'tutor' ? `${styles.modeBtn} ${styles.modeActive}` : styles.modeBtn}
+          aria-pressed={mode === 'tutor'}
+          onClick={() => setMode('tutor')}
+        >
+          Socratic Tutor
+        </button>
+      </div>
       <div className={styles.status} title={line}>
         {line}
       </div>
@@ -81,10 +107,19 @@ export function ChatRail() {
       </div>
       <div ref={logRef} className={styles.log} role="log" aria-live="polite">
         {thread.log.map((entry) => (
-          <ChatMessageView key={entry.id} message={entry} pending={entry.pending} />
+          <ChatMessageView
+            key={entry.id}
+            message={entry}
+            pending={entry.pending}
+            onPrompt={(prompt) => void thread.send(prompt, mode)}
+          />
         ))}
       </div>
-      <ChatForm busy={thread.busy} inputRef={inputRef} onSend={thread.send} />
+      <ChatForm
+        busy={thread.busy}
+        inputRef={inputRef}
+        onSend={(question) => thread.send(question, mode)}
+      />
     </Rail>
   );
 }

@@ -2,7 +2,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { ApiError } from '../../api/client';
-import { getChatSession, getChatStatus, listChatSessions } from '../../api/endpoints';
+import {
+  cancelChatSession,
+  getChatSession,
+  getChatStatus,
+  listChatSessions,
+} from '../../api/endpoints';
 import { CHAT_STATUS_KEY } from '../../app';
 import { EXPIRED_NOTICE, OPEN_FAILED_NOTICE } from './format';
 import { SESSIONS_KEY, sessionKey } from './keys';
@@ -19,6 +24,7 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
   });
   const client = useQueryClient();
   const [liveStep, setLiveStep] = useState<string>('');
+  const [streamingText, setStreamingText] = useState<string>('');
   const status = useQuery({ queryKey: CHAT_STATUS_KEY, queryFn: () => getChatStatus() });
   const detail = useQuery({
     queryKey: sessionKey(chatId ?? ''),
@@ -38,13 +44,21 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
       try {
         const payload = JSON.parse(event.data);
         if (payload.type === 'step') {
-          setLiveStep(payload.step);
+          setLiveStep(String(payload.step || ''));
+        } else if (payload.type === 'delta') {
+          const delta = String(payload.delta || '');
+          if (delta) {
+            setStreamingText((prev) => prev + delta);
+          }
         } else if (payload.type === 'done') {
           client.setQueryData(sessionKey(chatId), payload.session);
+          void client.invalidateQueries({ queryKey: SESSIONS_KEY });
           setLiveStep('');
+          setStreamingText('');
           source.close();
         } else if (payload.type === 'error') {
           setLiveStep('');
+          setStreamingText('');
           source.close();
         }
       } catch {
@@ -57,8 +71,23 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
     return () => {
       source.close();
       setLiveStep('');
+      setStreamingText('');
     };
   }, [chatId, detail.data?.status, client]);
+
+  async function cancelGeneration() {
+    if (!chatId) return;
+    try {
+      const res = await cancelChatSession(chatId);
+      client.setQueryData(sessionKey(chatId), res.session);
+      void client.invalidateQueries({ queryKey: SESSIONS_KEY });
+    } catch {
+      // ignore
+    } finally {
+      setLiveStep('');
+      setStreamingText('');
+    }
+  }
 
   const [notice, setNotice] = useState(expired ? EXPIRED_NOTICE : '');
   const [failedFor, setFailedFor] = useState<string | null>(null);
@@ -89,6 +118,8 @@ export function useAskData(chatId: string | null, expired: boolean, select: (id:
     session,
     sessionStatus: detail.data?.status ?? 'idle',
     thoughtStep: liveStep || detail.data?.thought_step || '',
+    streamingText,
+    cancelGeneration,
     loadingSession: chatId !== null && detail.isPending,
     /** A loaded session supersedes any earlier notice. */
     notice: session ? '' : notice,

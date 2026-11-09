@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 
+import type { ChatMode } from '../../api/types';
 import { useStage } from '../../app';
 import { AskHeader } from './AskHeader';
 import styles from './AskPage.module.css';
@@ -24,6 +25,7 @@ export default function AskPage() {
   const drawer = useDrawer();
   const input = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState('');
+  const [mode, setMode] = useState<ChatMode>('teacher');
   const [error, setError] = useState('');
   const [draftCategories, setDraftCategories] = useState<string[]>([]);
   const [target, setTarget] = useState<DeleteTarget | null>(null);
@@ -42,7 +44,7 @@ export default function AskPage() {
   const shownError = error || data.listError;
 
   function newChat() {
-    if (locked) return;
+    if (actions.scopeBusy) return;
     setDraftCategories([]);
     data.clearNotice();
     url.select(null);
@@ -69,7 +71,7 @@ export default function AskPage() {
         projects={data.projects}
         currentId={session?.id ?? null}
         loaded={data.listLoaded}
-        locked={locked}
+        locked={actions.scopeBusy}
         retentionDays={data.retentionDays}
         onNewChat={newChat}
         onSelect={(id) => {
@@ -111,8 +113,12 @@ export default function AskPage() {
           aboutBook={Boolean(session?.book ?? url.book)}
           notice={data.notice}
           thoughtStep={data.thoughtStep}
+          streamingText={data.streamingText}
           sessionStatus={data.sessionStatus}
           onPrompt={(prompt) => {
+            if (/tutor|socratic/i.test(prompt)) {
+              setMode('tutor');
+            }
             setText(prompt);
             input.current?.focus();
           }}
@@ -125,8 +131,11 @@ export default function AskPage() {
           inputRef={input}
           busy={isAgentThinking}
           disabled={locked || !(data.status?.available ?? true)}
+          mode={mode}
+          onModeChange={setMode}
+          onCancel={session ? () => void data.cancelGeneration() : undefined}
           onChange={setText}
-          onSubmit={() => void sender.send(text, actions.scopeBusy)}
+          onSubmit={() => void sender.send(text, actions.scopeBusy, mode)}
         />
         <p className={styles.status}>{statusText(data.status, data.statusFailed)}</p>
       </section>

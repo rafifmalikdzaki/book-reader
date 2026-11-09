@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import type { ChatRole, ChatSource } from '../../api/types';
 import { cx } from '../../ui/cx';
 
@@ -20,15 +22,28 @@ export interface ChatMessageViewProps {
   /** `bubble` = reader rail card; `thread` = the wider Ask page (borderless answers). */
   variant?: 'bubble' | 'thread';
   className?: string;
+  /** Optional handler triggered when the user clicks an interactive OpenUI chip. */
+  onPrompt?: (prompt: string) => void;
 }
 
-/** One chat turn (legacy `ChatRender.messageNode`): user text verbatim, assistant as Markdown. */
+/** One chat turn (legacy `ChatRender.messageNode`): user text verbatim, assistant as Markdown + OpenUI. */
 export function ChatMessageView({
   message,
   pending = false,
   variant = 'bubble',
   className,
+  onPrompt,
 }: ChatMessageViewProps) {
+  const [copied, setCopied] = useState(false);
+
+  function copyAnswer() {
+    if (!navigator.clipboard) return;
+    void navigator.clipboard.writeText(message.content).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    });
+  }
+
   return (
     <div
       data-role={message.role}
@@ -40,8 +55,29 @@ export function ChatMessageView({
         className,
       )}
     >
-      {message.role === 'assistant' ? <MarkdownAnswer text={message.content} /> : message.content}
+      {message.role === 'assistant' ? (
+        <MarkdownAnswer text={message.content} onPrompt={onPrompt} />
+      ) : (
+        message.content
+      )}
       {message.sources?.length ? <SourceList sources={message.sources} /> : null}
+      {message.role === 'assistant' && !pending && variant === 'thread' ? (
+        <div className={styles.msgFooter}>
+          {message.provider && message.model ? (
+            <span className={styles.msgModel} translate="no">
+              {message.provider} · {message.model}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            className={styles.copyBtn}
+            aria-label="Copy response"
+            onClick={copyAnswer}
+          >
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -127,4 +127,18 @@ describe('Ask: URL contract', () => {
     renderAsk('/ask?expired=1');
     expect(await screen.findByText('This chat expired or was deleted.')).toBeInTheDocument();
   });
+
+  it('switches to Socratic Tutor mode and passes mode="tutor" on send', async () => {
+    installServer();
+    const user = renderAsk();
+    const tutorBtn = await screen.findByRole('button', { name: 'Socratic Tutor' });
+    await user.click(tutorBtn);
+    expect(tutorBtn).toHaveAttribute('aria-pressed', 'true');
+    await user.type(box(), 'Teach me section 3{Enter}');
+    await waitFor(() =>
+      expect(endpoints.postMessage).toHaveBeenCalledWith('s1', 'Teach me section 3', {
+        mode: 'tutor',
+      }),
+    );
+  });
 });

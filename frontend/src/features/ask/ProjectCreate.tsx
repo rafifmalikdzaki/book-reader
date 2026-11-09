@@ -38,9 +38,10 @@ export function ProjectCreate({ onCreate }: { onCreate: (name: string) => Promis
       <form hidden={!open} autoComplete="off" onSubmit={submit}>
         <Input
           ref={field}
+          name="projectName"
           value={name}
           maxLength={60}
-          placeholder="Project name"
+          placeholder="Project name…"
           aria-label="Project name"
           disabled={submitting}
           onChange={(event) => setName(event.target.value)}

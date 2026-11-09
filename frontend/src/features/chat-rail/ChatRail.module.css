@@ -1,6 +1,7 @@
 /* Ports the chat block of base.html; the rail shell itself comes from ui/Rail. */
 .context {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: baseline;
   padding: 6px 18px 0;
@@ -11,6 +12,55 @@
 .context b {
   color: var(--ink);
   font-weight: 500;
+}
+
+.fullLink {
+  margin-left: auto;
+  color: var(--brass-deep);
+  font-size: 11.5px;
+  text-decoration: none;
+}
+
+.fullLink:hover {
+  text-decoration: underline;
+}
+
+.fullLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.modeBar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 18px 0;
+}
+
+.modeBtn {
+  padding: 2px 9px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--paper-lit);
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.modeBtn:hover {
+  border-color: var(--brass);
+  color: var(--ink);
+}
+
+.modeBtn:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.modeActive {
+  border-color: var(--brass);
+  background: var(--paper-edge);
+  color: var(--brass-deep);
+  font-weight: 600;
 }
 
 .status {
@@ -39,6 +89,7 @@
   gap: 12px;
   padding: 16px 18px;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .log:empty::before {
@@ -46,7 +97,7 @@
   color: var(--muted);
   font-size: 13.5px;
   line-height: 1.55;
-  content: 'Ask about the page you are on, or the whole library. Answers cite the book, page, and section they used.';
+  content: 'Ask about the page you are on, or switch to Socratic Tutor mode to master this section. Answers cite the book, page, and section they used.';
 }
 
 .form {

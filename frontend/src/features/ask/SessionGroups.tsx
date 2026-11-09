@@ -42,6 +42,11 @@ function SessionButton({ session, current, onSelect }: {
       onClick={() => onSelect(session.id)}
     >
       <span className={styles.title}>{session.title || 'New chat'}</span>
+      {session.status === 'thinking' ? (
+        <span className={styles.thinkingBadge} aria-label="Thinking">
+          ●
+        </span>
+      ) : null}
       {session.pinned ? <span className={styles.pin}>Pin</span> : null}
       <span className={styles.meta}>{updatedLabel(session.updated)}</span>
     </button>

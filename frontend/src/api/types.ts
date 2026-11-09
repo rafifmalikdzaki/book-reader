@@ -351,6 +351,7 @@ export interface ChatOptionsSaved {
 }
 
 export type ChatRole = 'user' | 'assistant';
+export type ChatMode = 'teacher' | 'tutor';
 
 export interface ChatTurn {
   role: ChatRole;
@@ -379,6 +380,7 @@ export interface ChatAskBody {
   page?: number | null;
   /** Overrides the saved model for this request. */
   model?: string | null;
+  mode?: ChatMode;
 }
 
 /** POST /api/chat. 400 bad input, 502 provider failed, 503 chat not configured. */
@@ -459,6 +461,7 @@ export interface ChatSessionPatch {
 /** POST /api/chat/sessions/{id}/messages. 503 chat not configured, 502 provider failed. */
 export interface ChatMessageBody {
   content: string;
+  mode?: ChatMode;
 }
 
 export interface ChatMessageResponse {

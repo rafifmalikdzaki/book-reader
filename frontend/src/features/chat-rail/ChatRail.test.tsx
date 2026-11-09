@@ -158,4 +158,20 @@ describe('ChatRail', () => {
     expect(handle).toHaveAttribute('aria-valuenow', '640');
     expect(window.localStorage.getItem('br-chat-rail-width')).toBe('640');
   });
+
+  it('toggles Socratic Tutor mode in the reader rail and sends mode="tutor"', async () => {
+    ask.mockResolvedValueOnce(answer('Diagnostic question 1'));
+    const { user } = setup();
+    const rail = await openChat(user);
+    await user.click(within(rail).getByRole('button', { name: 'Socratic Tutor' }));
+    const box = within(rail).getByRole('textbox', { name: 'Your question' });
+    await user.type(box, 'Quiz me on this chapter{Enter}');
+    await within(rail).findByText('Diagnostic question 1');
+    expect(ask).toHaveBeenCalledWith({
+      messages: [{ role: 'user', content: 'Quiz me on this chapter' }],
+      book: 'shelf/Deep Learning.pdf',
+      page: 12,
+      mode: 'tutor',
+    });
+  });
 });

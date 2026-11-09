@@ -10,6 +10,7 @@ import type {
   ChatAskBody,
   ChatAskResponse,
   ChatMessageResponse,
+  ChatMode,
   ChatOptions,
   ChatOptionsSaved,
   ChatProject,
@@ -176,12 +177,26 @@ export function deleteChatSession(id: string, options?: RequestOptions): Promise
 export function postMessage(
   sessionId: string,
   content: string,
+  options?: Omit<RequestOptions, 'mode'> & { mode?: ChatMode },
+): Promise<ChatMessageResponse> {
+  const { mode, ...reqOptions } = options ?? {};
+  const body = mode && mode !== 'teacher' ? { content, mode } : { content };
+  return apiSend<ChatMessageResponse>(
+    'POST',
+    `/api/chat/sessions/${enc(sessionId)}/messages`,
+    body,
+    Object.keys(reqOptions).length ? reqOptions : undefined,
+  );
+}
+
+export function cancelChatSession(
+  sessionId: string,
   options?: RequestOptions,
 ): Promise<ChatMessageResponse> {
   return apiSend<ChatMessageResponse>(
     'POST',
-    `/api/chat/sessions/${enc(sessionId)}/messages`,
-    { content },
+    `/api/chat/sessions/${enc(sessionId)}/cancel`,
+    undefined,
     options,
   );
 }

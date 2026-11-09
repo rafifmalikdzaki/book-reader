@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 
 import { ApiError } from '../../api/client';
 import { askStateless } from '../../api/endpoints';
-import type { ChatSource, ChatTurn } from '../../api/types';
+import type { ChatMode, ChatSource, ChatTurn } from '../../api/types';
 
 export interface LogEntry {
   id: number;
@@ -35,7 +35,7 @@ export function useChatThread(
   const busyRef = useRef(false);
   const nextId = useRef(0);
 
-  async function send(text: string): Promise<boolean> {
+  async function send(text: string, mode?: ChatMode): Promise<boolean> {
     const question = text.trim();
     if (busyRef.current || !question) return false;
     busyRef.current = true;
@@ -50,11 +50,20 @@ export function useChatThread(
       { id: pendingId, role: 'assistant', content: '…thinking', pending: true },
     ]);
     try {
-      const data = await askStateless({
-        messages: history.current,
-        book: context.book,
-        page: context.page,
-      });
+      const payload =
+        mode && mode !== 'teacher'
+          ? {
+              messages: history.current,
+              book: context.book,
+              page: context.page,
+              mode,
+            }
+          : {
+              messages: history.current,
+              book: context.book,
+              page: context.page,
+            };
+      const data = await askStateless(payload);
       history.current = [...history.current, { role: 'assistant', content: data.answer }];
       setLog((entries) => [
         ...entries.filter((entry) => entry.id !== pendingId),

@@ -28,3 +28,6 @@ export { SAFE_HREF, bookHref, isInternalHref, sourceLabel } from './links';
 export { ensureKatex, renderMath, useKatex } from './katex';
 export { parseInline, parseMarkdown } from './markdown';
 export type { Block, Inline } from './markdown';
+export { OpenUIBlockView } from './OpenUIBlockView';
+export { citationToHref, parseOpenUIBlock } from './openui';
+export type { OpenUISpec, ParsedOpenUI } from './openui';

@@ -169,3 +169,94 @@ describe('ChatMessageView', () => {
     expect(screen.getByText('a.pdf · p.1')).toBeInTheDocument();
   });
 });
+
+describe('Rich Markdown & OpenUI Generative Blocks', () => {
+  it('renders headings, blockquotes, pipe tables, and inline book citations', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <MarkdownAnswer
+          text={[
+            '## Section 3.2 Overview',
+            '',
+            '> Key theorem from the text.',
+            '',
+            'See attention.pdf#p12 and `notes.md#L40` for details.',
+            '',
+            '| Model | Complexity |',
+            '| --- | --- |',
+            '| Attention | O(n^2) |',
+          ].join('\n')}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('heading', { name: 'Section 3.2 Overview' })).toBeInTheDocument();
+    expect(container.querySelector('blockquote')).toHaveTextContent('Key theorem from the text.');
+    expect(container.querySelector('table')).toHaveTextContent('O(n^2)');
+    expect(screen.getByRole('link', { name: 'attention.pdf#p12' })).toHaveAttribute(
+      'href',
+      '/book/attention.pdf#p12',
+    );
+    expect(screen.getByRole('link', { name: 'notes.md#L40' })).toHaveAttribute(
+      'href',
+      '/book/notes.md#L40',
+    );
+  });
+
+  it('renders Socratic SkillMap and triggers interactive tutor commands', () => {
+    const onPrompt = vi.fn();
+    const skillMapBlock = [
+      '```openui',
+      JSON.stringify({
+        component: 'SkillMap',
+        topic: 'Scaled Dot-Product Attention',
+        book: 'attention.pdf#p4',
+        focus: 'Scaling factor',
+        skills: [
+          { name: 'Dot product similarity', level: 4 },
+          { name: 'Scaling factor', level: 2, status: 'focus', note: 'Next up' },
+        ],
+      }),
+      '```',
+    ].join('\n');
+
+    render(
+      <MemoryRouter>
+        <MarkdownAnswer text={skillMapBlock} onPrompt={onPrompt} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Socratic Skill Map · 60% Mastery/)).toBeInTheDocument();
+    expect(screen.getByText('Scaled Dot-Product Attention')).toBeInTheDocument();
+    expect(screen.getByText('4 · Independent')).toBeInTheDocument();
+    expect(screen.getByText('2 · Follow along')).toBeInTheDocument();
+
+    screen.getByRole('button', { name: 'Just tell me' }).click();
+    expect(onPrompt).toHaveBeenCalledWith('just tell me');
+  });
+
+  it('renders ConceptCard, ComparisonTable, StepWalkthrough, BookList, and streaming placeholder', () => {
+    const blocks = [
+      '```openui',
+      JSON.stringify({
+        component: 'ConceptCard',
+        title: 'Self-Attention',
+        intuition: 'Tokens attend to relevant context.',
+        formal: 'Softmax(QK^T / sqrt(d_k))V',
+        takeaways: ['Parallelizable across sequence length'],
+      }),
+      '```',
+      '',
+      '```openui',
+      '{"component": "SkillMap", "topic": "Partial stream',
+    ].join('\n');
+
+    render(
+      <MemoryRouter>
+        <MarkdownAnswer text={blocks} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Self-Attention')).toBeInTheDocument();
+    expect(screen.getByText('Tokens attend to relevant context.')).toBeInTheDocument();
+    expect(screen.getByText('Parallelizable across sequence length')).toBeInTheDocument();
+    expect(screen.getByText(/Building SkillMap/)).toBeInTheDocument();
+  });
+});

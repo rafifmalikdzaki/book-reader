@@ -1,4 +1,4 @@
-/* Chat turns: ports .msg / .sources / .rich from base.html and ask.html. */
+/* Chat turns: ports .msg / .sources / .rich from base.html and ask.html, plus OpenUI blocks. */
 .msg {
   max-width: 100%;
   font-size: 14px;
@@ -30,11 +30,11 @@
 /* Ask page: roomier type, borderless answers, narrower user bubble. */
 .thread {
   font-size: 14.5px;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .thread.assistant {
-  padding: 2px 0;
+  padding: 4px 0;
   border: 0;
   background: transparent;
 }
@@ -45,18 +45,72 @@
 
 .sources {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
   font-size: 12px;
 }
 
 .thread .sources {
-  margin-top: 7px;
+  margin-top: 8px;
 }
 
 .sources a {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--paper-edge);
   color: var(--brass-deep);
+  text-decoration: none;
+}
+
+.sources a:hover {
+  border-color: var(--brass);
+  background: var(--paper-lit);
+}
+
+.sources a:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.msgFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.msgModel {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.copyBtn {
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.copyBtn:hover {
+  border-color: var(--brass);
+  color: var(--ink);
+}
+
+.copyBtn:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.rich {
+  white-space: normal;
 }
 
 .rich > :first-child {
@@ -67,13 +121,40 @@
   margin-bottom: 0;
 }
 
+.rich p {
+  margin: 0.65em 0;
+  white-space: pre-wrap;
+}
+
+.mdHeading {
+  margin: 1em 0 0.4em;
+  font-family: var(--serif);
+  font-weight: 600;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.mdQuote {
+  margin: 0.7em 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--brass);
+  background: var(--paper-edge);
+  color: var(--ink);
+  font-style: italic;
+}
+
 .rich ul,
 .rich ol {
+  margin: 0.6em 0;
   padding-left: 1.4em;
 }
 
+.rich li + li {
+  margin-top: 0.28em;
+}
+
 .rich code {
-  padding: 0.1em 0.3em;
+  padding: 0.1em 0.32em;
   border-radius: var(--radius-xs);
   background: var(--code-bg);
   font-family: var(--mono);
@@ -82,12 +163,14 @@
 
 .rich pre {
   overflow: auto;
+  margin: 0.7em 0;
   padding: 10px 12px;
   border: 1px solid var(--rule);
   border-radius: var(--radius-md);
   background: var(--paper-edge);
   font-size: 0.82em;
   line-height: 1.55;
+  white-space: pre;
 }
 
 .rich pre code {
@@ -105,4 +188,399 @@
   padding-bottom: 2px;
   overflow-x: auto;
   overflow-y: hidden;
+}
+
+/* ---- Lightweight OpenUI Generative Components ---- */
+
+.uiCard {
+  margin: 12px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper-lit);
+}
+
+.uiHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+.uiEyebrow {
+  display: block;
+  color: var(--brass-deep);
+  font: 600 10.5px/1.2 var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.uiTitle {
+  margin: 3px 0 0;
+  color: var(--ink);
+  font: 600 15.5px/1.3 var(--serif);
+  text-wrap: balance;
+}
+
+.uiBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--paper-edge);
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.uiCiteChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--paper-edge);
+  color: var(--brass-deep);
+  font-size: 11.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.uiCiteChip:hover {
+  border-color: var(--brass);
+  background: var(--paper);
+}
+
+.uiCiteChip:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.uiFocus {
+  margin: 10px 0 4px !important;
+  padding: 6px 10px;
+  border-left: 2px solid var(--brass);
+  background: var(--paper-edge);
+  font-size: 13px;
+}
+
+.skillList {
+  list-style: none;
+  margin: 10px 0 0 !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skillRow {
+  padding: 8px 10px;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+}
+
+.skillFocus {
+  border-color: var(--brass);
+  background: var(--paper-edge);
+}
+
+.skillTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.skillName {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.skillLevel {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.skillTrack {
+  height: 5px;
+  margin-top: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--rule-soft);
+  overflow: hidden;
+}
+
+.skillFill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--brass);
+  transition: width var(--dur-fast) var(--ease);
+}
+
+.skillNote {
+  margin: 4px 0 0 !important;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.uiActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.uiChipBtn {
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.uiChipBtn:hover {
+  border-color: var(--brass);
+  color: var(--brass-deep);
+}
+
+.uiChipBtn:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.conceptGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.conceptSection {
+  padding: 9px 11px;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+}
+
+.conceptSection p {
+  margin: 4px 0 0 !important;
+  font-size: 13.5px;
+}
+
+.conceptLabel {
+  display: block;
+  color: var(--muted);
+  font: 600 10.5px/1.2 var(--sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.conceptTakeaways {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.conceptTakeaways ul {
+  margin: 5px 0 0 !important;
+  font-size: 13.5px;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.uiTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.uiTable th,
+.uiTable td {
+  padding: 7px 10px;
+  border: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.uiTable th {
+  background: var(--paper-edge);
+  font-weight: 600;
+}
+
+.uiVerdict {
+  margin: 10px 0 0 !important;
+  padding: 7px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--paper-edge);
+  font-size: 13px;
+}
+
+.stepList {
+  list-style: none;
+  margin: 10px 0 0 !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stepItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+}
+
+.stepIndex {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--baize);
+  color: var(--on-dark-lit);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.stepBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.stepHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stepBody p {
+  margin: 4px 0 0 !important;
+  font-size: 13.5px;
+}
+
+.stepFormula {
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--paper-edge);
+  overflow-x: auto;
+}
+
+.bookGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.bookCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+}
+
+.bookThumb {
+  width: 44px;
+  height: 60px;
+  object-fit: cover;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-xs);
+  background: var(--paper-edge);
+  flex-shrink: 0;
+}
+
+.bookBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.bookTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bookTitle {
+  font-family: var(--serif);
+  font-size: 14px;
+}
+
+.bookWhy {
+  margin: 4px 0 6px !important;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.bookFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bookStart {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.uiHint {
+  margin: 10px 0 0 !important;
+  padding: 7px 10px;
+  border-left: 2px solid var(--brass);
+  background: var(--paper-edge);
+  font-size: 13px;
+}
+
+.uiStreaming {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 6px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--paper-edge);
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.uiPulseDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brass);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skillFill {
+    transition: none;
+  }
 }

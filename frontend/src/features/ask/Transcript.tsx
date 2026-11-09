@@ -10,11 +10,13 @@ const BOOK_PROMPTS = [
   'Summarize this page',
   'Find related passages in this book',
   'What does this section argue?',
+  'Tutor me on this section',
 ];
 const LIBRARY_PROMPTS = [
   'Find passages about a topic',
   'Compare two books',
   'Trace an idea across the library',
+  'Teach me a topic Socratically',
 ];
 
 interface Props {
@@ -24,6 +26,7 @@ interface Props {
   aboutBook: boolean;
   notice: string;
   thoughtStep?: string;
+  streamingText?: string;
   sessionStatus?: 'idle' | 'thinking' | 'error';
   onPrompt: (text: string) => void;
 }
@@ -36,6 +39,7 @@ export function Transcript({
   aboutBook,
   notice,
   thoughtStep,
+  streamingText = '',
   sessionStatus = 'idle',
   onPrompt,
 }: Props) {
@@ -48,7 +52,7 @@ export function Transcript({
 
   useEffect(() => {
     if (box.current) box.current.scrollTop = box.current.scrollHeight;
-  }, [messages.length, showOptimisticUser, isThinking, thoughtStep]);
+  }, [messages.length, showOptimisticUser, isThinking, thoughtStep, streamingText]);
 
   const blank = messages.length === 0 && !showOptimisticUser && !isThinking && !loading;
   return (
@@ -70,14 +74,26 @@ export function Transcript({
         </EmptyState>
       ) : null}
       {messages.map((message) => (
-        <ChatMessageView key={message.id} message={message} variant="thread" />
+        <ChatMessageView
+          key={message.id}
+          message={message}
+          variant="thread"
+          onPrompt={onPrompt}
+        />
       ))}
       {showOptimisticUser ? (
         <ChatMessageView message={{ role: 'user', content: pending.text }} variant="thread" />
       ) : null}
+      {isThinking && streamingText ? (
+        <ChatMessageView
+          message={{ role: 'assistant', content: streamingText }}
+          variant="thread"
+          onPrompt={onPrompt}
+        />
+      ) : null}
       {isThinking ? (
         <div className={styles.thinkingCard} role="status" aria-live="polite">
-          <span className={styles.thinkingSpinner} />
+          <span className={styles.thinkingSpinner} aria-hidden="true" />
           <span>{thoughtStep || 'Searching the library…'}</span>
         </div>
       ) : null}

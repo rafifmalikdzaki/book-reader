@@ -33,6 +33,7 @@ export function ChatForm({ busy, inputRef, onSend }: Props) {
     >
       <Textarea
         ref={inputRef}
+        name="question"
         rows={2}
         value={draft}
         aria-label="Your question"
