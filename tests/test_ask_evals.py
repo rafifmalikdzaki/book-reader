@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import book_reader.chat as chat_mod
+import book_reader.chat.model as chat_model_mod
 from book_reader.chat import ChatService, ProviderConfig, resolve_providers
 from book_reader.evals import (
     DEFAULT_EVAL_SUITE,
@@ -148,7 +148,7 @@ def test_run_eval_suite_end_to_end(
         )
     ]
     chat = ChatService(catalogue, searcher, pdf, sections, notepad, providers=providers)
-    monkeypatch.setattr(chat_mod, "ChatOpenAI", lambda **_kw: OfflineEvalModel())
+    monkeypatch.setattr(chat_model_mod, "ChatOpenAI", lambda **_kw: OfflineEvalModel())
 
     results = run_eval_suite(chat, DEFAULT_EVAL_SUITE, library=catalogue)
     assert len(results) == len(DEFAULT_EVAL_SUITE)

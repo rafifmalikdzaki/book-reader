@@ -8,7 +8,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-import book_reader.chat as chat_mod
+import book_reader.chat.model as chat_mod
 from book_reader.chat import ChatService, ProviderConfig
 from book_reader.evals import (
     DEFAULT_EVAL_SUITE,

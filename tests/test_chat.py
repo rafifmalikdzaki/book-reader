@@ -487,7 +487,7 @@ def test_reasoning_effort_rejection_retries_without_it(
         def bind_tools(self, _tools: object) -> "FakeChatOpenAI":
             return self
 
-    monkeypatch.setattr("book_reader.chat.ChatOpenAI", FakeChatOpenAI)
+    monkeypatch.setattr("book_reader.chat.model.ChatOpenAI", FakeChatOpenAI)
     chat = build_chat(library, tmp_path)
     for callbacks in ({}, {"on_token": lambda _delta: None}):
         bound = _FakeRunnable(RuntimeError("Unknown parameter: reasoning_effort"))
