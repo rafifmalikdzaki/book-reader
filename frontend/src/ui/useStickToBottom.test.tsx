@@ -3,8 +3,16 @@ import { describe, expect, it } from 'vitest';
 
 import { useStickToBottom } from './useStickToBottom';
 
-function Log({ signal, forceKey }: { signal: number; forceKey?: string | null }) {
-  const { ref, onScroll } = useStickToBottom<HTMLDivElement>(signal, forceKey);
+function Log({
+  signal,
+  forceKey,
+  resetKey,
+}: {
+  signal: number;
+  forceKey?: string | null;
+  resetKey?: string;
+}) {
+  const { ref, onScroll } = useStickToBottom<HTMLDivElement>(signal, forceKey, resetKey);
   return <div ref={ref} onScroll={onScroll} data-testid="log" />;
 }
 
@@ -59,6 +67,18 @@ describe('useStickToBottom', () => {
       node.dispatchEvent(new Event('scroll', { bubbles: true }));
     });
     rerender(<Log signal={1} />);
+    expect(node.scrollTop).toBe(1000);
+  });
+
+  it('jumps to the bottom when the reset key changes, even with unchanged content', () => {
+    const { getByTestId, rerender } = render(<Log signal={0} resetKey="a" />);
+    const node = getByTestId('log');
+    mockGeometry(node, 1000);
+    node.scrollTop = 100;
+    act(() => {
+      node.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    rerender(<Log signal={0} resetKey="b" />);
     expect(node.scrollTop).toBe(1000);
   });
 });

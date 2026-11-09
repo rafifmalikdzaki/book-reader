@@ -7,6 +7,8 @@ import { BOOK_PROMPTS, LIBRARY_PROMPTS, OPENUI_SHOWCASE, tourPrompt } from './pr
 import type { PendingTurn } from './useSendMessage';
 
 interface Props {
+  /** Changes when another chat opens, so the log re-pins to its bottom. */
+  sessionId?: string;
   messages: StoredMessage[];
   pending: PendingTurn | null;
   loading: boolean;
@@ -25,6 +27,7 @@ interface Props {
 
 /** The scrolling `role="log"` thread: stored turns, the optimistic turn, or the empty state. */
 export function Transcript({
+  sessionId,
   messages,
   pending,
   loading,
@@ -50,6 +53,7 @@ export function Transcript({
   const { ref: box, onScroll } = useStickToBottom<HTMLDivElement>(
     `${messages.length}|${isThinking}|${thoughtStep}|${liveSteps.length}|${liveFound.length}|${liveThought.length}|${streamingText.length}`,
     showOptimisticUser ? pending?.text : null,
+    sessionId,
   );
 
   const blank = messages.length === 0 && !showOptimisticUser && !isThinking && !loading;
