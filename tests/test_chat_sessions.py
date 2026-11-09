@@ -521,3 +521,18 @@ def test_session_events_stream_and_conflict_when_thinking(tmp_path: Path) -> Non
     cancelled = harness.client.post(f"/api/chat/sessions/{session['id']}/cancel")
     assert cancelled.status_code == 200
     assert cancelled.json()["session"]["status"] == "idle"
+
+
+def test_thought_steps_round_trip_through_store(tmp_path: Path) -> None:
+    store = ChatStore(tmp_path)
+    session = store.create_session()
+    store.add_message(session["id"], "user", "why?")
+    store.add_message(
+        session["id"], "assistant", "because", thought_steps=["Searching library…", "", "Reading"]
+    )
+
+    reloaded = ChatStore(tmp_path).get_session(session["id"])
+    assert reloaded is not None
+    user, assistant = reloaded["messages"]
+    assert "thought_steps" not in user
+    assert assistant["thought_steps"] == ["Searching library…", "Reading"]

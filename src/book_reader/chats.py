@@ -16,7 +16,7 @@ import threading
 import time
 from contextlib import AbstractContextManager
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import NotRequired, TypedDict, cast
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class ChatStorageError(RuntimeError):
     """The chat state could not be written."""
 
 
-class StoredMessage(TypedDict, total=False):
+class StoredMessage(TypedDict):
     id: str
     role: str
     content: str
@@ -43,7 +43,7 @@ class StoredMessage(TypedDict, total=False):
     provider: str
     model: str
     created: float
-    thought_steps: list[str]
+    thought_steps: NotRequired[list[str]]
 
 
 class ChatSession(TypedDict, total=False):

@@ -1,10 +1,11 @@
 import json
+from collections.abc import Iterator
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
-from langchain_core.messages import BaseMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
 from book_reader.app import create_app
 from book_reader.chat import (
@@ -426,3 +427,93 @@ def test_socratic_tutor_mode_injects_skill(library: Path, tmp_path: Path) -> Non
     assert "Master Teacher Mode" in teacher_prompt
     assert "SkillMap" in tutor_prompt
     assert "ONE question per turn" in tutor_prompt
+
+
+class _FakeRunnable:
+    """Stand-in for a bound chat model that records calls and fails on demand."""
+
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
+        self.invokes = 0
+        self.streams = 0
+
+    def invoke(self, _msgs: object) -> AIMessage:
+        self.invokes += 1
+        if self.error:
+            raise self.error
+        return AIMessage(content="ok")
+
+    def stream(self, _msgs: object) -> Iterator[AIMessage]:
+        self.streams += 1
+        if self.error:
+            raise self.error
+        yield AIMessage(content="ok")
+
+
+def _run_graph(
+    chat: ChatService, bound: _FakeRunnable, **kwargs: Any
+) -> dict[str, list[BaseMessage]]:
+    provider = ProviderConfig(name="test", base_url="http://localhost", model="m", api_key="k")
+    graph = chat._graph(cast(Any, bound), cast(Any, bound), [], provider=provider, **kwargs)
+    return cast(dict[str, list[BaseMessage]], graph.invoke({"messages": [HumanMessage("hi")]}))
+
+
+def test_provider_error_is_invoked_once(library: Path, tmp_path: Path) -> None:
+    chat = build_chat(library, tmp_path)
+    bound = _FakeRunnable(RuntimeError("provider down"))
+    with pytest.raises(RuntimeError, match="provider down"):
+        _run_graph(chat, bound)
+    assert bound.invokes == 1
+
+
+def test_stream_error_falls_back_to_one_invoke(library: Path, tmp_path: Path) -> None:
+    chat = build_chat(library, tmp_path)
+    bound = _FakeRunnable(RuntimeError("stream broke"))
+    with pytest.raises(RuntimeError, match="stream broke"):
+        _run_graph(chat, bound, on_token=lambda _delta: None)
+    assert (bound.streams, bound.invokes) == (1, 1)
+
+
+def test_reasoning_effort_rejection_retries_without_it(
+    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    built: list[dict[str, object]] = []
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs: object) -> None:
+            built.append(kwargs)
+
+        def invoke(self, _msgs: object) -> AIMessage:
+            return AIMessage(content="plain answer")
+
+        def bind_tools(self, _tools: object) -> "FakeChatOpenAI":
+            return self
+
+    monkeypatch.setattr("book_reader.chat.ChatOpenAI", FakeChatOpenAI)
+    chat = build_chat(library, tmp_path)
+    for callbacks in ({}, {"on_token": lambda _delta: None}):
+        bound = _FakeRunnable(RuntimeError("Unknown parameter: reasoning_effort"))
+        result = _run_graph(chat, bound, **callbacks)
+        assert result["messages"][-1].content == "plain answer"
+        assert bound.invokes <= 1
+    assert len(built) == 2
+    assert all("reasoning_effort" not in kwargs for kwargs in built)
+
+
+def test_chat_options_validate_effort(library: Path, tmp_path: Path) -> None:
+    app = create_app(library, tmp_path / "state", chat=cast(ChatService, StubChat()))
+    with TestClient(app) as client:
+        assert client.get("/api/chat/options").json()["effort"] == "medium"
+
+        saved = client.post("/api/chat/options", json={"effort": " HIGH "})
+        assert saved.json() == {"ok": True, "effort": "high"}
+        assert client.get("/api/chat/options").json()["effort"] == "high"
+
+        bad = client.post("/api/chat/options", json={"effort": "extreme"})
+        assert bad.status_code == 400
+        assert client.get("/api/chat/options").json()["effort"] == "high"
+
+        # A rejected effort must not half-apply the model choice sent with it.
+        both = client.post("/api/chat/options", json={"model": "stub:m", "effort": "extreme"})
+        assert both.status_code == 400
+        assert client.get("/api/chat/options").json()["selected"] == "auto"

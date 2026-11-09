@@ -10,7 +10,7 @@ default:
 # ---- Quality Gates & CI ---------------------------------------------------
 
 # Run full project quality gate (Python format/lint/types/tests + Frontend lint/types/tests/build)
-ci: check-py test-py check-ui test-ui build-ui
+ci: sync check-py test-py install-ui check-ui test-ui build-ui
     @echo "✅ All CI quality gates passed cleanly."
 
 # Run all static checks across Python and Frontend

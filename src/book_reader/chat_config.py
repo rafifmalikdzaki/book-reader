@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 CHAT_MAX_MESSAGES = 50
 CHAT_MAX_MESSAGE_CHARS = 8000
+CHAT_EFFORTS = frozenset({"default", "low", "medium", "high"})
 
 
 def chat_model_ids(chat: ChatService) -> set[str]:

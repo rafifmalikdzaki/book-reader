@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import logging
 import mimetypes
 import os
@@ -23,7 +24,13 @@ from pydantic import BaseModel
 from starlette.datastructures import Headers
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
-from .chat_config import CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, chat_model_ids, select_model
+from .chat_config import (
+    CHAT_EFFORTS,
+    CHAT_MAX_MESSAGE_CHARS,
+    CHAT_MAX_MESSAGES,
+    chat_model_ids,
+    select_model,
+)
 from .chats import ChatStore
 from .library import Library
 from .notepad import NotepadStore
@@ -567,7 +574,7 @@ def create_app(
 
     @app.post("/api/chat/options")
     def api_chat_options_save(choice: ModelChoice) -> dict[str, object]:
-        resp: dict[str, object] = {"ok": True}
+        model: str | None = None
         if choice.model is not None:
             model = choice.model.strip() or "auto"
             if model != "auto":
@@ -575,13 +582,18 @@ def create_app(
                     raise HTTPException(status_code=503, detail="chat is not configured")
                 if model not in chat_model_ids(chat_service):
                     raise HTTPException(status_code=400, detail=f"unknown model: {model}")
-            preferences.set("chat_model", model)
-            resp["selected"] = model
+        effort: str | None = None
         if choice.effort is not None:
             effort = choice.effort.strip().lower()
-            if effort in {"default", "low", "medium", "high"}:
-                preferences.set("chat_effort", effort)
-                resp["effort"] = effort
+            if effort not in CHAT_EFFORTS:
+                raise HTTPException(status_code=400, detail=f"unknown effort: {choice.effort}")
+        resp: dict[str, object] = {"ok": True}
+        if model is not None:
+            preferences.set("chat_model", model)
+            resp["selected"] = model
+        if effort is not None:
+            preferences.set("chat_effort", effort)
+            resp["effort"] = effort
         return resp
 
     @app.post("/api/chat")
@@ -610,9 +622,7 @@ def create_app(
                 "page": body.page,
                 "model": selected,
             }
-            import inspect as _inspect
-
-            sig = _inspect.signature(chat_service.ask)
+            sig = inspect.signature(chat_service.ask)
             accepts_var_kw = any(p.kind == p.VAR_KEYWORD for p in sig.parameters.values())
             if "effort" in sig.parameters or accepts_var_kw:
                 ask_kwargs["effort"] = selected_effort

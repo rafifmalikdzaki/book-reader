@@ -87,7 +87,7 @@ _OPENUI_INSTRUCTIONS = (
     "('derive...', 'walk me through...', 'how does algorithm X work'):\n"
     "     ```openui\n"
     '     {"component":"StepWalkthrough","title":"...","steps":[{"title":"Step 1","detail":"...",'
-    '"formula":"...","cite":"book.pdf#p12"}]}\n'
+    '"formula":"...","cite":"book.pdf#p12"},{"title":"Step 2","detail":"..."}]}\n'
     "     ```\n"
     "  4. Architecture / Concept Relationships / Flows "
     "('map the architecture...', 'how do X, Y, Z connect', 'concept graph'):\n"
@@ -114,7 +114,8 @@ _OPENUI_INSTRUCTIONS = (
     "  7. Socratic Tutoring / Mastery Tracking:\n"
     "     ```openui\n"
     '     {"component":"SkillMap","topic":"...","book":"book.pdf#p12","focus":"Current subskill",'
-    '"skills":[{"name":"Subskill 1","level":3,"status":"focus","note":"..."}]}\n'
+    '"skills":[{"name":"Subskill 1","level":3,"status":"focus","note":"..."},'
+    '{"name":"Subskill 2","level":1}]}\n'
     "     ```\n"
     "     and for an interactive check question:\n"
     "     ```openui\n"
@@ -468,21 +469,10 @@ class ChatService:
 
         step_tracker("Starting research agent…")
         tools = list(self.tool_map(allowed_books=allowed_books, on_step=step_tracker).values())
-        model_kwargs: dict[str, Any] = {
-            "model": provider.model,
-            "api_key": SecretStr(provider.api_key),
-            "base_url": provider.base_url,
-            "temperature": 0.1,
-            "timeout": 120,
-            "max_retries": 0,
-        }
-        if effort and effort in {"low", "medium", "high"}:
-            model_kwargs["reasoning_effort"] = effort
         try:
-            model = ChatOpenAI(**model_kwargs)
+            model = _chat_model(provider, effort)
         except Exception:
-            model_kwargs.pop("reasoning_effort", None)
-            model = ChatOpenAI(**model_kwargs)
+            model = _chat_model(provider)
         bound = model.bind_tools(tools)
         graph = self._graph(
             bound,
@@ -560,12 +550,12 @@ class ChatService:
                 if isinstance(message, AIMessage) and message.tool_calls
             )
 
-        def invoke_model(
+        def stream_or_invoke(
             runnable: Runnable[Any, AIMessage], msgs: Sequence[BaseMessage]
         ) -> AIMessage:
+            if on_token is None and on_thought is None:
+                return runnable.invoke(msgs)
             try:
-                if on_token is None and on_thought is None:
-                    return runnable.invoke(msgs)
                 accumulated: Any = None
                 for chunk in runnable.stream(msgs):
                     accumulated = chunk if accumulated is None else accumulated + chunk
@@ -587,18 +577,20 @@ class ChatService:
                 if isinstance(accumulated, AIMessage):
                     return accumulated
             except Exception as exc:
-                if "reasoning_effort" in str(exc) and provider:
-                    plain_clean = ChatOpenAI(
-                        model=provider.model,
-                        api_key=SecretStr(provider.api_key),
-                        base_url=provider.base_url,
-                        temperature=0.1,
-                        timeout=120,
-                        max_retries=0,
-                    )
-                    target = plain_clean.bind_tools(tools) if runnable == bound else plain_clean
-                    return target.invoke(msgs)
+                if _rejects_reasoning_effort(exc):
+                    raise
             return runnable.invoke(msgs)
+
+        def invoke_model(
+            runnable: Runnable[Any, AIMessage], msgs: Sequence[BaseMessage]
+        ) -> AIMessage:
+            try:
+                return stream_or_invoke(runnable, msgs)
+            except Exception as exc:
+                if provider is None or not _rejects_reasoning_effort(exc):
+                    raise
+            plain = _chat_model(provider)
+            return (plain.bind_tools(tools) if runnable is bound else plain).invoke(msgs)
 
         def agent_node(state: MessagesState) -> dict[str, list[BaseMessage]]:
             if on_step:
@@ -1487,6 +1479,25 @@ def collect_sources(messages: Sequence[BaseMessage]) -> list[dict[str, object]]:
 def _tool_error(message: str, **extra: object) -> str:
     """Uniform JSON error payload for tool results."""
     return json.dumps({"error": message, **extra})
+
+
+def _chat_model(provider: ProviderConfig, effort: str | None = None) -> ChatOpenAI:
+    kwargs: dict[str, Any] = {
+        "model": provider.model,
+        "api_key": SecretStr(provider.api_key),
+        "base_url": provider.base_url,
+        "temperature": 0.1,
+        "timeout": 120,
+        "max_retries": 0,
+    }
+    if effort in {"low", "medium", "high"}:
+        kwargs["reasoning_effort"] = effort
+    return ChatOpenAI(**kwargs)
+
+
+def _rejects_reasoning_effort(exc: Exception) -> bool:
+    """True when a provider refused the request because it does not accept reasoning_effort."""
+    return "reasoning_effort" in str(exc)
 
 
 def _chunk_text(content: object) -> str:
