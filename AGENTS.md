@@ -44,9 +44,13 @@ just vendor-katex               # Vendor KaTeX
 - The PDF surface is an iframe of the vendored PDF.js viewer; the React
   `usePdfBridge` hook owns progress, deep links, selection notes, Ask context, and
   resize.
-- Reader Ask stays a resizable side panel. Home Ask is `/ask`, a library-wide
-  workspace with persistent sessions, category-scoped retrieval, and projects.
-  Chat sessions expire after seven days unless pinned or assigned to a project.
+- Reader Ask stays a resizable side panel (expandable up to 50% viewport width).
+  Home Ask is `/ask`, a library-wide workspace with persistent sessions, category-scoped
+  retrieval, and projects. Chat sessions expire after seven days unless pinned or
+  assigned to a project.
+- Chat model preferences and reasoning effort options (`/api/chat/options`,
+  `chat_model`, `chat_effort`) persist across sessions. Generation tracks step
+  progress and thought traces, storing `thought_steps` directly in session message state.
 - Text state (notes, progress, categories, chat book/source contexts) is
   content-addressed and portable. Zotero is not integrated; the content hash is
   the intended future join key.

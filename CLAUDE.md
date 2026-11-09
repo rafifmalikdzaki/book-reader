@@ -6,20 +6,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+We use `just` for consistent local automation, backed by `uv` and `npm`:
+
 ```bash
-uv sync                                   # add --extra pageindex --extra agent for runtime extras
-uv run book-reader --library ~/Documents/Books --port 8000
+just ci                         # Complete quality gate: Python check/test + Frontend check/test/build
+just check                      # Run all linters and typecheckers (Ruff + Mypy + ESLint + TypeScript)
+just test                       # Run all test suites (pytest + vitest)
+just fmt                        # Auto-format codebase (ruff format + autofix)
+just run                        # Start local book-reader server on :8000
+just dev-ui                     # Vite dev server on :5173 (proxies backend routes to 127.0.0.1:8000)
+just eval-offline               # Run Ask + OpenUI eval suite
+just eval-live                  # Run Ask eval live against inception:mercury-3
+just benchmark-rag              # Benchmark retrieval against local library
+just vendor-pdfjs               # Vendor PDF.js
+just vendor-katex               # Vendor KaTeX
+
+# Direct tool commands (when running without just):
 uv run pytest -q
 uv run pytest tests/test_reindex.py::test_name -q   # single test
-./scripts/ci.sh                           # uv sync --locked; ruff format --check; ruff check; mypy src tests; pytest; then frontend npm ci/lint/typecheck/test/build
-uv run ruff format src tests              # fix formatting (ci.sh only checks)
+cd frontend && npx vitest run src/ui/Button.test.tsx # single frontend test
 uv run book-reader --reindex              # one-shot content-hash reindex, then exit
 uv run book-reader --index                # build Elasticsearch index, then exit
-uv run python scripts/benchmark_rag.py --library ~/Documents/Books
 scripts/build_frontend.sh                 # npm ci + vite build -> src/book_reader/static/app (gitignored)
-uv run book-reader                        # serve the built React SPA
-cd frontend && npm run dev                # Vite dev server on :5173, proxies backend routes to 127.0.0.1:8000
-cd frontend && npm run lint && npm run typecheck && npm test   # single test: npx vitest run src/ui/Button.test.tsx
 ```
 
 - Ruff line length is 100; mypy is `strict` (relaxed only for `pdf.py` and a few test modules, see `pyproject.toml`).
@@ -32,11 +40,14 @@ cd frontend && npm run lint && npm run typecheck && npm test   # single test: np
 - `app.py` (`build_services` + `create_app`) is the composition root. `build_services` constructs every store and service; they all share one `threading.RLock` (the "state lock"), and `create_app` additionally takes the cross-process `StateDirectoryLock` (flock on `.book-reader.lock`). `routes_notepad.py` and `routes_chat_sessions.py` each expose `register(app, **deps)` (explicit keyword dependencies, not the `Services` object) and are wired from `create_app`. New routes for a store belong in a `routes_*.py` module, not in `app.py`.
 - `library.py` is the single path-safety choke point: every route that takes a `rel` path from the client must resolve it through `Library` (`book_file`, `find_book`, `any_file`), never `Path(root) / rel`.
 - Stores are plain-JSON files in the state dir, keyed by content hash where portable (`progress`, `notepad`, `pages`, `sections`, `categories`, `chats`). When touching a store's key scheme, update `reconcile.py` and `statemove.py` so reindex remaps it, and add it to the backup list.
-- Chat/RAG is split: `chat.py` (LangGraph agent, tools `search_library`/`read_document`/`add_note`, provider fallback chain, bounded tool rounds), `chat_config.py` (request limits, model selection), `chats.py` (session persistence/retention). `langchain`/`langgraph` are optional extras, so `chat` imports are lazy (inside functions, behind `TYPE_CHECKING` in `app.py`); keep them that way.
+- Chat/RAG is split: `chat.py` (LangGraph agent, tools `search_library`/`read_document`/`add_note`, provider fallback chain, bounded tool rounds, reasoning effort mapping, step tracking, and thought streaming), `chat_config.py` (request limits, model selection), `chats.py` (session persistence/retention, message history with `thought_steps: list[str]`). `langchain`/`langgraph` are optional extras, so `chat` imports are lazy (inside functions, behind `TYPE_CHECKING` in `app.py`); keep them that way.
+- Chat Options & Preferences: `GET /api/chat/options` and `POST /api/chat/options` expose active model and reasoning effort (`low`, `medium`, `high`, `default`). The frontend `ModelEffortBar` allows instant switching in both `/ask` and reader rail.
+- Live Process & Thought Streaming: `routes_chat_sessions.py` emits SSE events: `type: "step"`, `type: "thought"`, and `type: "token"`. Active execution is rendered as an animated process card (`Transcript.tsx`) and finalized with a collapsible `.thoughtTrace` (`ChatMessageView.tsx`).
+- Resizable Rails: `frontend/src/ui/useRailResize.ts` supports dragging side-rails (Ask, TOC) up to 50% of the viewport width.
 - Search is layered in `search.py`: Elasticsearch BM25 → PageIndex section trees (`sections.py`) → in-process scan. Backend choice follows `--search auto|elastic|pageindex|local`; every path must degrade when Elasticsearch or PageIndex is absent.
 - PDF rendering lives in an iframe of the vendored PDF.js viewer; the React `usePdfBridge` hook is the only bridge to the app (progress, deep links `book.pdf#p12`, selection → note, Ask context).
 - `routes_spa.py` (`register(app, *, library, reconciler, spa_dir)`) serves the SPA shell for `/`, `/ask`, `/design`, `/book/{rel}`. `create_app(..., static_dir=)` is the test seam for a packaged bundle.
-- `frontend/src/`: `app/` shell and routes, `features/<name>/` one folder per page or rail, `ui/` primitives (`/design` is the development-only kitchen sink), `styles/tokens.css` design tokens, `api/` fetch client and types.
+- `frontend/src/`: `app/` shell and routes, `features/<name>/` one folder per page or rail (including `chat-model/`, `ask/`, `chat-rail/`, `chat-render/`), `ui/` primitives (`/design` is the development-only kitchen sink), `styles/tokens.css` design tokens, `api/` fetch client and types.
 
 ## Testing
 

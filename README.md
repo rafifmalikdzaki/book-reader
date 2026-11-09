@@ -74,6 +74,7 @@ BOOK_READER_CHAT_PRIORITY=inception:mercury-3,mistral:mistral-small-latest,mistr
 - **Reading Atmospheres**: Switch effortlessly between *Daylight Lamp*, *Dimmed Desk*, and *Midnight Baize* themes.
 - **Native PDF.js Reader**: Continuous scroll, thumbnail navigation, table of contents, text selection, rotation, and presentation mode. No CDN dependencies.
 - **Strict Markdown Reader**: Server-sanitized CommonMark with Pygments syntax highlighting, heading outlines, and line-based deep links (`notes.md#L40`).
+- **Half-Page Expandable Rails**: Slide-out Ask and Table of Contents side rails dynamically expand up to 50% of the viewport width for comfortable side-by-side study.
 - **Anchored Research Notepad**: Highlight passages in either reader to capture notes anchored to PDF page character offsets or Markdown source lines.
 - **Durable Reading Memory**: Preserves page and scroll progress across sessions and machine reboots.
 - **Content-Hash Move Protection**: Move or rename library folders in your OS; reading positions, notes, and virtual categories track stable SHA-256 content hashes automatically.
@@ -119,7 +120,13 @@ Unlike standard RAG pipelines that truncate text after a single page:
 - `read_section(book, section)` extracts multi-page section spans (up to 10 pages / 10,000 characters) so mathematical proofs and arguments are never cut off.
 - `list_books(query, category)` scans the library with cached human-readable PDF titles.
 - `read_notes(book, query)` pulls your saved thoughts into the reasoning loop.
-- **Real-Time Streaming & Control**: Live token streaming and reasoning step visibility over Server-Sent Events (`GET /api/chat/sessions/{id}/events`), with one-click **Stop / Cancel** generation (`POST /api/chat/sessions/{id}/cancel`).
+
+### 4. Interactive Model Controls & Live Reasoning Process
+
+- **Model & Effort Toolbar**: Select preferred LLM models directly from the chat header (prioritizing Inception Mercury 3) and dial **Reasoning Effort** (`Low`, `Medium`, `High`) to balance speed and analytical depth.
+- **Live Process Timeline**: Real-time visualization during answer generation showing elapsed duration, an active subtask checklist (`✓` completed, `●` in progress), and streaming thought notes.
+- **Persisted Research Disclosure**: Every completed response includes a collapsible `💡 Research & reasoning process (N steps)` trace preserving the exact sequence of retrieval and synthesis steps.
+- **Streaming & Cancellation**: Live token streaming via Server-Sent Events (`GET /api/chat/sessions/{id}/events`) with instant **Stop / Cancel** generation (`POST /api/chat/sessions/{id}/cancel`).
 
 ---
 
@@ -162,6 +169,7 @@ uv run python scripts/eval_ask.py --live --model inception:mercury-3
 | `/api/chat/sessions/{id}/messages` | `POST` | Send question in `teacher` or `tutor` mode (background shielded) |
 | `/api/chat/sessions/{id}/events` | `GET` | SSE stream for real-time token deltas and reasoning steps |
 | `/api/chat/sessions/{id}/cancel` | `POST` | Abort in-flight generation and reset session state |
+| `/api/chat/options` | `GET` / `POST` | Inspect or update active chat model and reasoning effort settings |
 | `/api/notepad` | `GET` / `POST` / `PATCH` | Notes, groups, and AI-context export (`format=json\|markdown`) |
 | `/api/library/reindex` | `POST` | Content-hash reconciliation and move redirection |
 
