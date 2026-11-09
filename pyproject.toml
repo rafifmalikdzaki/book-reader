@@ -48,6 +48,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/book_reader"]
+# Eval tooling is dev-only (scripts/eval_ask.py and the tests), so keep it out of the wheel.
+exclude = ["src/book_reader/evals"]
 # The Vite bundle is gitignored; `artifacts` re-includes it (run scripts/build_frontend.sh first).
 artifacts = ["src/book_reader/static/app/**"]
 
