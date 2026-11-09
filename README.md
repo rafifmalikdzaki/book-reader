@@ -25,7 +25,7 @@
 
 Book Reader turns any local folder of textbooks, research papers, and technical notes into a quiet, distraction-free reading room.
 
-Instead of passive skimming or shallow RAG summaries that truncate after 500 tokens, Book Reader reads multi-page mathematical proofs, verifies claims against grounded citations, and actively teaches one reasoning step at a time. It pairs a native React 19 PDF viewer and CommonMark reader with anchored marginalia, a Jane Street Socratic Tutor, and question-adaptive Generative UI.
+Instead of passive skimming or single-snippet RAG answers, Book Reader reads whole sections (up to 10 pages / 10,000 characters per read) so proofs and derivations are not cut off, asks the model to cite the exact page or line it used (`paper.pdf#p14`, `notes.md#L40`), and actively teaches one reasoning step at a time. It pairs a native React 19 PDF viewer and CommonMark reader with anchored marginalia, a Jane Street Socratic Tutor, and question-adaptive Generative UI.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -33,7 +33,7 @@ Instead of passive skimming or shallow RAG summaries that truncate after 500 tok
 ├───────────────────┬───────────────────┬───────────────────┬─────────────────┤
 │ 📚 Library & Shelf│ 📄 Reader Surfaces│ 📝 Notepad System │ 🎓 Pedagogical  │
 │   • Cover previews│   • React-PDF v11 │   • Anchored notes│    AI Teacher   │
-│   • Reading modes │   • Windowed scroll│  • Multi-span loc│   • Explain Mode│
+│   • Reading modes │  • Windowed scroll│   • Multi-span loc│   • Explain Mode│
 │   • Move tracking │   • Markdown AST  │   • Markdown /    │   • Socratic    │
 │   • Virtual cats  │   • KaTeX math    │     JSON export   │     Tutor Skill │
 └───────────────────┴───────────────────┴───────────────────┴─────────────────┘
@@ -48,6 +48,10 @@ Instead of passive skimming or shallow RAG summaries that truncate after 500 tok
 3. **Teach & Probe.** Master Teacher mode explains with Intuition → Formal Equations → Worked Examples with deep locators (`paper.pdf#p14`). Socratic Tutor mode probes misconceptions, plays devil's advocate on correct answers, and never lectures passively.
 4. **Inspect the Thinking.** Real-time reasoning effort controls (`Low`, `Medium`, `High`) and live process tracking. Watch the agent track subtasks, extract multi-page section spans, and stream its internal reasoning traces before finalizing the response. Completed answers preserve the exact sequence in a collapsible research trace.
 5. **Carry Forward.** Move files, rename folders, or reorganize your filesystem in your OS without fear. Stable SHA-256 content hashes ensure reading positions, notes, and chat sessions follow your documents wherever they move.
+
+**Socratic Tutor commands.** In tutor mode the agent tracks a 0–5 mastery level per subskill (a `SkillMap` block). Say `show progress` for the map, `harder` / `easier` to change difficulty, `quiz me` for rapid-fire review, `just tell me` for a direct explanation, `save state` to get a session summary (and a saved note), and `resume from: …` to continue from a pasted summary.
+
+**Streaming, cancel and retention.** Answers stream over SSE with live reasoning steps; the Stop button calls the cancel route and ends the in-flight generation. Chat sessions are kept for 7 days of inactivity, then pruned.
 
 **Half-Page Expandable Rails.** Slide-out Ask and Table of Contents side rails dynamically expand up to 50% of the viewport width for comfortable, side-by-side technical study.
 
@@ -88,6 +92,8 @@ Book Reader supports hybrid multi-tier retrieval configured via `--search`:
 | **`pageindex`** | Vectorless hierarchy search over offline PageIndex Flash layout trees; no external services |
 | **`elastic`** | Pure Elasticsearch BM25 full-text chunk search |
 | **`local`** | Fast candidate-scored in-process text scan |
+
+`elastic` needs an index: build it with `uv run book-reader --index` (or `--force-index` to rebuild from scratch), then exit. After moving or renaming books outside the app, run `uv run book-reader --reindex` once to match them by content and migrate notes, progress and chats.
 
 ---
 
@@ -150,7 +156,7 @@ just ci
 # Run all linters and typecheckers (Ruff + Mypy + ESLint + TypeScript)
 just check
 
-# Run all test suites (182 Python pytest + 194 Frontend vitest)
+# Run all test suites (pytest + vitest)
 just test
 
 # Auto-format codebase (ruff format + autofix)
@@ -159,6 +165,7 @@ just fmt
 # Run Ask + Socratic Tutor evaluation suite (offline or live Mercury 3)
 just eval-offline
 just eval-live
+# without just: uv run python scripts/eval_ask.py [--live --model inception:mercury-3]
 
 # Benchmark retrieval accuracy against your collection
 just benchmark-rag
@@ -208,11 +215,14 @@ just dev-ui
 | `/api/chat/sessions/{id}/events` | `GET` | SSE stream for real-time token deltas and reasoning steps |
 | `/api/chat/sessions/{id}/cancel` | `POST` | Abort in-flight generation and reset session state |
 | `/api/chat/options` | `GET` / `POST` | Inspect or update active chat model and reasoning effort settings |
-| `/api/notepad` | `GET` / `POST` / `PATCH` | Notes, groups, and AI-context export (`format=json\|markdown`) |
+| `/api/notepad` | `GET` | All notes and groups |
+| `/api/notepad/notes` (`/{id}`) | `POST` / `PATCH` / `DELETE` | Create, edit and delete anchored notes |
+| `/api/notepad/groups` (`/{id}`) | `POST` / `DELETE` | Create and delete note groups |
+| `/api/notepad/export` | `GET` | AI-context export (`format=json\|markdown`) |
 | `/api/library/reindex` | `POST` | Content-hash reconciliation and move redirection |
 
 ---
 
 <div align="center">
-  <sub>Built for focused, long-form technical reading and research. Free and open forever.</sub>
+  <sub>Built for focused, long-form technical reading and research.</sub>
 </div>

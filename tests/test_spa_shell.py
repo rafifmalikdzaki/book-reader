@@ -109,6 +109,7 @@ def test_react_html_responses_carry_a_report_only_csp(react: TestClient, path: s
     policy = react.get(path).headers[CSP]
     directives = {part.split()[0]: part.split()[1:] for part in policy.split("; ")}
     assert directives["script-src"] == ["'self'"]
+    assert directives["worker-src"] == ["'self'"]
     assert directives["object-src"] == ["'none'"]
     assert "'self'" in directives["frame-src"]
     assert "Content-Security-Policy" not in react.get(path).headers
