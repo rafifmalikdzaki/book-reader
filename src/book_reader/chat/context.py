@@ -192,6 +192,7 @@ class ContextMixin(ServiceState):
         scope: str | None = None,
         allowed_books: set[str] | None = None,
         socratic: bool = False,
+        openui_format: str | None = None,
     ) -> str:
         lines = [
             "You are the Master Teacher and Research Companion inside a local book reader.",
@@ -210,10 +211,10 @@ class ContextMixin(ServiceState):
             "and notes.md#L40 for Markdown lines.",
             "- Write mathematics as LaTeX: `$...$` inline and `$$...$$` for display.",
             "",
-            openui_instructions(),
+            openui_instructions(openui_format),
         ]
         if socratic:
-            lines.extend(["", _socratic_skill_text()])
+            lines.extend(["", _socratic_skill_text(openui_format)])
         else:
             lines.extend(
                 [

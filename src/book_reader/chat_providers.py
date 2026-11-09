@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_PRIORITY = (
     "inception:mercury-3,"
+    "gemini:gemini-3.8-flash,"
     "mistral:mistral-small-latest,"
     "mistral:ministral-8b-latest,"
     "mistral:zai-glm-5-3-flash,"
     "openrouter:openrouter/free,"
     "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,"
-    "ollama:gpt-oss:20b,"
-    "gemini:gemini-3.8-flash"
+    "ollama:gpt-oss:20b"
 )
 
 PROVIDER_DEFAULTS: dict[str, tuple[str, str, str, str]] = {

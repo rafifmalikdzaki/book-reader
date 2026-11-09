@@ -9,14 +9,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from ..chat_types import ChatMessage
+from ..models import DEFAULT_OPENUI_FORMAT, OPENUI_FORMATS, model_info
 
 _PACKAGE_DIR = Path(__file__).resolve().parent.parent
 _SOCRATIC_SKILL_PATH = _PACKAGE_DIR / "skills" / "socratic_tutor.md"
 # Generated from frontend/src/features/chat-render/openui/library.tsx by `just gen-prompt`.
 _OPENUI_LANG_PROMPT_PATH = _PACKAGE_DIR / "prompts" / "openui_prompt.txt"
-# `lang` failed the live gate (ADR-008): fallback models wrote named arguments instead of
-# positional ones, so JSON stays the default until a model-compatible prompt is found.
-DEFAULT_OPENUI_FORMAT = "json"
 
 _SOCRATIC_TRIGGERS = re.compile(
     r"\b(?:"
@@ -88,10 +86,16 @@ _OPENUI_JSON_INSTRUCTIONS = (
 )
 
 
-def openui_format() -> str:
-    """`lang` (OpenUI Lang) or `json` (legacy blocks), from BOOK_READER_OPENUI_FORMAT."""
+def openui_format(model_id: str | None = None) -> str:
+    """Block format the model is asked to write.
+
+    ``BOOK_READER_OPENUI_FORMAT`` (lang|json) overrides everything; otherwise the model's
+    registry entry decides, and unknown models get the default.
+    """
     value = os.environ.get("BOOK_READER_OPENUI_FORMAT", "").strip().lower()
-    return value if value in ("lang", "json") else DEFAULT_OPENUI_FORMAT
+    if value in OPENUI_FORMATS:
+        return value
+    return model_info(model_id).openui_format if model_id else DEFAULT_OPENUI_FORMAT
 
 
 @functools.lru_cache(maxsize=1)

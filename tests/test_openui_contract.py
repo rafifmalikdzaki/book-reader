@@ -21,6 +21,7 @@ from book_reader.evals import (
     validate_openui_spec,
 )
 from book_reader.evals.openui_lang import SPEC_PATH, signatures
+from book_reader.models import DEFAULT_OPENUI_FORMAT
 
 PROMPT_PATH = SPEC_PATH.with_name("openui_prompt.txt")
 BLOCKS = set(signatures()) - {"Answer"}
@@ -71,13 +72,13 @@ def test_tutor_skill_example_is_a_valid_skill_map(fmt: str) -> None:
 
 def test_system_prompt_uses_the_format_chosen_by_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("BOOK_READER_OPENUI_FORMAT", raising=False)
-    assert prompts.openui_format() == prompts.DEFAULT_OPENUI_FORMAT
+    assert prompts.openui_format() == DEFAULT_OPENUI_FORMAT
     monkeypatch.setenv("BOOK_READER_OPENUI_FORMAT", "json")
     assert prompts.openui_instructions() == prompts._OPENUI_JSON_INSTRUCTIONS
     monkeypatch.setenv("BOOK_READER_OPENUI_FORMAT", "lang")
     assert "openui-lang" in prompts.openui_instructions()
     monkeypatch.setenv("BOOK_READER_OPENUI_FORMAT", "nonsense")
-    assert prompts.openui_format() == prompts.DEFAULT_OPENUI_FORMAT
+    assert prompts.openui_format() == DEFAULT_OPENUI_FORMAT
 
 
 def test_json_instructions_still_document_every_component_with_valid_examples() -> None:

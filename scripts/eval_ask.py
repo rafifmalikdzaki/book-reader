@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import json
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -23,6 +25,26 @@ from book_reader.pages import PageIndex
 from book_reader.pdf import PdfCache
 from book_reader.search import Searcher
 from book_reader.sections import SectionIndex
+
+
+class _AnswerRecorder:
+    """Wraps a chat backend and keeps every answer so it can be replayed in the frontend."""
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+        self.records: list[dict[str, Any]] = []
+
+    def ask(self, messages: Any, options: Any = None, callbacks: Any = None) -> Any:
+        response = self._inner.ask(messages, options, callbacks)
+        self.records.append(
+            {
+                "case": messages[-1]["content"][:60],
+                "provider": response.get("provider"),
+                "model": response.get("model"),
+                "answer": response.get("answer"),
+            }
+        )
+        return response
 
 
 def _populate_benchmark_library(lib_dir: Path, *, include_stub_pdf: bool = False) -> None:
@@ -88,6 +110,12 @@ def main() -> int:
         default="",
         help="Optional library directory override for --live evaluation.",
     )
+    parser.add_argument(
+        "--save-answers",
+        default="",
+        help="Write the --live answers to this JSON file (replay: see OPENUI_REPLAY in the "
+        "frontend replay test).",
+    )
     args = parser.parse_args()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -117,7 +145,12 @@ def main() -> int:
                 pages=pages,
                 categories=categories,
             )
-            results = run_eval_suite(chat, DEFAULT_EVAL_SUITE, model=args.model, library=catalogue)
+            recorder = _AnswerRecorder(chat)
+            results = run_eval_suite(
+                recorder, DEFAULT_EVAL_SUITE, model=args.model, library=catalogue
+            )
+            if args.save_answers:
+                Path(args.save_answers).write_text(json.dumps(recorder.records, indent=1))
             print("\n" + format_scorecard(results) + "\n")
             for r in results:
                 print(f"  • {r.case_id}: {', '.join(r.notes)}")

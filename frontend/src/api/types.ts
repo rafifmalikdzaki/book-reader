@@ -321,6 +321,10 @@ export interface ChatModelOption {
   id: string;
   provider: string;
   model: string;
+  /** Human name from the model registry; absent on older servers. */
+  label?: string;
+  /** Block format this model is asked to write. */
+  openui_format?: 'json' | 'lang';
 }
 
 /** GET /api/chat/status */

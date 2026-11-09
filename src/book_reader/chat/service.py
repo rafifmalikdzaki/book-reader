@@ -22,6 +22,7 @@ from ..chat_types import (
     ProviderConfig,
 )
 from ..library import Library
+from ..models import model_info
 from ..notepad import NotepadStore
 from ..pdf import PdfCache
 from ..search import Searcher
@@ -29,7 +30,7 @@ from ..sections import SectionIndex
 from .graph import GraphMixin
 from .limits import MAX_STEPS
 from .model import _chat_model, _extractive_answer, _message_text, provider_key
-from .prompts import _is_socratic_request
+from .prompts import _is_socratic_request, openui_format
 from .sources import _with_context_source, collect_sources
 from .tools import ToolsMixin
 
@@ -80,7 +81,16 @@ class ChatService(ToolsMixin, GraphMixin):
             if model_id in seen:
                 continue
             seen.add(model_id)
-            options.append({"id": model_id, "provider": provider.name, "model": provider.model})
+            info = model_info(model_id)
+            options.append(
+                {
+                    "id": model_id,
+                    "provider": provider.name,
+                    "model": provider.model,
+                    "label": info.label,
+                    "openui_format": info.openui_format,
+                }
+            )
         return options
 
     def available(self) -> bool:
@@ -140,7 +150,9 @@ class ChatService(ToolsMixin, GraphMixin):
 
         step_tracker("Starting research agent…")
         tools = list(self.tool_map(allowed_books=allowed_books, on_step=step_tracker).values())
-        effort = None if provider_key(provider) in self._effort_rejected else options.effort
+        key = provider_key(provider)
+        accepts_effort = model_info(key).reasoning_effort is not False
+        effort = options.effort if accepts_effort and key not in self._effort_rejected else None
         try:
             model = _chat_model(provider, effort)
         except Exception:
@@ -166,6 +178,7 @@ class ChatService(ToolsMixin, GraphMixin):
                     scope=scope,
                     allowed_books=allowed_books,
                     socratic=socratic,
+                    openui_format=openui_format(key),
                 )
             )
         ]

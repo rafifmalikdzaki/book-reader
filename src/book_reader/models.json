@@ -1,0 +1,90 @@
+{
+  "_comment": "Per-model facts used by the chat service. `eval` is valid OpenUI blocks over the 6 default cases of `just eval-live` (checked by evals/openui_lang.py for lang), measured 2026-11-09. `reasoning_effort` null means unknown: it is sent once and remembered if the provider rejects it.",
+  "models": {
+    "inception:mercury-3": {
+      "label": "Mercury 3",
+      "reasoning_effort": true,
+      "openui_format": "json",
+      "eval": {
+        "json": "5/6",
+        "lang": "5/6"
+      }
+    },
+    "mistral:mistral-small-latest": {
+      "label": "Mistral Small",
+      "reasoning_effort": false,
+      "openui_format": "json",
+      "eval": {
+        "json": "5/6",
+        "lang": "1/6"
+      }
+    },
+    "mistral:ministral-8b-latest": {
+      "label": "Ministral 8B",
+      "reasoning_effort": false,
+      "openui_format": "json",
+      "eval": {
+        "json": "4/6",
+        "lang": "0/6"
+      }
+    },
+    "mistral:zai-glm-5-3-flash": {
+      "label": "GLM 5.3 Flash",
+      "reasoning_effort": false,
+      "openui_format": "json",
+      "eval": {
+        "json": "6/6",
+        "lang": "6/6"
+      }
+    },
+    "openrouter:openrouter/free": {
+      "label": "OpenRouter Free",
+      "reasoning_effort": null,
+      "openui_format": "json",
+      "notes": "Not measured: free-tier rate limits and 5xx errors."
+    },
+    "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free": {
+      "label": "Nemotron 3 Ultra (free)",
+      "reasoning_effort": null,
+      "openui_format": "json",
+      "notes": "Not measured: free-tier daily quota exhausted."
+    },
+    "ollama:gpt-oss:20b": {
+      "label": "gpt-oss 20B",
+      "reasoning_effort": true,
+      "openui_format": "json",
+      "eval": {
+        "json": "6/6",
+        "lang": "1/6"
+      }
+    },
+    "gemini:gemini-3.8-flash": {
+      "label": "Gemini 3.8 Flash",
+      "reasoning_effort": true,
+      "openui_format": "json",
+      "eval": {
+        "json": "6/6",
+        "lang": "empty answer"
+      }
+    },
+    "gemini:gemini-3.1-flash-lite": {
+      "label": "Gemini 3.1 Flash-Lite",
+      "reasoning_effort": true,
+      "openui_format": "json",
+      "eval": {
+        "json": "5/6",
+        "lang": "5/6"
+      }
+    },
+    "gemini:gemini-3.5-flash-lite": {
+      "label": "Gemini 3.5 Flash-Lite",
+      "reasoning_effort": true,
+      "openui_format": "json",
+      "eval": {
+        "json": "empty answer",
+        "lang": "empty answer"
+      },
+      "notes": "Returned an empty answer in the live eval; not recommended."
+    }
+  }
+}

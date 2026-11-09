@@ -73,7 +73,7 @@ export function ModelEffortBar({ variant = 'bar', className }: Props) {
             <option value="auto">Auto (Primary: Mercury 3)</option>
             {models.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.model} ({m.provider})
+                {m.label ?? m.model} ({m.provider})
               </option>
             ))}
           </select>

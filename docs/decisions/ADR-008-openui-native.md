@@ -77,5 +77,11 @@ repair inside strings) came from the hand-rolled parser.
   (retention is 7 days, so after 2026-11-16 plus a release of margin), delete `legacyJson.ts`,
   the `json` branch of `OpenUIBlockView`, the JSON auto-detection in `markdown.ts`, the JSON
   prompt in `chat/prompts.py` and the flag.
+- **Per-model format.** `src/book_reader/models.json` records, per model, the format it is asked
+  to write; all models are `json` today because none passes the bar for `lang` except
+  `zai-glm-5-3-flash` (6/6 in two runs, kept on `json` until a Renderer replay of its answers
+  confirms it). A replay of the top three models' JSON answers (mercury-3, gemini-3.8-flash,
+  mistral-small) through the real renderer matched the Python validator: 17 of 18 blocks
+  rendered, the failure being mistral-small's `ConceptCard`.
 - Reordering props in a Zod schema changes the positional wire format; regenerate the prompt and
   expect model behaviour to shift.
