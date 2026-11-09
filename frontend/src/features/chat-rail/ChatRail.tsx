@@ -5,7 +5,7 @@ import { getChatStatus } from '../../api/endpoints';
 import type { ChatMode } from '../../api/types';
 import { ModelEffortBar } from '../chat-model';
 import { ChatMessageView, SmartLink, ensureKatex } from '../chat-render';
-import { Rail, RailResizeHandle, useStickToBottom, usePanel, useRailResize } from '../../ui';
+import { Rail, RailResizeHandle, usePanel, useRailResize, useStickToBottom } from '../../ui';
 
 import { useBookContext } from './bookContext';
 import { ChatForm } from './ChatForm';

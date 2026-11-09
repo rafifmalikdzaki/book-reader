@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/client';
 import { askStateless, getChatOptions, getChatStatus } from '../../api/endpoints';
 import type { ChatAskResponse } from '../../api/types';
-import { stubViewport } from '../../ui/test-utils';
+import { stubScrollGeometry, stubViewport } from '../../ui/test-utils';
 
 import { AUTO, answer, openChat, setup } from './ChatRail.harness';
 
@@ -81,6 +81,31 @@ describe('ChatRail', () => {
       { role: 'assistant', content: 'First **answer**' },
       { role: 'user', content: 'And a matrix?' },
     ]);
+  });
+
+  it('keeps a scrolled-up reader in place, then follows once they send', async () => {
+    const restore = stubScrollGeometry(1000);
+    try {
+      let finish: (value: ChatAskResponse) => void = () => {};
+      ask.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+      const { user } = setup();
+      const rail = await openChat(user);
+      const log = within(rail).getByRole('log');
+      log.scrollTop = 100;
+      fireEvent.scroll(log);
+
+      await user.type(within(rail).getByRole('textbox', { name: 'Your question' }), 'Hello{Enter}');
+      expect(await within(rail).findByText('…thinking')).toBeInTheDocument();
+      expect(log.scrollTop).toBe(1000);
+
+      log.scrollTop = 100;
+      fireEvent.scroll(log);
+      finish(answer('Done'));
+      await within(rail).findByText('Done');
+      expect(log.scrollTop).toBe(100);
+    } finally {
+      restore();
+    }
   });
 
   it('inserts a newline on Shift+Enter without sending', async () => {

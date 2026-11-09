@@ -22,11 +22,10 @@ export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
         type="button"
         className={styles.processHeader}
         aria-expanded={open}
-        aria-label={open ? 'Hide agent process' : 'Show agent process'}
         onClick={() => setOpen((v) => !v)}
       >
         <span className={styles.processSpinner} aria-hidden="true" />
-        <div className={styles.processHeaderTitle}>
+        <span className={styles.processHeaderTitle}>
           <strong>{step || 'Searching the library…'}</strong>
           <span className={styles.processSubtitle}>
             {steps.length > 0
@@ -35,7 +34,7 @@ export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
                 }`
               : 'Agent active'}
           </span>
-        </div>
+        </span>
         {elapsed > 0 ? <span className={styles.processElapsed}>{elapsed.toFixed(1)}s</span> : null}
         <span className={styles.processChevron} data-open={open} aria-hidden="true">
           ▾

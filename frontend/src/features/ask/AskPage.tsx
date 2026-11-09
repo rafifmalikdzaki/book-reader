@@ -113,6 +113,7 @@ export default function AskPage() {
           onChange={session ? actions.setCategories : setDraftCategories}
         />
         <Transcript
+          key={session?.id}
           messages={session?.messages ?? []}
           pending={sender.pending}
           loading={data.loadingSession}

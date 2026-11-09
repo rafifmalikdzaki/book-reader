@@ -50,17 +50,14 @@ describe('ProcessCard', () => {
       found: [{ book: 'a.pdf', page: 4 }],
       thought: 'Need the sampling chapter.',
     });
-    const toggle = screen.getByRole('button', { name: 'Hide agent process' });
+    const toggle = screen.getByRole('button', { name: /Reading a\.pdf page 4/ });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     fireEvent.click(toggle);
-    expect(screen.getByRole('button', { name: 'Show agent process' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    );
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('list', { name: 'Steps taken' })).not.toBeInTheDocument();
     expect(screen.queryByText('Need the sampling chapter.')).not.toBeInTheDocument();
-    expect(screen.getByText('1 step · 1 passage found')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show agent process' }));
+    expect(toggle).toHaveTextContent('1 step · 1 passage found');
+    fireEvent.click(toggle);
     expect(screen.getByRole('list', { name: 'Steps taken' })).toBeInTheDocument();
   });
 });

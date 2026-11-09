@@ -45,4 +45,20 @@ describe('useStickToBottom', () => {
     rerender(<Log signal={1} forceKey="question" />);
     expect(node.scrollTop).toBe(1000);
   });
+
+  it('follows again after the reader scrolls back near the bottom', () => {
+    const { getByTestId, rerender } = render(<Log signal={0} />);
+    const node = getByTestId('log');
+    mockGeometry(node, 1000);
+    node.scrollTop = 100;
+    act(() => {
+      node.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    node.scrollTop = 850; // 1000 - 850 - 100 = 50px from the bottom
+    act(() => {
+      node.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    rerender(<Log signal={1} />);
+    expect(node.scrollTop).toBe(1000);
+  });
 });
