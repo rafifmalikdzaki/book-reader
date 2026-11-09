@@ -3,11 +3,24 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
+
+from .openui_lang import serialize_openui_lang
 
 
 class OfflineEvalModel:
-    """Deterministic local stub that exercises tools and emits valid OpenUI blocks."""
+    """Deterministic local stub that exercises tools and emits valid OpenUI blocks.
+
+    ``answer_format`` is ``"lang"`` (OpenUI Lang) or ``"json"`` (the legacy block format).
+    """
+
+    def __init__(self, answer_format: Literal["lang", "json"] = "lang") -> None:
+        self.answer_format = answer_format
+
+    def _block(self, spec: dict[str, Any]) -> str:
+        if self.answer_format == "json":
+            return "```openui\n" + json.dumps(spec) + "\n```"
+        return "```openui-lang\n" + serialize_openui_lang([spec]) + "\n```"
 
     def bind_tools(self, tools: Any) -> OfflineEvalModel:
         return self
@@ -19,8 +32,7 @@ class OfflineEvalModel:
         if "socratically" in prompt or "skillmap" in prompt:
             body = (
                 "Let's map your current mastery of **backpropagation** before diving in.\n\n"
-                "```openui\n"
-                + json.dumps(
+                + self._block(
                     {
                         "component": "SkillMap",
                         "topic": "Backpropagation & Chain Rule",
@@ -38,9 +50,8 @@ class OfflineEvalModel:
                         ],
                     }
                 )
-                + "\n```\n\n"
-                "```openui\n"
-                + json.dumps(
+                + "\n\n"
+                + self._block(
                     {
                         "component": "QuizCheck",
                         "question": "If y = f(g(x)), how does dy/dx relate to dy/dg and dg/dx?",
@@ -48,7 +59,7 @@ class OfflineEvalModel:
                         "options": ["dy/dg * dg/dx", "dy/dg + dg/dx", "dy/dg / dg/dx"],
                     }
                 )
-                + "\n```\n\n"
+                + "\n\n"
                 "How would you express $\\frac{\\partial L}{\\partial x}$ using the chain rule?"
             )
             return AIMessage(content=body)
@@ -58,8 +69,7 @@ class OfflineEvalModel:
                 "## Self-Attention vs. Recurrent Neural Networks\n\n"
                 "Self-attention connects all token positions in $O(1)$ sequential steps "
                 "(see `sub/a.pdf#p1`), whereas RNNs process tokens in $O(n)$ steps.\n\n"
-                "```openui\n"
-                + json.dumps(
+                + self._block(
                     {
                         "component": "ComparisonTable",
                         "title": "Self-Attention vs. RNNs",
@@ -72,7 +82,6 @@ class OfflineEvalModel:
                         "verdict": "Use Self-Attention for parallel training and long context.",
                     }
                 )
-                + "\n```"
             )
             return AIMessage(content=body)
 
@@ -81,8 +90,7 @@ class OfflineEvalModel:
                 "## Gradient Descent Weight Update Walkthrough\n\n"
                 "Gradient descent updates parameters $\\theta$ opposite the loss gradient "
                 "$\\nabla_\\theta \\mathcal{L}$ (`sub/a.pdf#p1`).\n\n"
-                "```openui\n"
-                + json.dumps(
+                + self._block(
                     {
                         "component": "StepWalkthrough",
                         "title": "Backpropagation & Gradient Step",
@@ -108,7 +116,6 @@ class OfflineEvalModel:
                         ],
                     }
                 )
-                + "\n```"
             )
             return AIMessage(content=body)
 
@@ -117,8 +124,7 @@ class OfflineEvalModel:
                 "## Transformer Block Information Flow\n\n"
                 "Tokens flow through multi-head attention, residual layer norm, and the "
                 "position-wise feed-forward network (`sub/a.pdf#p1`).\n\n"
-                "```openui\n"
-                + json.dumps(
+                + self._block(
                     {
                         "component": "ConceptGraph",
                         "title": "Transformer Block Architecture",
@@ -157,7 +163,6 @@ class OfflineEvalModel:
                         ],
                     }
                 )
-                + "\n```"
             )
             return AIMessage(content=body)
 
@@ -165,8 +170,7 @@ class OfflineEvalModel:
             body = (
                 "## Recommended Deep Learning Books\n\n"
                 "Here are the best starting volumes in your library (`sub/a.pdf#p1`).\n\n"
-                "```openui\n"
-                + json.dumps(
+                + self._block(
                     {
                         "component": "BookList",
                         "title": "Core Deep Learning Path",
@@ -181,7 +185,6 @@ class OfflineEvalModel:
                         ],
                     }
                 )
-                + "\n```"
             )
             return AIMessage(content=body)
 
@@ -191,8 +194,7 @@ class OfflineEvalModel:
             "keys $K$ to weight values $V$ (`sub/a.pdf#p1`). Formally:\n\n"
             "$$\\mathrm{Attention}(Q, K, V) = "
             "\\mathrm{softmax}\\!\\left(\\frac{QK^\\top}{\\sqrt{d_k}}\\right)V$$\n\n"
-            "```openui\n"
-            + json.dumps(
+            + self._block(
                 {
                     "component": "ConceptCard",
                     "title": "Scaled Dot-Product Attention",
@@ -207,6 +209,5 @@ class OfflineEvalModel:
                     ],
                 }
             )
-            + "\n```"
         )
         return AIMessage(content=body)

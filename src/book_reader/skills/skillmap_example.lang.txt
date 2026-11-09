@@ -1,0 +1,4 @@
+```openui-lang
+root = Answer([map])
+map = SkillMap("Section 3.2: Scaled Dot-Product Attention", [{name: "Query-Key inner product geometry", level: 4, note: "Solid on dot-product similarity"}, {name: "Scaling factor 1/sqrt(d_k) & softmax saturation", level: 2, status: "focus", note: "Next up"}, {name: "Attention matrix masking & causality", level: 1}, {name: "Multi-head projection subspaces", level: 0}], "Scaling factor 1/sqrt(d_k)", "attention.pdf#p4")
+```

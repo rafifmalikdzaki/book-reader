@@ -9,7 +9,7 @@ from typing import Any
 
 from ..chat_types import AskOptions, ChatBackend, ChatMessage
 from ..library import Library
-from .openui import extract_openui_blocks, validate_openui_spec
+from .openui import extract_openui_blocks, openui_program_errors, validate_openui_spec
 from .scoring import score_citations, score_pedagogy
 
 
@@ -63,13 +63,17 @@ def evaluate_response(
     specs = extract_openui_blocks(answer)
     components = [str(s.get("component")) for s in specs]
     validations = [validate_openui_spec(s) for s in specs]
-    all_valid = bool(validations) and all(ok for ok, _ in validations)
+    program_errors = openui_program_errors(answer)
+    all_valid = bool(validations) and all(ok for ok, _ in validations) and not program_errors
 
     openui_score = 0.0
     notes: list[str] = []
     if specs:
         valid_count = sum(1 for ok, _ in validations if ok)
         openui_score = 0.6 * (valid_count / len(specs))
+        if program_errors:
+            openui_score *= 0.5
+            notes.append(f"OpenUI Lang errors: {'; '.join(program_errors[:3])}")
         if not case.expected_components or any(c in case.expected_components for c in components):
             openui_score += 0.4
             notes.append(f"matched expected OpenUI ({', '.join(components)})")
@@ -77,6 +81,8 @@ def evaluate_response(
             notes.append(
                 f"used {', '.join(components)} (expected {'/'.join(case.expected_components)})"
             )
+    elif program_errors:
+        notes.append(f"OpenUI Lang errors: {'; '.join(program_errors[:3])}")
     elif not case.expected_components:
         openui_score = 1.0
     else:

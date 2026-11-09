@@ -19,7 +19,8 @@ from ..chat_types import ProviderConfig as ProviderConfig
 from .limits import MAX_SOURCE_TEXT as MAX_SOURCE_TEXT
 from .limits import MAX_STEPS as MAX_STEPS
 from .limits import MAX_TOOL_ROUNDS as MAX_TOOL_ROUNDS
-from .prompts import _OPENUI_INSTRUCTIONS as _OPENUI_INSTRUCTIONS
+from .prompts import openui_format as openui_format
+from .prompts import openui_instructions as openui_instructions
 from .service import ChatService as ChatService
 from .sources import _with_context_source as _with_context_source
 from .sources import collect_sources as collect_sources

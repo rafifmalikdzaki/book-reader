@@ -9,7 +9,10 @@ from .offline import OfflineEvalModel as OfflineEvalModel
 from .openui import CANONICAL_COMPONENT as CANONICAL_COMPONENT
 from .openui import VALID_COMPONENTS as VALID_COMPONENTS
 from .openui import extract_openui_blocks as extract_openui_blocks
+from .openui import openui_program_errors as openui_program_errors
 from .openui import validate_openui_spec as validate_openui_spec
+from .openui_lang import parse_openui_lang as parse_openui_lang
+from .openui_lang import serialize_openui_lang as serialize_openui_lang
 from .report import format_scorecard as format_scorecard
 from .scoring import score_citations as score_citations
 from .scoring import score_pedagogy as score_pedagogy

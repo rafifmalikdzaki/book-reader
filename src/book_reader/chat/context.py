@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ..sections import Section
-from .prompts import _OPENUI_INSTRUCTIONS, _socratic_skill_text
+from .prompts import _socratic_skill_text, openui_instructions
 from .state import ServiceState
 
 if TYPE_CHECKING:
@@ -210,7 +210,7 @@ class ContextMixin(ServiceState):
             "and notes.md#L40 for Markdown lines.",
             "- Write mathematics as LaTeX: `$...$` inline and `$$...$$` for display.",
             "",
-            _OPENUI_INSTRUCTIONS,
+            openui_instructions(),
         ]
         if socratic:
             lines.extend(["", _socratic_skill_text()])

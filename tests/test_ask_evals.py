@@ -128,8 +128,9 @@ def test_score_pedagogy_distinguishes_teacher_and_tutor_modes() -> None:
     assert result.openui_valid is True
 
 
+@pytest.mark.parametrize("answer_format", ["lang", "json"])
 def test_run_eval_suite_end_to_end(
-    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, answer_format: str
 ) -> None:
     from book_reader.evals import OfflineEvalModel
 
@@ -148,7 +149,7 @@ def test_run_eval_suite_end_to_end(
         )
     ]
     chat = ChatService(catalogue, searcher, pdf, sections, notepad, providers=providers)
-    monkeypatch.setattr(chat_model_mod, "ChatOpenAI", lambda **_kw: OfflineEvalModel())
+    monkeypatch.setattr(chat_model_mod, "ChatOpenAI", lambda **_kw: OfflineEvalModel(answer_format))  # type: ignore[arg-type]
 
     results = run_eval_suite(chat, DEFAULT_EVAL_SUITE, library=catalogue)
     assert len(results) == len(DEFAULT_EVAL_SUITE)
@@ -159,3 +160,24 @@ def test_run_eval_suite_end_to_end(
         assert res.openui_score == 1.0
         assert res.pedagogy_score >= 0.9
         assert res.overall_score >= 0.85
+
+
+def test_unsound_openui_lang_program_is_scored_down() -> None:
+    case = EvalCase(
+        id="card",
+        title="Card",
+        prompt="Explain attention",
+        expected_components=("ConceptCard",),
+        require_citations=False,
+    )
+    sound = "Intro text for the card.\n\n```openui-lang\nroot = Answer([c])\nc = ConceptCard("
+    good = evaluate_response(
+        case,
+        {"answer": sound + '"Attention", "Soft lookup", "softmax(QK)V")\n```'},
+    )
+    unreferenced = sound + '"Attention", "Soft lookup", "softmax(QK)V")\nx = Chart("T", [])\n```'
+    bad = evaluate_response(case, {"answer": unreferenced})
+    assert good.openui_valid is True
+    assert bad.openui_valid is False
+    assert bad.openui_score < good.openui_score
+    assert any("never referenced" in note for note in bad.notes)

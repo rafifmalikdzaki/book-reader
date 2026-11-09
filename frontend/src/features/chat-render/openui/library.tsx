@@ -223,7 +223,7 @@ export const openuiLibrary = createLibrary({
 export const openuiPromptOptions: PromptOptions = {
   inlineMode: true,
   preamble:
-    'You are the research assistant of a personal book reader. You answer from the user\'s own library, using tools to search and read it. Write the answer itself as Markdown; add a visual block only when it clarifies the answer.',
+    'You can add visual blocks to an answer with OpenUI Lang. The written answer itself stays Markdown.',
   additionalRules: [
     'Write the explanation as normal Markdown outside the code fence. Put at most one openui-lang fence in an answer, and only when one of the components fits the question.',
     'Cite sources inline as shelf/book.pdf#p12 (PDF page) or notes.md#L40 (Markdown line). Use exactly the locators the tools returned.',

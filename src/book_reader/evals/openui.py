@@ -1,4 +1,8 @@
-"""Extraction and validation of OpenUI component blocks in assistant answers."""
+"""Extraction and validation of OpenUI component blocks in assistant answers.
+
+Answers use OpenUI Lang (``openui-lang`` fences). The legacy JSON blocks stay supported for the
+``BOOK_READER_OPENUI_FORMAT=json`` rollback and for stored chats.
+"""
 
 from __future__ import annotations
 
@@ -6,8 +10,10 @@ import json
 import re
 from typing import Any
 
+from .openui_lang import parse_openui_lang
+
 _FENCE_RE = re.compile(
-    r"```(?P<lang>openui|ui|json|)\s*\n(?P<body>.*?)\n```",
+    r"```(?P<lang>openui-lang|openui|ui|json|)\s*\n(?P<body>.*?)\n```",
     re.DOTALL | re.IGNORECASE,
 )
 
@@ -53,12 +59,15 @@ CANONICAL_COMPONENT: dict[str, str] = {
 
 
 def extract_openui_blocks(text: str) -> list[dict[str, Any]]:
-    """Extract and parse all OpenUI JSON specs from an assistant answer."""
+    """Extract the component specs (OpenUI Lang or legacy JSON) from an assistant answer."""
     specs: list[dict[str, Any]] = []
     for match in _FENCE_RE.finditer(text or ""):
         lang = (match.group("lang") or "").strip().lower()
         body = (match.group("body") or "").strip()
         if not body:
+            continue
+        if lang == "openui-lang":
+            specs.extend(parse_openui_lang(body).specs)
             continue
         if lang in ("json", "") and '"component"' not in body:
             continue
@@ -70,6 +79,15 @@ def extract_openui_blocks(text: str) -> list[dict[str, Any]]:
                 normalized["component"] = CANONICAL_COMPONENT[comp]
                 specs.append(normalized)
     return specs
+
+
+def openui_program_errors(text: str) -> list[str]:
+    """Structural errors across every ``openui-lang`` program in an answer (empty when sound)."""
+    errors: list[str] = []
+    for match in _FENCE_RE.finditer(text or ""):
+        if (match.group("lang") or "").lower() == "openui-lang":
+            errors.extend(parse_openui_lang(match.group("body") or "").errors)
+    return errors
 
 
 def _parse_json_lenient(raw: str) -> Any:

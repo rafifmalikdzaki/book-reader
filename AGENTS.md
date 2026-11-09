@@ -22,6 +22,8 @@ just fmt                        # Auto-format codebase (ruff + autofix)
 just run                        # Start local book-reader server
 just dev-ui                     # Vite dev server, proxies /api etc. to 127.0.0.1:8000
 just eval-offline               # Run Ask + OpenUI eval suite
+just gen-prompt                 # Regenerate the OpenUI system prompt from the frontend library
+just check-prompt               # Fail if the committed OpenUI prompt is stale (part of ci)
 just eval-live                  # Run Ask eval live against inception:mercury-3
 just vendor-pdfjs               # Vendor PDF.js
 just vendor-katex               # Vendor KaTeX

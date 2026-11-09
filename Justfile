@@ -10,7 +10,7 @@ default:
 # ---- Quality Gates & CI ---------------------------------------------------
 
 # Run full project quality gate (Python format/lint/types/tests + Frontend lint/types/tests/build)
-ci: sync check-py test-py install-ui check-ui test-ui build-ui
+ci: sync check-py test-py install-ui check-prompt check-ui test-ui build-ui
     @echo "✅ All CI quality gates passed cleanly."
 
 # Run all static checks across Python and Frontend
@@ -63,6 +63,14 @@ install-ui:
 # Run frontend ESLint and TypeScript strict typecheck
 check-ui:
     cd frontend && npm run lint && npm run typecheck
+
+# Regenerate the OpenUI system prompt + spec from the frontend component library
+gen-prompt:
+    cd frontend && npm run gen:openui-prompt
+
+# Fail if the committed OpenUI prompt is stale (needs frontend deps installed)
+check-prompt:
+    scripts/check_openui_prompt.sh
 
 # Run frontend Vitest test suite
 test-ui *args="":

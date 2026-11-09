@@ -36,6 +36,8 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
+      - name: OpenUI prompt is current
+        run: scripts/check_openui_prompt.sh
       - name: Frontend lint
         run: npm run lint
         working-directory: frontend

@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import functools
+import os
 import re
 from collections.abc import Sequence
 from pathlib import Path
 
 from ..chat_types import ChatMessage
 
-_SOCRATIC_SKILL_PATH = Path(__file__).resolve().parent.parent / "skills" / "socratic_tutor.md"
+_PACKAGE_DIR = Path(__file__).resolve().parent.parent
+_SOCRATIC_SKILL_PATH = _PACKAGE_DIR / "skills" / "socratic_tutor.md"
+# Generated from frontend/src/features/chat-render/openui/library.tsx by `just gen-prompt`.
+_OPENUI_LANG_PROMPT_PATH = _PACKAGE_DIR / "prompts" / "openui_prompt.txt"
+DEFAULT_OPENUI_FORMAT = "lang"
 
 _SOCRATIC_TRIGGERS = re.compile(
     r"\b(?:"
@@ -20,7 +25,7 @@ _SOCRATIC_TRIGGERS = re.compile(
     re.IGNORECASE,
 )
 
-_OPENUI_INSTRUCTIONS = (
+_OPENUI_JSON_INSTRUCTIONS = (
     "Formatting & Question-Adaptive UI (OpenUI):\n"
     "- Match your output structure to the user's question type. Always include a fenced "
     "```openui JSON block (valid JSON object, no comments or trailing commas) alongside clear "
@@ -81,16 +86,46 @@ _OPENUI_INSTRUCTIONS = (
 )
 
 
+def openui_format() -> str:
+    """`lang` (OpenUI Lang) or `json` (legacy blocks), from BOOK_READER_OPENUI_FORMAT."""
+    value = os.environ.get("BOOK_READER_OPENUI_FORMAT", "").strip().lower()
+    return value if value in ("lang", "json") else DEFAULT_OPENUI_FORMAT
+
+
 @functools.lru_cache(maxsize=1)
-def _socratic_skill_text() -> str:
+def _openui_lang_prompt() -> str:
+    return _OPENUI_LANG_PROMPT_PATH.read_text(encoding="utf-8").strip()
+
+
+def openui_instructions(fmt: str | None = None) -> str:
+    """The component-format section of the system prompt for the active answer format."""
+    return (
+        _OPENUI_JSON_INSTRUCTIONS if (fmt or openui_format()) == "json" else _openui_lang_prompt()
+    )
+
+
+@functools.lru_cache(maxsize=2)
+def _socratic_skill_template() -> str:
     try:
         return _SOCRATIC_SKILL_PATH.read_text(encoding="utf-8").strip()
     except OSError:
         return (
             "Act as a Socratic tutor: decompose the topic into 4-8 subskills (levels 0-5), "
             "run a short diagnostic one question at a time, render a SkillMap OpenUI block, "
-            "and guide the user with one question per turn without lecturing."
+            "and guide the user with one question per turn without lecturing.\n\n"
+            "{{SKILLMAP_EXAMPLE}}"
         )
+
+
+@functools.lru_cache(maxsize=2)
+def _skillmap_example(fmt: str) -> str:
+    suffix = "json" if fmt == "json" else "lang"
+    return (_PACKAGE_DIR / "skills" / f"skillmap_example.{suffix}.txt").read_text("utf-8").strip()
+
+
+def _socratic_skill_text(fmt: str | None = None) -> str:
+    example = _skillmap_example(fmt or openui_format())
+    return _socratic_skill_template().replace("{{SKILLMAP_EXAMPLE}}", example)
 
 
 def _is_socratic_request(mode: str | None, messages: Sequence[ChatMessage]) -> bool:
@@ -106,6 +141,7 @@ def _is_socratic_request(mode: str | None, messages: Sequence[ChatMessage]) -> b
     if _SOCRATIC_TRIGGERS.search(last_user):
         return True
     for msg in reversed(messages[-6:]):
-        if msg.get("role") == "assistant" and '"SkillMap"' in str(msg.get("content") or ""):
+        content = str(msg.get("content") or "")
+        if msg.get("role") == "assistant" and ('"SkillMap"' in content or "SkillMap(" in content):
             return True
     return False

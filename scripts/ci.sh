@@ -15,6 +15,7 @@ uv run pytest -q
 
 cd frontend
 npm ci
+../scripts/check_openui_prompt.sh
 npm run lint
 npm run typecheck
 npm test
