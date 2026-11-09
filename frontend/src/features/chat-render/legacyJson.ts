@@ -1,7 +1,9 @@
 /*
- * Lightweight, zero-dependency OpenUI parser and schema definitions inspired by
- * https://github.com/thesysdev/openui. Parses fenced ```openui JSON blocks into
- * strongly-typed question-adaptive UI specs, with streaming-tolerant fallback.
+ * Legacy format: parses the JSON blocks (```openui { "component": ... }) that older answers
+ * stored in chat history into the typed block specs the views render. New answers use OpenUI
+ * Lang through the official Renderer (see openui/library.tsx). Delete this file, the `json`
+ * branch of OpenUIBlockView and the JSON auto-detection in markdown.ts once stored chats written
+ * before the migration have expired (chat retention is 7 days).
  */
 import { bookHref } from './links';
 

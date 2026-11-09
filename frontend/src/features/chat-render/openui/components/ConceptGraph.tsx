@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import styles from '../OpenUI.module.css';
 import {
   type ConceptGraphBlock,
-} from '../../openui';
+} from '../../legacyJson';
 import { CitationChip, RichSpan } from '../shared';
 import { computeGraphLayout } from '../graphLayout';
 

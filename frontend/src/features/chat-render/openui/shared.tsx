@@ -6,7 +6,7 @@ import { SmartLink } from '../SmartLink';
 import { parseInline, type Inline } from '../markdown';
 import {
   citationToHref,
-} from '../openui';
+} from '../legacyJson';
 
 export const LEVEL_LABELS: Record<number, string> = {
   0: '0 · Unaware',

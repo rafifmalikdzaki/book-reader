@@ -1,7 +1,7 @@
 import {
   type ConceptGraphBlock,
   type GraphNode,
-} from '../openui';
+} from '../legacyJson';
 
 export interface PositionedNode {
   node: GraphNode;

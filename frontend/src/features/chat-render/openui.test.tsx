@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import { OpenUIBlockView } from "./OpenUIBlockView";
-import { parseOpenUIBlock, type OpenUISpec } from "./openui";
+import { parseOpenUIBlock, type OpenUISpec } from "./legacyJson";
 
 function parseReady(raw: unknown): OpenUISpec {
   const parsed = parseOpenUIBlock(

@@ -1,0 +1,472 @@
+{
+  "root": "Answer",
+  "components": {
+    "Answer": {
+      "signature": "Answer(blocks: (SkillMap | ConceptCard | ComparisonTable | StepWalkthrough | ConceptGraph | Chart | BookList | QuizCheck)[])",
+      "description": "Root of every program: the visual blocks that accompany the written answer, in reading order."
+    },
+    "SkillMap": {
+      "signature": "SkillMap(topic: string, skills: {name: string, level: number, status?: \"focus\" | \"done\" | \"review\", note?: string}[], focus?: string, book?: string)",
+      "description": "Socratic tutoring: a mastery map of 4-8 subskills for one topic. Use in tutor mode and for \"show progress\"."
+    },
+    "ConceptCard": {
+      "signature": "ConceptCard(title: string, intuition?: string, formal?: string, example?: string, takeaways?: string[], subtitle?: string, book?: string)",
+      "description": "Explain one concept or section: intuition, formal statement, worked example, takeaways. Use for \"explain...\" and \"what is...\" questions."
+    },
+    "ComparisonTable": {
+      "signature": "ComparisonTable(columns: string[], rows: (string | number)[][], title?: string, verdict?: string)",
+      "description": "Side-by-side comparison or trade-offs. Every row has one cell per column."
+    },
+    "StepWalkthrough": {
+      "signature": "StepWalkthrough(title: string, steps: {title: string, detail: string, formula?: string, cite?: string}[])",
+      "description": "Ordered derivation or algorithm walkthrough with at least two steps. Use for \"derive...\", \"walk me through...\"."
+    },
+    "ConceptGraph": {
+      "signature": "ConceptGraph(title: string, nodes: {id: string, label: string, group?: string, detail?: string, cite?: string}[], edges: {from: string, to: string, label?: string}[], subtitle?: string, book?: string)",
+      "description": "Architecture or concept relationships as a node-link diagram with a clickable inspector. Use for \"map the architecture...\", \"how do X, Y, Z connect\"."
+    },
+    "Chart": {
+      "signature": "Chart(title: string, items: {label: string, value: number, displayValue?: string, note?: string}[], unit?: string, caption?: string, subtitle?: string, book?: string)",
+      "description": "Horizontal bar comparison of one metric across items (benchmarks, scores). Use for \"benchmark...\", \"plot...\"."
+    },
+    "BookList": {
+      "signature": "BookList(books: {book: string, why: string, title?: string, category?: string, start?: string}[], title?: string)",
+      "description": "Reading recommendations from the library. Use for \"recommend books...\", \"which books cover...\"."
+    },
+    "QuizCheck": {
+      "signature": "QuizCheck(question: string, options?: string[], hint?: string)",
+      "description": "A short check question with optional answer choices and a hint. Clicking a choice sends it as the reply."
+    }
+  },
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "Answer": {
+        "$ref": "#/$defs/Answer"
+      },
+      "SkillMap": {
+        "$ref": "#/$defs/SkillMap"
+      },
+      "ConceptCard": {
+        "$ref": "#/$defs/ConceptCard"
+      },
+      "ComparisonTable": {
+        "$ref": "#/$defs/ComparisonTable"
+      },
+      "StepWalkthrough": {
+        "$ref": "#/$defs/StepWalkthrough"
+      },
+      "ConceptGraph": {
+        "$ref": "#/$defs/ConceptGraph"
+      },
+      "Chart": {
+        "$ref": "#/$defs/Chart"
+      },
+      "BookList": {
+        "$ref": "#/$defs/BookList"
+      },
+      "QuizCheck": {
+        "$ref": "#/$defs/QuizCheck"
+      }
+    },
+    "required": [
+      "Answer",
+      "SkillMap",
+      "ConceptCard",
+      "ComparisonTable",
+      "StepWalkthrough",
+      "ConceptGraph",
+      "Chart",
+      "BookList",
+      "QuizCheck"
+    ],
+    "additionalProperties": false,
+    "$defs": {
+      "Answer": {
+        "type": "object",
+        "properties": {
+          "blocks": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SkillMap"
+                },
+                {
+                  "$ref": "#/$defs/ConceptCard"
+                },
+                {
+                  "$ref": "#/$defs/ComparisonTable"
+                },
+                {
+                  "$ref": "#/$defs/StepWalkthrough"
+                },
+                {
+                  "$ref": "#/$defs/ConceptGraph"
+                },
+                {
+                  "$ref": "#/$defs/Chart"
+                },
+                {
+                  "$ref": "#/$defs/BookList"
+                },
+                {
+                  "$ref": "#/$defs/QuizCheck"
+                }
+              ]
+            }
+          }
+        },
+        "required": [
+          "blocks"
+        ],
+        "additionalProperties": false,
+        "description": "Root of every program: the visual blocks that accompany the written answer, in reading order."
+      },
+      "SkillMap": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "level": {
+                  "type": "number"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "focus",
+                    "done",
+                    "review"
+                  ]
+                },
+                "note": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "level"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "focus": {
+            "type": "string"
+          },
+          "book": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic",
+          "skills"
+        ],
+        "additionalProperties": false,
+        "description": "Socratic tutoring: a mastery map of 4-8 subskills for one topic. Use in tutor mode and for \"show progress\"."
+      },
+      "ConceptCard": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "intuition": {
+            "type": "string"
+          },
+          "formal": {
+            "type": "string"
+          },
+          "example": {
+            "type": "string"
+          },
+          "takeaways": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "book": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false,
+        "description": "Explain one concept or section: intuition, formal statement, worked example, takeaways. Use for \"explain...\" and \"what is...\" questions."
+      },
+      "ComparisonTable": {
+        "type": "object",
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "number"
+                ]
+              }
+            }
+          },
+          "title": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "columns",
+          "rows"
+        ],
+        "additionalProperties": false,
+        "description": "Side-by-side comparison or trade-offs. Every row has one cell per column."
+      },
+      "StepWalkthrough": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                },
+                "formula": {
+                  "type": "string"
+                },
+                "cite": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "title",
+                "detail"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "title",
+          "steps"
+        ],
+        "additionalProperties": false,
+        "description": "Ordered derivation or algorithm walkthrough with at least two steps. Use for \"derive...\", \"walk me through...\"."
+      },
+      "ConceptGraph": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "group": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                },
+                "cite": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "book": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "nodes",
+          "edges"
+        ],
+        "additionalProperties": false,
+        "description": "Architecture or concept relationships as a node-link diagram with a clickable inspector. Use for \"map the architecture...\", \"how do X, Y, Z connect\"."
+      },
+      "Chart": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                },
+                "displayValue": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "unit": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "book": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "items"
+        ],
+        "additionalProperties": false,
+        "description": "Horizontal bar comparison of one metric across items (benchmarks, scores). Use for \"benchmark...\", \"plot...\"."
+      },
+      "BookList": {
+        "type": "object",
+        "properties": {
+          "books": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "book": {
+                  "type": "string"
+                },
+                "why": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "start": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "book",
+                "why"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "books"
+        ],
+        "additionalProperties": false,
+        "description": "Reading recommendations from the library. Use for \"recommend books...\", \"which books cover...\"."
+      },
+      "QuizCheck": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "additionalProperties": false,
+        "description": "A short check question with optional answer choices and a hint. Clicking a choice sends it as the reply."
+      }
+    }
+  }
+}

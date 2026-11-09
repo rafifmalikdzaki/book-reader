@@ -2,7 +2,7 @@ import styles from '../OpenUI.module.css';
 import { MathText } from '../../MathText';
 import {
   type StepWalkthroughBlock,
-} from '../../openui';
+} from '../../legacyJson';
 import { CitationChip, RichSpan } from '../shared';
 
 export function StepWalkthroughView({

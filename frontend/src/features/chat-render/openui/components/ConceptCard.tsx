@@ -1,7 +1,7 @@
 import styles from '../OpenUI.module.css';
 import {
   type ConceptCardBlock,
-} from '../../openui';
+} from '../../legacyJson';
 import { CitationChip, RichSpan } from '../shared';
 
 export function ConceptCardView({

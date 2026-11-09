@@ -3,7 +3,7 @@ import { useState } from 'react';
 import styles from '../OpenUI.module.css';
 import {
   type QuizCheckBlock,
-} from '../../openui';
+} from '../../legacyJson';
 import { RichSpan } from '../shared';
 
 export function QuizCheckView({

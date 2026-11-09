@@ -4,7 +4,7 @@ import { bookHref } from '../../links';
 import {
   citationToHref,
   type BookListBlock,
-} from '../../openui';
+} from '../../legacyJson';
 import { RichSpan } from '../shared';
 
 export function BookListView({

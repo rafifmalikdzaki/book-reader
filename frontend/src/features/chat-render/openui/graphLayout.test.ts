@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ConceptGraphBlock } from '../openui';
+import type { ConceptGraphBlock } from '../legacyJson';
 import { computeGraphLayout } from './graphLayout';
 
 const graph = (

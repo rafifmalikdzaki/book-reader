@@ -36,7 +36,14 @@ function InlineView({ nodes }: { nodes: Inline[] }) {
 function BlockView({ block, onPrompt }: { block: Block; onPrompt?: (prompt: string) => void }) {
   switch (block.kind) {
     case 'openui':
-      return <OpenUIBlockView code={block.code} closed={block.closed} onPrompt={onPrompt} />;
+      return (
+        <OpenUIBlockView
+          code={block.code}
+          closed={block.closed}
+          format={block.format}
+          onPrompt={onPrompt}
+        />
+      );
     case 'fence':
       return (
         <pre>

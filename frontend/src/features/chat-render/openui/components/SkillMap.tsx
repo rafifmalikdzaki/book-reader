@@ -1,7 +1,7 @@
 import styles from '../OpenUI.module.css';
 import {
   type SkillMapBlock,
-} from '../../openui';
+} from '../../legacyJson';
 import { CitationChip, LEVEL_LABELS, MasteryRing, RichSpan, TUTOR_COMMANDS } from '../shared';
 
 export function SkillMapView({

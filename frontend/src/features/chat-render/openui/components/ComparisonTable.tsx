@@ -2,7 +2,7 @@ import chatStyles from '../../ChatRender.module.css';
 import styles from '../OpenUI.module.css';
 import {
   type ComparisonTableBlock,
-} from '../../openui';
+} from '../../legacyJson';
 import { RichSpan } from '../shared';
 
 export function ComparisonTableView({ spec }: { spec: ComparisonTableBlock }) {

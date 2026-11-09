@@ -5,7 +5,7 @@
  * inline citations (book.pdf#p12 / notes.md#L40), bold, inline code, links, and LaTeX.
  */
 import { SAFE_HREF } from './links';
-import { citationToHref } from './openui';
+import { citationToHref } from './legacyJson';
 
 export type Inline =
   | { kind: 'text'; value: string }
@@ -13,9 +13,12 @@ export type Inline =
   | { kind: 'code'; value: string }
   | { kind: 'link'; href: string; label: string };
 
+/** `lang` is OpenUI Lang (current); `json` is the legacy JSON block format. */
+export type OpenUIFormat = 'lang' | 'json';
+
 export type Block =
   | { kind: 'fence'; code: string; lang?: string; closed?: boolean }
-  | { kind: 'openui'; code: string; closed: boolean }
+  | { kind: 'openui'; code: string; closed: boolean; format: OpenUIFormat }
   | { kind: 'heading'; level: 1 | 2 | 3 | 4; children: Inline[] }
   | { kind: 'blockquote'; lines: Inline[][] }
   | { kind: 'table'; headers: Inline[][]; rows: Inline[][][] }
@@ -25,7 +28,7 @@ export type Block =
 
 const INLINE =
   /(\*\*|__)(.+?)\1|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)|(?<![\\/\w])([\w./-]+\.(?:pdf|md)#(?:p\d+|L\d+))\b/;
-const FENCE = /^\s*```(\w*)\s*$/;
+const FENCE = /^\s*```([\w-]*)\s*$/;
 const OPENUI_COMPONENT_RE =
   /"component"\s*:\s*"(?:SkillMap|ConceptCard|ComparisonTable|StepWalkthrough|BookList|QuizCheck|ConceptGraph|Graph|Architecture|Chart|BarChart|MetricChart)"/;
 const HEADING = /^\s*(#{1,4})\s+(.+?)\s*$/;
@@ -119,12 +122,16 @@ export function parseMarkdown(text: string): Block[] {
       const lang = (fenceMatch[1] ?? '').toLowerCase();
       const closed = lines.length > 1 && lines.at(-1)?.trim() === '```';
       const code = lines.slice(1, closed ? -1 : undefined).join('\n');
-      if (
-        lang === 'openui' ||
-        lang === 'ui' ||
-        ((lang === 'json' || lang === '') && OPENUI_COMPONENT_RE.test(code))
-      ) {
-        return { kind: 'openui', code, closed };
+      if (lang === 'openui-lang') {
+        return { kind: 'openui', code, closed, format: 'lang' };
+      }
+      if (lang === 'openui' || lang === 'ui') {
+        // Models sometimes label OpenUI Lang programs plain `openui`; JSON always opens with `{`.
+        const format = code.trimStart().startsWith('{') ? 'json' : 'lang';
+        return { kind: 'openui', code, closed, format };
+      }
+      if ((lang === 'json' || lang === '') && OPENUI_COMPONENT_RE.test(code)) {
+        return { kind: 'openui', code, closed, format: 'json' };
       }
       return { kind: 'fence', code, lang: lang || undefined, closed };
     }
