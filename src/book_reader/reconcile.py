@@ -35,7 +35,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .chats import ChatStore
-from .library import Library
+from .library.scan import Library
 from .notepad import NotepadStore
 from .pages import PageIndex
 from .progress import ProgressStore

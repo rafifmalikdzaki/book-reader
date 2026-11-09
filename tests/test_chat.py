@@ -18,7 +18,7 @@ from book_reader.chat import (
     collect_sources,
     resolve_providers,
 )
-from book_reader.library import Library
+from book_reader.library.scan import Library
 from book_reader.notepad import NotepadStore
 from book_reader.pdf import PdfCache
 from book_reader.search import Searcher

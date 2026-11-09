@@ -17,7 +17,7 @@ from urllib.parse import quote, urlencode
 
 from fastapi import FastAPI, HTTPException, Query
 
-from .library import Library
+from .library.scan import Library
 from .mdrender import render_markdown_file
 from .notepad import NotepadStore
 from .organize import CategoryStore, LibraryOrganizer

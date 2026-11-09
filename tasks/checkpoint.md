@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Phase 1, Task 1 done (`state/` package: `lock.py`, `remap.py`, `preferences.py`). Tasks 2-14 not started.
+Task 2 done. Task 3: create reading/ and move pdf, mdrender (-> markdown), pages, progress, sections.
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Phase 1, Task 1 done (`state/` package: `lock.py`, `remap.py`, `preferences.py`)
 
 ## Next action
 
-Task 2: create `library/` (`scan.py`, `models.py`), move `library.py`, update imports.
+Task 3: create reading/ and move pdf, mdrender (-> markdown), pages, progress, sections.
 
 ## Blockers
 

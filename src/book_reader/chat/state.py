@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from ..chat_types import (
     ProviderConfig,
 )
-from ..library import Library
+from ..library.scan import Library
 from ..notepad import NotepadStore
 from ..pdf import PdfCache
 from ..search import Searcher

@@ -11,7 +11,8 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
 
 - [x] Task 1: Create `state/` and move lock, remap, preferences.
       pytest 224 passed; ruff + mypy src/tests clean; import smoke ok; old paths gone (`rg`).
-- [ ] Task 2: Create `library/` and split scan/models.
+- [x] Task 2: Create `library/` and split scan/models.
+      pytest 224 passed; ruff + mypy clean; import smoke ok.
 - [ ] Task 3: Create `reading/` and move reader modules.
 - [ ] Task 4: Create `notes/` and move the notepad store.
 

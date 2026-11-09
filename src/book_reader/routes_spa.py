@@ -9,7 +9,7 @@ from urllib.parse import quote
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from .library import Library
+from .library.scan import Library
 from .reconcile import LibraryReconciler
 from .routes_library import moved_book_target
 

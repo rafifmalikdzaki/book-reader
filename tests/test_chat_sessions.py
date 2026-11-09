@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from book_reader.app import create_app
 from book_reader.chat import AskCallbacks, AskOptions, ChatMessage, ChatService, ProviderConfig
 from book_reader.chats import ChatStore
-from book_reader.library import Library
+from book_reader.library.scan import Library
 from book_reader.organize import CategoryStore
 from book_reader.routes_chat_sessions import register
 from book_reader.state.preferences import Preferences

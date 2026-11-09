@@ -19,7 +19,7 @@ from book_reader.evals import (
     score_pedagogy,
     validate_openui_spec,
 )
-from book_reader.library import Library
+from book_reader.library.scan import Library
 from book_reader.notepad import NotepadStore
 from book_reader.pdf import PdfCache
 from book_reader.search import Searcher

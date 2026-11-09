@@ -9,7 +9,8 @@ from elasticsearch import Elasticsearch
 from fastapi.testclient import TestClient
 
 from book_reader.app import create_app
-from book_reader.library import Book, Library
+from book_reader.library.models import Book
+from book_reader.library.scan import Library
 from book_reader.mdrender import render_markdown
 from book_reader.pdf import PdfCache
 from book_reader.search import ElasticSearch, Searcher, SearchUnavailable

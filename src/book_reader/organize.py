@@ -21,7 +21,8 @@ from typing import Protocol, TypedDict
 
 import httpx
 
-from .library import UNFILED, Library
+from .library.models import UNFILED
+from .library.scan import Library
 from .pdf import PdfCache
 from .reconcile import LibraryReconciler
 from .sections import SectionIndex

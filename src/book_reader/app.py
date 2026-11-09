@@ -33,7 +33,7 @@ from .chat_config import (
 )
 from .chat_types import AskOptions, ChatBackend, ChatError, ChatMessage, ChatUnavailable
 from .chats import ChatStore
-from .library import Library
+from .library.scan import Library
 from .notepad import NotepadStore
 from .organize import CategoryStore, LibraryOrganizer, MistralClient
 from .pages import PageIndex

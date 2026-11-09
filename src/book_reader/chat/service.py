@@ -21,7 +21,7 @@ from ..chat_types import (
     ChatUnavailable,
     ProviderConfig,
 )
-from ..library import Library
+from ..library.scan import Library
 from ..models import model_info
 from ..notepad import NotepadStore
 from ..pdf import PdfCache

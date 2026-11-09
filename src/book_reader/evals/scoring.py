@@ -6,7 +6,7 @@ import re
 from collections.abc import Sequence
 from typing import Any
 
-from ..library import Library
+from ..library.scan import Library
 from .openui import _FENCE_RE, extract_openui_blocks
 
 _INLINE_CITE_RE = re.compile(r"(?<![\\/\w])([\w./-]+\.(?:pdf|md))(?:#(?:p(\d+)|L(\d+)))?\b")

@@ -5,24 +5,15 @@ from __future__ import annotations
 import os
 import threading
 import time
-from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import HTTPException
 
+from .models import UNFILED, Book
+
 BOOK_SUFFIXES = {".pdf", ".md"}
 SKIP_DIRS = {"__pycache__", "node_modules", ".venv"}
 SCAN_TTL_SECONDS = 30.0
-UNFILED = "Unfiled"
-
-
-@dataclass(frozen=True, slots=True)
-class Book:
-    rel: str  # POSIX-style path relative to the library root
-    title: str  # file stem, verbatim
-    kind: str  # "pdf" | "md"
-    size: int
-    mtime: float
 
 
 class Library:

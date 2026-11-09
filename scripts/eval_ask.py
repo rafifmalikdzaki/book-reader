@@ -18,7 +18,7 @@ from book_reader.evals import (
     format_scorecard,
     run_eval_suite,
 )
-from book_reader.library import Library
+from book_reader.library.scan import Library
 from book_reader.notepad import NotepadStore
 from book_reader.organize import CategoryStore
 from book_reader.pages import PageIndex

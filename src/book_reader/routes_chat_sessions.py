@@ -33,7 +33,7 @@ from .chats import (
 from .chats import (
     ChatError as ChatStoreError,
 )
-from .library import Library
+from .library.scan import Library
 from .organize import CategoryStore
 from .reconcile import LibraryReconciler
 from .state.preferences import Preferences

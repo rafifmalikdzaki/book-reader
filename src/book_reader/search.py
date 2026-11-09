@@ -15,7 +15,8 @@ from typing import TypedDict
 
 from elasticsearch import Elasticsearch
 
-from .library import Book, Library
+from .library.models import Book
+from .library.scan import Library
 from .mdrender import search_markdown
 from .pdf import PdfCache
 from .sections import SectionIndex

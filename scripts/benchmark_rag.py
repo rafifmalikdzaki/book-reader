@@ -15,7 +15,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from book_reader.library import Library
+from book_reader.library.scan import Library
 from book_reader.pdf import PdfCache
 from book_reader.search import ElasticSearch, SearchHit
 from book_reader.sections import SectionIndex
