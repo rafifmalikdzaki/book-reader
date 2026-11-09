@@ -21,6 +21,7 @@ CSP_REPORT_ONLY = "; ".join(
     (
         "default-src 'self'",
         "script-src 'self'",
+        "worker-src 'self' blob:",
         # React and KaTeX emit style="" attributes, which need 'unsafe-inline'.
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob:",

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Partially superseded by [ADR-007](ADR-007-react-pdf-viewer.md) (PDF viewer surface moved from iframe to native React `react-pdf` v11; local KaTeX and vendored CMap/font assets remain active)
 
 ## Date
 

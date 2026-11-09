@@ -72,7 +72,7 @@ BOOK_READER_CHAT_PRIORITY=inception:mercury-3,mistral:mistral-small-latest,mistr
 ```
 
 - **Reading Atmospheres**: Switch effortlessly between *Daylight Lamp*, *Dimmed Desk*, and *Midnight Baize* themes.
-- **Native PDF.js Reader**: Continuous scroll, thumbnail navigation, table of contents, text selection, rotation, and presentation mode. No CDN dependencies.
+- **Native React PDF Viewer (`react-pdf` v11)**: Windowed continuous scroll, left-docked Outline & Page Thumbnails rail, in-document search with `<mark>` text-layer highlights, zoom presets, rotation, and fullscreen. Zero iframe bridges or CDN dependencies.
 - **Strict Markdown Reader**: Server-sanitized CommonMark with Pygments syntax highlighting, heading outlines, and line-based deep links (`notes.md#L40`).
 - **Half-Page Expandable Rails**: Slide-out Ask and Table of Contents side rails dynamically expand up to 50% of the viewport width for comfortable side-by-side study.
 - **Anchored Research Notepad**: Highlight passages in either reader to capture notes anchored to PDF page character offsets or Markdown source lines.

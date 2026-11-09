@@ -3,9 +3,16 @@ import { describe, expect, it } from 'vitest';
 import {
   bubblePosition,
   clampPage,
+  computePageDimensions,
+  formatZoomValue,
+  highlightSearchHtml,
   initialPage,
+  isPageRendered,
+  nextRotation,
   pageFromNode,
   parsePageHash,
+  parseZoomValue,
+  stepZoom,
   viewerSrcForPage,
 } from './bridgeMath';
 
@@ -23,10 +30,11 @@ describe('bridge maths', () => {
     expect(initialPage('', null)).toBe(1);
   });
 
-  it('clamps to a positive integer', () => {
+  it('clamps to a positive integer and respects maxPage', () => {
     expect(clampPage(0)).toBe(1);
     expect(clampPage(undefined)).toBe(1);
     expect(clampPage(4.9)).toBe(4);
+    expect(clampPage(25, 10)).toBe(10);
   });
 
   it('finds the page of a selection node', () => {
@@ -52,6 +60,49 @@ describe('bridge maths', () => {
       left: 916,
       top: 208,
     });
+  });
+
+  it('computes zoom presets, steps, and clockwise rotations', () => {
+    expect(parseZoomValue('page-width')).toBe('page-width');
+    expect(parseZoomValue('page-fit')).toBe('page-fit');
+    expect(parseZoomValue('1.5')).toBe(1.5);
+    expect(parseZoomValue('invalid')).toBe('page-width');
+    expect(formatZoomValue(1.25)).toBe('1.25');
+    expect(stepZoom(1, 1)).toBe(1.25);
+    expect(stepZoom(1, -1)).toBe(0.75);
+    expect(nextRotation(0)).toBe(90);
+    expect(nextRotation(270)).toBe(0);
+  });
+
+  it('calculates responsive page dimensions and swaps axes on 90° rotation', () => {
+    const portrait = computePageDimensions({
+      containerWidth: 900,
+      containerHeight: 800,
+      intrinsicWidth: 600,
+      intrinsicHeight: 800,
+      zoom: 1,
+      rotation: 0,
+    });
+    expect(portrait).toEqual({ width: 600, height: 800, scale: 1 });
+
+    const rotated = computePageDimensions({
+      containerWidth: 900,
+      containerHeight: 800,
+      intrinsicWidth: 600,
+      intrinsicHeight: 800,
+      zoom: 1,
+      rotation: 90,
+    });
+    expect(rotated).toEqual({ width: 800, height: 600, scale: 1 });
+  });
+
+  it('windows rendered pages around the active page and highlights search terms safely', () => {
+    expect(isPageRendered(5, 5, 2)).toBe(true);
+    expect(isPageRendered(7, 5, 2)).toBe(true);
+    expect(isPageRendered(8, 5, 2)).toBe(false);
+    expect(highlightSearchHtml('A <tag> & gradient step', 'gradient')).toBe(
+      'A &lt;tag&gt; &amp; <mark>gradient</mark> step',
+    );
   });
 });
 

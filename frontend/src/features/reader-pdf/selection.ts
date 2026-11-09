@@ -4,16 +4,38 @@ import type { Timers } from './timers';
 export interface PdfSelection {
   page: number;
   quote: string;
-  /** Selection rect in iframe coordinates. */
+  /** Selection rect in viewport (or iframe) coordinates. */
   rect: Pick<DOMRect, 'left' | 'top' | 'width'>;
 }
 
 export const MAX_QUOTE = 7800;
 
 /**
- * The current text selection inside the PDF.js viewer container, or null when there is none
- * (collapsed, outside `#viewerContainer`, or whitespace only). `fallbackPage` is used when
- * the selection is not inside a `.page[data-page-number]`.
+ * Reads the current text selection inside the native React PDF viewer container, or null
+ * when there is none (collapsed, outside `container`, or whitespace only). `fallbackPage`
+ * is used when the selection is not inside a `.page[data-page-number]`.
+ */
+export function readContainerSelection(
+  container: HTMLElement | null,
+  fallbackPage: () => number,
+): PdfSelection | null {
+  if (!container) return null;
+  const doc = container.ownerDocument;
+  const selection = doc.defaultView?.getSelection() ?? window.getSelection();
+  if (!selection || selection.isCollapsed || !selection.rangeCount) return null;
+  const range = selection.getRangeAt(0);
+  if (!container.contains(range.commonAncestorContainer)) return null;
+  const quote = selection.toString().trim().slice(0, MAX_QUOTE);
+  if (!quote) return null;
+  return {
+    page: pageFromNode(range.commonAncestorContainer) ?? fallbackPage(),
+    quote,
+    rect: range.getBoundingClientRect(),
+  };
+}
+
+/**
+ * Legacy helper for iframe-based selection reading, kept for compatibility.
  */
 export function readSelection(
   frame: HTMLIFrameElement,
@@ -46,6 +68,7 @@ export function bindSelectionEvents(doc: Document, run: () => void, timers: Time
   doc.addEventListener('touchend', onTouchEnd);
   doc.addEventListener('selectionchange', onChange);
   return () => {
+    timers.clear(changeTimer);
     doc.removeEventListener('mouseup', onMouseUp);
     doc.removeEventListener('touchend', onTouchEnd);
     doc.removeEventListener('selectionchange', onChange);

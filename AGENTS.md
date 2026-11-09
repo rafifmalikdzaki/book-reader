@@ -8,7 +8,7 @@ served by FastAPI from the generated `static/app/` bundle.
 
 - FastAPI, PyMuPDF, PageIndex Flash (optional), Elasticsearch (optional)
 - React 19 + Vite + TypeScript (strict) SPA in `frontend/`, built to `src/book_reader/static/app/` (gitignored)
-- PDF.js 6.5.438 and KaTeX 0.19.1, vendored under `src/book_reader/static/vendor/`
+- `react-pdf` v11 (`pdfjs-dist` 6.x) native React PDF viewer; local CMap/font assets and KaTeX 0.19.1 vendored under `src/book_reader/static/vendor/`
 - LangGraph/LangChain chat with Mistral, Inception, OpenRouter, or Ollama
 - State is plain JSON in a state directory; one process owns it at a time.
 
@@ -41,9 +41,9 @@ just vendor-katex               # Vendor KaTeX
   redirects stay server-side and run before the SPA shell. Hashed
   `/static/app/assets/*` are immutable; `index.html` is `no-cache`. A missing bundle
   gives a 503 that points at `scripts/build_frontend.sh`.
-- The PDF surface is an iframe of the vendored PDF.js viewer; the React
-  `usePdfBridge` hook owns progress, deep links, selection notes, Ask context, and
-  resize.
+- The PDF surface is a native React 19 viewer (`react-pdf` v11) with windowed canvas
+  virtualization, toolbar, outline/thumbnail rail, in-book search, deep links,
+  selection notes, and Ask context (`ADR-007`).
 - Reader Ask stays a resizable side panel (expandable up to 50% viewport width).
   Home Ask is `/ask`, a library-wide workspace with persistent sessions, category-scoped
   retrieval, and projects. Chat sessions expire after seven days unless pinned or

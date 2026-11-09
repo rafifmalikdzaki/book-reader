@@ -1,21 +1,443 @@
-/* Native PDF surface: port of base.html `.pdf-shell`, `.pdf-frame`, `.pdf-fallback`, `.bubble`. */
+/* Native React PDF viewer surface — strictly styled with tokens.css variables. */
+
 .shell {
   position: relative;
+  display: flex;
+  flex-direction: column;
   height: calc(100dvh - var(--mast-h));
-  background: var(--paper);
+  background: var(--paper-edge);
+  color: var(--ink);
+  overflow: hidden;
 }
 
-.frame {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: white; /* PDF.js page well; the paper token is deliberately not used */
+/* ---- Toolbar & Search Bar ---- */
+
+.toolbarWrap {
+  flex-shrink: 0;
+  z-index: var(--z-sticky);
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 14px;
+  flex-wrap: wrap;
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbarCenter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.divider {
+  width: 1px;
+  height: 18px;
+  background: var(--rule);
+  margin-inline: 2px;
+}
+
+.toolBtn {
+  height: 30px;
+  padding-inline: 10px;
+  font-size: 13px;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--rule);
+  background: var(--paper-lit);
+  color: var(--ink);
+  font: 600 14px/1 var(--sans);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.iconBtn:hover:not(:disabled) {
+  background: var(--paper-edge);
+  border-color: var(--field-line);
+}
+
+.iconBtn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.iconBtn:focus-visible,
+.toolChip:focus-visible,
+.zoomSelect:focus-visible,
+.pageInput:focus-visible,
+.searchInput:focus-visible,
+.rawLink:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.pageForm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+}
+
+.pageInput {
+  width: 48px;
+  height: 30px;
+  padding: 0 6px;
+  text-align: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--field-line);
+  background: var(--paper-lit);
+  color: var(--ink);
+  font: 500 13px/1 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.pageTotal {
+  color: var(--muted);
+  font: 500 13px/1 var(--sans);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.zoomSelect {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--field-line);
+  background: var(--paper-lit);
+  color: var(--ink);
+  font: 500 13px/1 var(--sans);
+  cursor: pointer;
+}
+
+.toolChip {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--rule);
+  background: var(--paper-lit);
+  color: var(--ink);
+  font: 500 13px/1 var(--sans);
+  cursor: pointer;
+}
+
+.toolChip:hover {
+  background: var(--paper-edge);
+  border-color: var(--field-line);
+}
+
+.toolChipActive {
+  background: var(--baize);
+  color: var(--on-dark-lit);
+  border-color: var(--brass);
+}
+
+.rawLink {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--rule);
+  background: var(--paper-lit);
+  color: var(--ink-soft);
+  font: 500 12px/1 var(--sans);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.rawLink:hover {
+  background: var(--paper-edge);
+  color: var(--ink);
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--paper-edge);
+  border-top: 1px solid var(--rule-soft);
+}
+
+.searchInput {
+  width: min(320px, 55vw);
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--field-line);
+  background: var(--paper-lit);
+  color: var(--ink);
+  font: 400 13px/1 var(--sans);
+}
+
+.searchStatus {
+  color: var(--muted);
+  font: 500 12px/1 var(--sans);
+  font-variant-numeric: tabular-nums;
+  min-width: 84px;
+}
+
+/* ---- Continuous Viewport & Page Slots ---- */
+
+.viewport {
+  flex: 1;
+  overflow: auto;
+  padding: 20px 16px 48px;
+  background: var(--paper-edge);
+  scroll-behavior: smooth;
 }
 
 .frameHidden {
   display: none;
 }
+
+.document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.loadingState {
+  padding: 48px 20px;
+  color: var(--muted);
+  font: 500 14px/1.4 var(--sans);
+  text-align: center;
+}
+
+.pageSlot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper-lit);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-xs);
+  box-shadow: var(--shadow-plate);
+  overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+.pageSlotCurrent {
+  border-color: var(--brass);
+}
+
+.pageSlot :global(.react-pdf__Page) {
+  position: relative;
+  background: var(--paper-lit);
+}
+
+.pageSlot :global(.react-pdf__Page__canvas) {
+  display: block;
+  max-width: 100%;
+  height: auto !important;
+}
+
+.pageSlot :global(.react-pdf__Page__textContent mark) {
+  background: var(--brass-wash);
+  color: transparent;
+  border-radius: var(--radius-xs);
+  outline: 1px solid var(--brass);
+}
+
+.pagePlaceholder {
+  display: grid;
+  place-content: center;
+  width: 100%;
+  min-height: 260px;
+  color: var(--muted);
+  font: 500 13px/1.4 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.pageBadge {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  font: 500 11px/1.3 var(--sans);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  opacity: 0.86;
+}
+
+/* ---- Left Contents Rail: Outline & Page Thumbnails ---- */
+
+.railTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-edge);
+}
+
+.railTab {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: 600 12px/1 var(--sans);
+  cursor: pointer;
+}
+
+.railTab:hover {
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.railTabActive {
+  background: var(--paper-lit);
+  color: var(--ink);
+  border-color: var(--rule);
+}
+
+.railEmpty {
+  margin: 0;
+  padding: 16px 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.outlineList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.outlineNode {
+  display: grid;
+  gap: 2px;
+}
+
+.outlineLink {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  text-decoration: none;
+  font: 500 13px/1.35 var(--sans);
+}
+
+.outlineLink:hover {
+  background: var(--paper);
+}
+
+.outlineLevel2 {
+  padding-left: 18px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.outlineLevel3 {
+  padding-left: 28px;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--ink-softer);
+}
+
+.outlineCurrent {
+  background: var(--brass-halo);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.outlineTitle {
+  overflow-wrap: anywhere;
+}
+
+.outlinePage {
+  flex-shrink: 0;
+  color: var(--muted);
+  font: 500 11px/1 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.thumbnailGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.thumbnailCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: center;
+}
+
+.thumbnailCard:hover {
+  border-color: var(--field-line);
+  background: var(--paper-lit);
+}
+
+.thumbnailCardActive {
+  border-color: var(--brass);
+  background: var(--brass-halo);
+}
+
+.thumbnailFrame {
+  display: grid;
+  place-content: center;
+  width: 124px;
+  min-height: 156px;
+  background: var(--paper-lit);
+  border: 1px solid var(--rule-soft);
+  overflow: hidden;
+}
+
+.thumbnailPlaceholder {
+  color: var(--muted);
+  font: 500 12px/1 var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.thumbnailLabel {
+  font: 500 12px/1.2 var(--sans);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Fallback, Selection Bubble & Error Panel ---- */
 
 .fallback {
   display: grid;
@@ -75,7 +497,11 @@
 }
 
 @media (max-width: 900px) {
-  /* Inline left/top are set from the selection; phones pin the bubble above the bottom edge. */
+  .toolbar {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
   .bubble {
     left: 50% !important;
     transform: translateX(-50%);
