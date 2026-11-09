@@ -23,7 +23,7 @@ from ..chat_types import (
 )
 from ..library.scan import Library
 from ..models import model_info
-from ..notepad import NotepadStore
+from ..notes.store import NotepadStore
 from ..reading.pdf import PdfCache
 from ..reading.sections import SectionIndex
 from ..search import Searcher

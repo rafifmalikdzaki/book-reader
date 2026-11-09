@@ -19,7 +19,7 @@ from book_reader.chat import (
     resolve_providers,
 )
 from book_reader.library.scan import Library
-from book_reader.notepad import NotepadStore
+from book_reader.notes.store import NotepadStore
 from book_reader.reading.pdf import PdfCache
 from book_reader.reading.sections import SectionIndex
 from book_reader.search import Searcher

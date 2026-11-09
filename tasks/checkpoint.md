@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 3 done. Task 4: move notepad.py to notes/store.py.
+Task 4 done. Task 5: split search.py into search/ (types, elastic, pageindex, service).
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 3 done. Task 4: move notepad.py to notes/store.py.
 
 ## Next action
 
-Task 4: move notepad.py to notes/store.py.
+Task 5: split search.py into search/ (types, elastic, pageindex, service).
 
 ## Blockers
 

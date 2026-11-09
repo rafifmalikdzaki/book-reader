@@ -15,7 +15,8 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
       pytest 224 passed; ruff + mypy clean; import smoke ok.
 - [x] Task 3: Create `reading/` and move reader modules.
       pytest 224 passed; ruff + mypy clean; benchmark_rag --help ok.
-- [ ] Task 4: Create `notes/` and move the notepad store.
+- [x] Task 4: Create `notes/` and move the notepad store.
+      pytest 224 passed; ruff + mypy clean; smoke ok.
 
 ## Checkpoint: Foundations
 

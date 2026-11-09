@@ -36,7 +36,7 @@ from pathlib import Path
 
 from .chats import ChatStore
 from .library.scan import Library
-from .notepad import NotepadStore
+from .notes.store import NotepadStore
 from .reading.pages import PageIndex
 from .reading.progress import ProgressStore
 from .reading.sections import SectionIndex

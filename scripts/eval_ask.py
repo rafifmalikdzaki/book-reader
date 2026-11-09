@@ -19,7 +19,7 @@ from book_reader.evals import (
     run_eval_suite,
 )
 from book_reader.library.scan import Library
-from book_reader.notepad import NotepadStore
+from book_reader.notes.store import NotepadStore
 from book_reader.organize import CategoryStore
 from book_reader.reading.pages import PageIndex
 from book_reader.reading.pdf import PdfCache

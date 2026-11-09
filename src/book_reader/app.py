@@ -34,7 +34,7 @@ from .chat_config import (
 from .chat_types import AskOptions, ChatBackend, ChatError, ChatMessage, ChatUnavailable
 from .chats import ChatStore
 from .library.scan import Library
-from .notepad import NotepadStore
+from .notes.store import NotepadStore
 from .organize import CategoryStore, LibraryOrganizer, MistralClient
 from .reading.pages import PageIndex
 from .reading.pdf import PdfCache

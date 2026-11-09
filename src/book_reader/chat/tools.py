@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..notepad import NotepadError
+from ..notes.store import NotepadError
 from ..reading.sections import match_sections
 from ..search import SearchHit, SearchUnavailable
 from .context import ContextMixin
