@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from book_reader.chat import prompts
-from book_reader.chat_providers import DEFAULT_PRIORITY
-from book_reader.models import (
+import book_reader.chat.prompts as prompts
+from book_reader.chat.providers import DEFAULT_PRIORITY
+from book_reader.chat.registry import (
     DEFAULT_OPENUI_FORMAT,
     OPENUI_FORMATS,
     model_info,

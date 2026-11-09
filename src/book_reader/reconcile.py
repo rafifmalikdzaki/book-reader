@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from .chats import ChatStore
+from .chat.sessions import ChatStore
 from .library.scan import Library
 from .notes.store import NotepadStore
 from .reading.pages import PageIndex

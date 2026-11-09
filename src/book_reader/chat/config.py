@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
 
-from .state.preferences import Preferences
+from ..state.preferences import Preferences
 
 if TYPE_CHECKING:
-    from .chat_types import ChatBackend
+    from .types import ChatBackend
 
 logger = logging.getLogger(__name__)
 

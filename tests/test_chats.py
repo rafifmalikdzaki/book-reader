@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from book_reader.chats import ChatError, ChatStore
+from book_reader.chat.sessions import ChatError, ChatStore
 
 
 def forge(path: Path, session_id: str, **fields: object) -> None:
@@ -148,7 +148,7 @@ def test_retention_is_enforced_without_reload(
     store = ChatStore(tmp_path / "state")
     session = store.create_session()
     monkeypatch.setattr(
-        "book_reader.chats.time.time", lambda: float(session["updated"]) + 7 * 86400 + 1
+        "book_reader.chat.sessions.time.time", lambda: float(session["updated"]) + 7 * 86400 + 1
     )
     assert store.get_session(session["id"]) is None
 

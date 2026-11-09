@@ -8,7 +8,9 @@ from pathlib import Path
 import pytest
 
 import book_reader.chat.model as chat_model_mod
-from book_reader.chat import ChatService, ProviderConfig, resolve_providers
+from book_reader.chat.providers import resolve_providers
+from book_reader.chat.service import ChatService
+from book_reader.chat.types import ProviderConfig
 from book_reader.evals import (
     DEFAULT_EVAL_SUITE,
     EvalCase,

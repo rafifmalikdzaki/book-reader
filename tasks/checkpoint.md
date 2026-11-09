@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 5 done. Task 6: fold chat_types/chat_providers/chat_config/chats/models into chat/ and empty chat/__init__.py.
+Task 6 done. Task 7: split organize.py into organize/ (categories, mistral, service).
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 5 done. Task 6: fold chat_types/chat_providers/chat_config/chats/models int
 
 ## Next action
 
-Task 6: fold chat_types/chat_providers/chat_config/chats/models into chat/ and empty chat/__init__.py.
+Task 7: split organize.py into organize/ (categories, mistral, service).
 
 ## Blockers
 

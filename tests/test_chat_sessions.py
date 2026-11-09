@@ -13,8 +13,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from book_reader.app import create_app
-from book_reader.chat import AskCallbacks, AskOptions, ChatMessage, ChatService, ProviderConfig
-from book_reader.chats import ChatStore
+from book_reader.chat.service import ChatService
+from book_reader.chat.sessions import ChatStore
+from book_reader.chat.types import AskCallbacks, AskOptions, ChatMessage, ProviderConfig
 from book_reader.library.scan import Library
 from book_reader.organize import CategoryStore
 from book_reader.routes_chat_sessions import register
@@ -388,7 +389,7 @@ def test_message_without_chat_service_keeps_history(tmp_path: Path) -> None:
 
 
 def test_failed_provider_keeps_the_user_message(tmp_path: Path) -> None:
-    from book_reader.chat import ChatError, ChatUnavailable
+    from book_reader.chat.types import ChatError, ChatUnavailable
 
     harness = make_harness(tmp_path)
     session = create_session(harness)

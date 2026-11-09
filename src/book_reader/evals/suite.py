@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..chat_types import AskOptions, ChatBackend, ChatMessage
+from ..chat.types import AskOptions, ChatBackend, ChatMessage
 from ..library.scan import Library
 from .openui import extract_openui_blocks, openui_program_errors, validate_openui_spec
 from .scoring import score_citations, score_pedagogy

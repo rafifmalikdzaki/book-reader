@@ -6,7 +6,7 @@ import logging
 import os
 from collections.abc import Mapping
 
-from .chat_types import ProviderConfig
+from .types import ProviderConfig
 
 logger = logging.getLogger(__name__)
 

@@ -5,14 +5,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from ..chat_types import (
-    ProviderConfig,
-)
 from ..library.scan import Library
 from ..notes.store import NotepadStore
 from ..reading.pdf import PdfCache
 from ..reading.sections import SectionIndex
 from ..search.service import Searcher
+from .types import ProviderConfig
 
 if TYPE_CHECKING:
     from ..organize import CategoryStore

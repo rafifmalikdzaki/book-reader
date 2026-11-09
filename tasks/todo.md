@@ -27,8 +27,9 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
 
 - [x] Task 5: Split `search.py` into `search/`.
       search/ = types, text, elastic, pageindex, service; pytest 224 passed; ruff + mypy clean; benchmark_rag --help ok. Added text.py for shared helpers (renamed public: query_terms, snippet_around, title_score, markdown_chunk, optional_int).
-- [ ] Task 6: Fold flat chat modules (`chat_types`, `chat_providers`, `chat_config`, `chats`,
+- [x] Task 6: Fold flat chat modules (`chat_types`, `chat_providers`, `chat_config`, `chats`,
       `models`) into `chat/`; empty `chat/__init__.py`.
+      pytest 224 passed; ruff + mypy clean; import smoke with langchain blocked ok; eval_ask --help ok; chat/__init__ empty; old paths gone.
 - [ ] Task 7: Split `organize.py` into `organize/`.
 - [ ] Task 8: Move reindex into `reindex/` with manifest/reconciler split.
 

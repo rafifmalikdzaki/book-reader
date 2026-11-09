@@ -12,7 +12,8 @@ from typing import Any
 
 import pytest
 
-from book_reader.chat import prompts
+import book_reader.chat.prompts as prompts
+from book_reader.chat.registry import DEFAULT_OPENUI_FORMAT
 from book_reader.evals import (
     extract_openui_blocks,
     openui_program_errors,
@@ -21,7 +22,6 @@ from book_reader.evals import (
     validate_openui_spec,
 )
 from book_reader.evals.openui_lang import SPEC_PATH, signatures
-from book_reader.models import DEFAULT_OPENUI_FORMAT
 
 PROMPT_PATH = SPEC_PATH.with_name("openui_prompt.txt")
 BLOCKS = set(signatures()) - {"Answer"}

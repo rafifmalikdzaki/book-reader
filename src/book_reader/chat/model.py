@@ -9,9 +9,7 @@ from typing import TYPE_CHECKING, Any
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
-from ..chat_types import (
-    ProviderConfig,
-)
+from .types import ProviderConfig
 
 if TYPE_CHECKING:
     pass

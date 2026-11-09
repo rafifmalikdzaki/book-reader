@@ -8,16 +8,10 @@ from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
 from book_reader.app import create_app
-from book_reader.chat import (
-    AskCallbacks,
-    AskOptions,
-    ChatMessage,
-    ChatService,
-    ProviderConfig,
-    _with_context_source,
-    collect_sources,
-    resolve_providers,
-)
+from book_reader.chat.providers import resolve_providers
+from book_reader.chat.service import ChatService
+from book_reader.chat.sources import _with_context_source, collect_sources
+from book_reader.chat.types import AskCallbacks, AskOptions, ChatMessage, ProviderConfig
 from book_reader.library.scan import Library
 from book_reader.notes.store import NotepadStore
 from book_reader.reading.pdf import PdfCache
@@ -309,7 +303,7 @@ def test_chat_returns_503_without_the_agent_extra(
 def test_ask_falls_through_when_a_provider_returns_no_answer(
     library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from book_reader.chat import ChatError, ChatMessage, ProviderConfig
+    from book_reader.chat.types import ChatError, ChatMessage, ProviderConfig
 
     chat = build_chat(library, tmp_path)
     first = chat.providers()[0]
@@ -356,7 +350,7 @@ def test_empty_final_answer_triggers_provider_fallback(
 ) -> None:
     from langchain_core.messages import AIMessage
 
-    from book_reader.chat import ChatError
+    from book_reader.chat.types import ChatError
 
     class EmptyGraph:
         def invoke(self, state: object, config: object) -> dict[str, list[object]]:

@@ -8,8 +8,8 @@ import re
 from collections.abc import Sequence
 from pathlib import Path
 
-from ..chat_types import ChatMessage
-from ..models import DEFAULT_OPENUI_FORMAT, OPENUI_FORMATS, model_info
+from .registry import DEFAULT_OPENUI_FORMAT, OPENUI_FORMATS, model_info
+from .types import ChatMessage
 
 _PACKAGE_DIR = Path(__file__).resolve().parent.parent
 _SOCRATIC_SKILL_PATH = _PACKAGE_DIR / "skills" / "socratic_tutor.md"

@@ -18,12 +18,10 @@ from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from ..chat_types import (
-    ProviderConfig,
-)
 from .limits import MAX_TOOL_ROUNDS
 from .model import _chat_model, _chunk_text, _rejects_reasoning_effort, provider_key
 from .state import ServiceState
+from .types import ProviderConfig
 
 if TYPE_CHECKING:
     pass

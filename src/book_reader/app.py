@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
 if TYPE_CHECKING:
-    from .chat import ChatService
+    from .chat.service import ChatService
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from starlette.datastructures import Headers
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
-from .chat_config import (
+from .chat.config import (
     CHAT_EFFORTS,
     CHAT_MAX_MESSAGE_CHARS,
     CHAT_MAX_MESSAGES,
@@ -31,8 +31,8 @@ from .chat_config import (
     chat_model_ids,
     select_model,
 )
-from .chat_types import AskOptions, ChatBackend, ChatError, ChatMessage, ChatUnavailable
-from .chats import ChatStore
+from .chat.sessions import ChatStore
+from .chat.types import AskOptions, ChatBackend, ChatError, ChatMessage, ChatUnavailable
 from .library.scan import Library
 from .notes.store import NotepadStore
 from .organize import CategoryStore, LibraryOrganizer, MistralClient
@@ -194,7 +194,7 @@ def build_services(
     )
     chat: ChatService | None = None
     try:
-        from .chat import ChatService
+        from .chat.service import ChatService
 
         chat = ChatService(
             library,

@@ -12,16 +12,8 @@ from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from .chat_config import CHAT_MAX_MESSAGE_CHARS, DEFAULT_CHAT_EFFORT, select_model
-from .chat_types import (
-    AskCallbacks,
-    AskOptions,
-    ChatBackend,
-    ChatMessage,
-    ChatUnavailable,
-)
-from .chat_types import ChatError as ProviderChatError
-from .chats import (
+from .chat.config import CHAT_MAX_MESSAGE_CHARS, DEFAULT_CHAT_EFFORT, select_model
+from .chat.sessions import (
     _UNSET,
     RETENTION_DAYS,
     ChatProject,
@@ -30,9 +22,9 @@ from .chats import (
     ChatStore,
     _Unset,
 )
-from .chats import (
-    ChatError as ChatStoreError,
-)
+from .chat.sessions import ChatError as ChatStoreError
+from .chat.types import AskCallbacks, AskOptions, ChatBackend, ChatMessage, ChatUnavailable
+from .chat.types import ChatError as ProviderChatError
 from .library.scan import Library
 from .organize import CategoryStore
 from .reconcile import LibraryReconciler

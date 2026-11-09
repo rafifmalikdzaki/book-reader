@@ -12,17 +12,7 @@ from langchain_core.messages import (
     SystemMessage,
 )
 
-from ..chat_providers import resolve_providers
-from ..chat_types import (
-    AskCallbacks,
-    AskOptions,
-    ChatError,
-    ChatMessage,
-    ChatUnavailable,
-    ProviderConfig,
-)
 from ..library.scan import Library
-from ..models import model_info
 from ..notes.store import NotepadStore
 from ..reading.pdf import PdfCache
 from ..reading.sections import SectionIndex
@@ -31,8 +21,11 @@ from .graph import GraphMixin
 from .limits import MAX_STEPS
 from .model import _chat_model, _extractive_answer, _message_text, provider_key
 from .prompts import _is_socratic_request, openui_format
+from .providers import resolve_providers
+from .registry import model_info
 from .sources import _with_context_source, collect_sources
 from .tools import ToolsMixin
+from .types import AskCallbacks, AskOptions, ChatError, ChatMessage, ChatUnavailable, ProviderConfig
 
 if TYPE_CHECKING:
     from ..organize import CategoryStore
