@@ -17,12 +17,15 @@ if TYPE_CHECKING:
     from .chat.service import ChatService
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.datastructures import Headers
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
+from .api.errors import install as install_errors
+from .api.security import install as install_security_headers
+from .api.security import install_host_check
 from .chat.config import (
     CHAT_EFFORTS,
     CHAT_MAX_MESSAGE_CHARS,
@@ -33,6 +36,7 @@ from .chat.config import (
 )
 from .chat.sessions import ChatStore
 from .chat.types import AskOptions, ChatBackend, ChatError, ChatMessage, ChatUnavailable
+from .library.errors import LibraryError
 from .library.scan import Library
 from .notes.store import NotepadStore
 from .organize.categories import CategoryStore
@@ -51,8 +55,6 @@ from .routes_spa import register as register_spa
 from .search.elastic import ElasticSearch
 from .search.service import Searcher
 from .search.types import SearchUnavailable
-from .security_headers import install as install_security_headers
-from .security_headers import install_host_check
 from .state.lock import StateDirectoryLock
 from .state.preferences import Preferences
 
@@ -442,7 +444,7 @@ def create_app(
             target = library.book_file(rel)
             try:
                 hits, backend = searcher.in_book(rel, target, q, limit)
-            except HTTPException:
+            except (HTTPException, LibraryError):
                 raise
             except Exception as exc:
                 raise HTTPException(status_code=400, detail=f"search failed: {exc}") from exc
@@ -632,9 +634,7 @@ def create_app(
         except ChatError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    @app.exception_handler(HTTPException)
-    def http_error(_request: Request, exc: HTTPException) -> Response:
-        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    install_errors(app)
 
     @app.get("/healthz")
     def healthz() -> dict[str, bool]:

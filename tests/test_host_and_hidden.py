@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from book_reader.api.security import allowed_hosts_for
 from book_reader.app import create_app
-from book_reader.security_headers import allowed_hosts_for
 
 Client = tuple[TestClient, Path]
 

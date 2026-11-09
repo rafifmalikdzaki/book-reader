@@ -12,6 +12,7 @@ from typing import Any, cast
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from book_reader.api.errors import install as install_errors
 from book_reader.app import create_app
 from book_reader.chat.service import ChatService
 from book_reader.chat.sessions import ChatStore
@@ -111,6 +112,7 @@ def make_harness(
     reconciler = FakeReconciler({"alpha.md": "hash-alpha", "beta.md": "hash-beta"})
     stub = chat or StubChat()
     app = FastAPI()
+    install_errors(app)
     register(
         app,
         chats=chats,

@@ -7,8 +7,7 @@ import threading
 import time
 from pathlib import Path
 
-from fastapi import HTTPException
-
+from .errors import InvalidPath, LibraryError, PathNotFound
 from .models import UNFILED, Book
 
 BOOK_SUFFIXES = {".pdf", ".md"}
@@ -74,21 +73,21 @@ class Library:
         return result
 
     def book_file(self, rel: str) -> Path:
-        """Resolve a ``.pdf``/``.md`` book path, or raise HTTP 400/404."""
+        """Resolve a ``.pdf``/``.md`` book path, or raise ``InvalidPath``/``PathNotFound``."""
         path = self._resolve(rel)
         if path.suffix.lower() not in BOOK_SUFFIXES:
-            raise HTTPException(status_code=400, detail="invalid path")
+            raise InvalidPath
         return path
 
     def find_book(self, rel: str) -> Path | None:
         """Resolve a book path, or ``None`` when it is unreadable or unsafe."""
         try:
             return self.book_file(rel)
-        except HTTPException:
+        except LibraryError:
             return None
 
     def any_file(self, rel: str) -> Path:
-        """Resolve any existing file inside the library, or raise HTTP 400/404.
+        """Resolve any existing file inside the library, or raise ``InvalidPath``/``PathNotFound``.
 
         Hidden non-book files (``.env``, ``.DS_Store``) are treated as missing, like
         the hidden directories the scan skips. Hidden ``.pdf``/``.md`` files stay
@@ -96,25 +95,25 @@ class Library:
         """
         path = self._resolve(rel)
         if path.name.startswith(".") and path.suffix.lower() not in BOOK_SUFFIXES:
-            raise HTTPException(status_code=404, detail="not found")
+            raise PathNotFound
         return path
 
     def _resolve(self, rel: str) -> Path:
         if not rel or "\x00" in rel:
-            raise HTTPException(status_code=400, detail="invalid path")
+            raise InvalidPath
         try:
             resolved = (self.root / rel).resolve()
         except (OSError, RuntimeError) as exc:
-            raise HTTPException(status_code=400, detail="invalid path") from exc
+            raise InvalidPath from exc
         if resolved == self.root or not resolved.is_relative_to(self.root):
-            raise HTTPException(status_code=400, detail="invalid path")
+            raise InvalidPath
         # Same directory filter as scan(): a direct URL must not reach what the index hides.
         # Checked after resolve(), so ``a/../.hidden/x`` and symlinks into hidden dirs are caught.
         if any(
             part.startswith(".") or part in SKIP_DIRS
             for part in resolved.relative_to(self.root).parts[:-1]
         ):
-            raise HTTPException(status_code=404, detail="not found")
+            raise PathNotFound
         if not resolved.is_file():
-            raise HTTPException(status_code=404, detail="not found")
+            raise PathNotFound
         return resolved

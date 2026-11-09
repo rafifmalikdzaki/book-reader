@@ -1,11 +1,9 @@
-"""Chat request limits and model selection shared by the HTTP routes."""
+"""Chat request limits and model selection; no HTTP types (the API layer maps the errors)."""
 
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
-
-from fastapi import HTTPException
 
 from ..state.preferences import Preferences
 
@@ -22,6 +20,10 @@ CHAT_EFFORTS = frozenset({"default", "low", "medium", "high"})
 DEFAULT_CHAT_EFFORT = "default"
 
 
+class UnknownModel(ValueError):
+    """The requested ``provider:model`` is not configured."""
+
+
 def chat_model_ids(chat: ChatBackend) -> set[str]:
     return {option["id"] for option in chat.model_options()}
 
@@ -33,6 +35,6 @@ def select_model(explicit: str | None, preferences: Preferences, chat: ChatBacke
     if selected in chat_model_ids(chat):
         return selected
     if explicit:
-        raise HTTPException(status_code=400, detail=f"unknown model: {selected}")
+        raise UnknownModel(f"unknown model: {selected}")
     logger.warning("stored chat model %s is unavailable; using auto", selected)
     return "auto"

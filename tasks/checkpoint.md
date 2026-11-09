@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 8 done. Task 9: extract api/security.py + api/errors.py; replace HTTPException in library/scan.py and chat/config.py with domain errors.
+Task 9 done. Task 10: extract library/reading/search routes + shared views into api/routes/ and api/views.py.
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 8 done. Task 9: extract api/security.py + api/errors.py; replace HTTPExcept
 
 ## Next action
 
-Task 9: extract api/security.py + api/errors.py; replace HTTPException in library/scan.py and chat/config.py with domain errors.
+Task 10: extract library/reading/search routes + shared views into api/routes/ and api/views.py.
 
 ## Blockers
 

@@ -12,8 +12,8 @@ from pathlib import Path
 import uvicorn
 from dotenv import load_dotenv
 
+from .api.security import allowed_hosts_for
 from .app import DEFAULT_ES_INDEX, PACKAGE_DIR, build_services, create_app
-from .security_headers import allowed_hosts_for
 from .state.lock import StateDirectoryLock, StateLockedError
 
 DEFAULT_LIBRARY = Path.home() / "Documents" / "Books"

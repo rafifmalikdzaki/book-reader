@@ -6,9 +6,11 @@ import logging
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from .api.errors import status_for
+from .library.errors import LibraryError, PathNotFound
 from .library.scan import Library
 from .reindex.reconciler import LibraryReconciler
 from .reindex.redirects import moved_book_target
@@ -77,11 +79,11 @@ def register(
     def book(request: Request, rel: str) -> Response:
         try:
             library.book_file(rel)
-        except HTTPException as exc:
-            if exc.status_code == 404:
+        except LibraryError as exc:
+            if isinstance(exc, PathNotFound):
                 redirect = moved_book_redirect(request, rel, library=library, reconciler=reconciler)
                 if redirect is not None:
                     return redirect
             # Unknown or invalid book: the SPA renders its own error view.
-            return shell(status_code=exc.status_code)
+            return shell(status_code=status_for(exc))
         return shell()

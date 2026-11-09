@@ -17,6 +17,7 @@ from urllib.parse import quote, urlencode
 
 from fastapi import FastAPI, HTTPException, Query
 
+from .library.errors import PathNotFound
 from .library.scan import Library
 from .notes.store import NotepadStore
 from .organize.categories import CategoryStore
@@ -457,9 +458,7 @@ def register(
     ) -> dict[str, object]:
         try:
             target = library.book_file(rel)
-        except HTTPException as exc:
-            if exc.status_code != 404:
-                raise
+        except PathNotFound:
             moved = moved_book_target(rel, library=library, reconciler=reconciler)
             if moved is not None:
                 # 200, not 307: a fetch() would follow a 307 into the HTML shell.
