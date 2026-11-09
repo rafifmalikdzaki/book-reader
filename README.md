@@ -89,13 +89,13 @@ the `reader-state` volume, and Elasticsearch data in `es-data`. Ports bind to
 
 | Area | Capability |
 | --- | --- |
-| **Library** | Tile grid with first-page previews and a list view. One search field filters titles live and runs full-text library search on Enter. Category filters replace shelf tabs. |
+| **Library** | Tile grid with first-page previews, cached PDF titles/page counts, a list view, and three reading atmospheres (*Daylight Lamp*, *Dimmed Desk*, *Midnight Baize*). One search field filters titles live and runs full-text library search on Enter. Category filters replace shelf tabs. |
 | **PDF reading** | The vendored PDF.js viewer with continuous scroll, thumbnails, outline, native find, zoom, rotate, download, print, presentation mode, and keyboard paging. |
 | **Markdown reading** | CommonMark with tables, strikethrough, syntax highlighting, an outline, and relative links rewritten to library routes. HTML passthrough is disabled. |
 | **Research notes** | Select text in either reader, add an annotation, and keep the note attached to a page range, line range, section, or character span. |
 | **Reading memory** | Persisted page or scroll position with atomic writes, plus deep links such as `book.pdf#p12` and `notes.md#L40`. |
-| **Search** | PageIndex section search, a local page/line scan, or Elasticsearch BM25 with highlighted snippets. |
-| **Ask** | A page-aware chat rail while reading, and a persistent category-scoped chat workspace at `/ask`. |
+| **Search** | PageIndex section search, a bounded candidate-scored local page/line scan, or Elasticsearch BM25 with highlighted snippets. |
+| **Ask** | A page-aware chat rail while reading, and a persistent category-scoped chat workspace at `/ask` with background agent execution and live reasoning step visibility. |
 | **Auto-organize** | Mistral proposes a flat taxonomy from titles, section headings, and first-page excerpts. Categories are virtual; files never move. |
 
 ### Reading without leaving the page
@@ -193,7 +193,12 @@ in `localStorage`. Every answer links its sources back to `book.pdf#p12` or
 composer, and project folders. Retrieval is library-wide by default; the
 **Categories** picker limits searches to selected virtual categories without
 moving files. A session remembers its categories and resumes its transcript
-across reloads.
+across reloads. Agent turns execute in a shielded background task hub
+(`SessionTaskHub`), so generations continue and persist to disk even if you
+refresh or navigate away. Live reasoning steps (`Searching the library…`,
+`Reading relevant excerpts…`) stream over Server-Sent Events
+(`GET /api/chat/sessions/{id}/events`) with automatic polling fallback, and
+concurrent duplicate turns on the same session are guarded with `409 Conflict`.
 
 Sessions live in `chats.json` and expire seven days after their last change.
 Pinned sessions and sessions assigned to a project are exempt. Deleting a
@@ -294,8 +299,9 @@ policy.
 | `GET /api/chat/status` | Chat provider chain and selection |
 | `POST /api/chat` | Stateless reader-side question |
 | `GET/POST /api/chat/sessions` | Persistent chat sessions |
-| `GET/PATCH/DELETE /api/chat/sessions/{id}` | Session transcript, pin, project, categories |
-| `POST /api/chat/sessions/{id}/messages` | Scoped RAG answer with sources |
+| `GET/PATCH/DELETE /api/chat/sessions/{id}` | Session transcript, status, pin, project, categories |
+| `POST /api/chat/sessions/{id}/messages` | Scoped RAG answer with sources (shielded background execution; `409` if already thinking) |
+| `GET /api/chat/sessions/{id}/events` | SSE stream of live session status and reasoning steps |
 | `GET/POST /api/chat/projects`, `DELETE /api/chat/projects/{id}` | Chat project folders |
 | `POST /api/library/reindex` | Match moved/renamed books and migrate state |
 | `POST /api/index/rebuild` | Index the library |
@@ -350,22 +356,22 @@ src/book_reader/
   app.py             FastAPI factory, SPA/API wiring, service construction
   library.py         Scanning + path-safety choke point
   pdf.py             PyMuPDF LRU: page counts, metadata, text, search, thumbnails
-  pages.py           Persisted page counts
+  pages.py           Persisted page counts and extracted PDF titles
   mdrender.py        Markdown → HTML, cache, link rewriting, line search
   sections.py        PageIndex Flash section trees (offline, cached)
-  search.py          Elasticsearch chunk index + local fallback
+  search.py          Elasticsearch chunk index + candidate-scored local fallback
   notepad.py         Groups, notes, AI-context export
   progress.py        Reading positions
   preferences.py     Persisted UI choices
   reconcile.py       Content-hash reindex, state migration, move redirects
   organize.py        Content-hash category store, PageIndex signals, Mistral job
-  chats.py           Persistent Ask sessions, retention, chat projects
+  chats.py           Persistent Ask sessions, execution status, retention, chat projects
   state_lock.py      One-process state ownership
   statemove.py       Simultaneous progress/page/section remaps, including swaps
-  chat.py            LangGraph agent, tools, provider fallback, scoped retrieval
+  chat.py            LangGraph agent, tools, step callbacks, provider fallback, scoped retrieval
   chat_config.py     Shared chat request limits and model selection
   routes_notepad.py  Notepad HTTP routes
-  routes_chat_sessions.py  Persistent chat and project HTTP routes
+  routes_chat_sessions.py  Persistent chat, background task hub, SSE events, and project routes
   routes_library.py  Library/book JSON views and API routes
   routes_spa.py      React SPA shell routes
   security_headers.py  Host check and report-only CSP
