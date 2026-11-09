@@ -17,7 +17,8 @@ _FENCE_RE = re.compile(
     re.DOTALL | re.IGNORECASE,
 )
 _INLINE_CITE_RE = re.compile(r"(?<![\\/\w])([\w./-]+\.(?:pdf|md))(?:#(?:p(\d+)|L(\d+)))?\b")
-_TRAILING_COMMA_RE = re.compile(r",\s*([}\]])")
+# String literals are matched first so ", ]" inside text is left alone.
+_TRAILING_COMMA_RE = re.compile(r'("(?:[^"\\]|\\.)*")|,(\s*[}\]])')
 _LATEX_WORD_ESCAPE_RE = re.compile(
     r"(?<!\\)\\(?=(?:frac|forall|flat|beta|binom|big|bar|bf|theta|tau|times|top|text|tilde|to|nabla|neq|nu|norm|not|rho|rightarrow|right)\b)"
 )
@@ -114,7 +115,7 @@ def _parse_json_lenient(raw: str) -> Any:
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
-        cleaned = _TRAILING_COMMA_RE.sub(r"\1", raw)
+        cleaned = _TRAILING_COMMA_RE.sub(lambda m: m.group(1) or m.group(2), raw)
         cleaned = _LATEX_WORD_ESCAPE_RE.sub(r"\\\\", cleaned)
         cleaned = _UNESCAPED_SLASH_RE.sub(r"\\\\", cleaned)
         try:

@@ -828,6 +828,13 @@
   transition: width var(--dur-base) var(--ease);
 }
 
+.chartFillNegative {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--danger);
+  transition: width var(--dur-base) var(--ease);
+}
+
 .chartNote {
   margin: 4px 0 0 !important;
   color: var(--muted);
@@ -964,6 +971,7 @@
   .skillFill,
   .masteryRingFill,
   .chartFill,
+  .chartFillNegative,
   .graphNodeBox {
     transition: none;
   }

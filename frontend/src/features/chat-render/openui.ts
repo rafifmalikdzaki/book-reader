@@ -159,7 +159,11 @@ export function citationToHref(cite: string): string | null {
 
 function sanitizeLenientJson(raw: string): string {
   return raw
-    .replace(/,\s*([}\]])/g, '$1')
+    // Drop trailing commas, skipping string literals so ", ]" inside text survives.
+    .replace(
+      /("(?:[^"\\]|\\.)*")|,(\s*[}\]])/g,
+      (_match, str?: string, close?: string) => str ?? close ?? '',
+    )
     .replace(
       /(?<!\\)\\(?=(?:frac|forall|flat|beta|binom|big|bar|bf|theta|tau|times|top|text|tilde|to|nabla|neq|nu|norm|not|rho|rightarrow|right)\b)/g,
       '\\\\',

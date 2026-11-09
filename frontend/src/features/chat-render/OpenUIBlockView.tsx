@@ -648,7 +648,7 @@ function ConceptGraphView({
 }
 
 function ChartView({ spec }: { spec: ChartBlock }) {
-  const maxVal = Math.max(1, ...spec.items.map((item) => Math.abs(item.value)));
+  const maxVal = Math.max(...spec.items.map((item) => Math.abs(item.value))) || 1;
   return (
     <section className={styles.uiCard} aria-label={`Chart: ${spec.title}`}>
       <header className={styles.uiHeader}>
@@ -675,7 +675,11 @@ function ChartView({ spec }: { spec: ChartBlock }) {
                 <span className={styles.chartValue}>{readout}</span>
               </div>
               <div className={styles.chartTrack}>
-                <div className={styles.chartFill} style={{ width: `${pct}%` }} />
+                <div
+                  className={item.value < 0 ? styles.chartFillNegative : styles.chartFill}
+                  data-negative={item.value < 0 ? 'true' : undefined}
+                  style={{ width: `${pct}%` }}
+                />
               </div>
               {item.note ? (
                 <p className={styles.chartNote}>
