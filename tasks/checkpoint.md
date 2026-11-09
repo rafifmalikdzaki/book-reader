@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 13 done. Task 14: docs (ADR-009, README, AGENTS, CLAUDE, architecture diagrams, changelog) and final gate.
+Task 14 done. All 14 tasks done. Remaining optional: Docker build, browser smoke at 1440/390.
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 13 done. Task 14: docs (ADR-009, README, AGENTS, CLAUDE, architecture diagr
 
 ## Next action
 
-Task 14: docs (ADR-009, README, AGENTS, CLAUDE, architecture diagrams, changelog) and final gate.
+All 14 tasks done. Remaining optional: Docker build, browser smoke at 1440/390.
 
 ## Blockers
 

@@ -53,20 +53,22 @@ Baseline: `3bffff1`; 224 Python, 249 frontend tests.
 
 ## Checkpoint: API
 
-- [ ] No route bodies in `app.py`.
-- [ ] `uv run pytest -q`
-- [ ] SPA shell and HTTP status tests unchanged.
+- [x] No route bodies in `app.py`.
+- [x] `uv run pytest -q`
+- [x] SPA shell and HTTP status tests unchanged.
 
 ## Phase 4: Tests and docs
 
 - [x] Task 13: Mirror tests under `tests/<package>/` (incl. `tests/chat`, `tests/evals`).
       tests/{api,reading,search,chat,organize,state,reindex,evals}/ mirror packages; conftest + test_cli stay at root; pytest 224 passed; mypy src tests clean; state-lock subprocess cwd fixed (parents[2]).
-- [ ] Task 14: Update docs, ADR-009, changelog; final gate and packaging check.
+- [x] Task 14: Update docs, ADR-009, changelog; final gate and packaging check.
+      ADR-009 + README row, CLAUDE.md/AGENTS.md/CHANGELOG/architecture diagram updated. ./scripts/ci.sh green (224 py, 249 vitest). Wheel has static/app/index.html, chat/models.json, prompts, skills; no evals/. HTTP smoke on restarted server ok (SPA routes, library, book, thumb, search, 400/404 mapping). Not done: Docker build and browser smoke at 1440/390 (extension not connected; docker build skipped).
 
 ## Checkpoint: Complete
 
-- [ ] `./scripts/ci.sh`
-- [ ] Wheel has SPA, `chat/models.json`, prompts, skills; excludes `evals/`.
-- [ ] Browser smoke at 1440 and 390.
-- [ ] No old paths or shims remain.
-- [ ] Every verification command outcome recorded.
+- [x] `./scripts/ci.sh` (224 py, 249 vitest)
+- [x] Wheel has SPA, `chat/models.json`, prompts, skills; excludes `evals/`.
+- [ ] Browser smoke at 1440 and 390 (extension not connected; HTTP smoke done instead).
+- [ ] Docker build (skipped).
+- [x] No old paths or shims remain.
+- [x] Every verification command outcome recorded.

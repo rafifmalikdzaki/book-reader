@@ -22,6 +22,10 @@
 - `/raw` serves only PDF, Markdown, and raster images inline; other library files
   download as `application/octet-stream`.
 
+- Backend modules are grouped feature-first (`state/`, `library/`, `reading/`, `notes/`,
+  `search/`, `chat/`, `organize/`, `reindex/`, `api/`) with a `services.py` composition
+  root; HTTP paths, CLI flags, state files and payloads are unchanged (ADR-009).
+
 ### Removed
 
 - Jinja templates, legacy `static/*.js`, `BOOK_READER_UI`, and the `--ui` CLI flag.

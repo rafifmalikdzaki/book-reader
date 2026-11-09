@@ -77,4 +77,8 @@ new numbered ADR when changing one of those decisions; do not rewrite old ones.
   gitignored. Style with the tokens in `frontend/src/styles/tokens.css`, not raw hex.
 - Adding a new state store means it participates in the reindex transaction,
   backup list, and shared lock.
+- Backend code is grouped by feature (`state/`, `library/`, `reading/`, `notes/`, `search/`,
+  `chat/`, `organize/`, `reindex/`, `api/`; ADR-009). Domain packages must not import
+  `fastapi`, `api/` or `services.py`, and `chat/__init__.py` stays empty so the optional
+  LangChain imports stay lazy.
 - Keep tests deterministic and add only behavior-level coverage.
