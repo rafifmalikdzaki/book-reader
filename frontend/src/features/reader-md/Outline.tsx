@@ -1,7 +1,7 @@
 import type { MouseEvent } from 'react';
 
 import type { MarkdownOutlineEntry } from '../../api/types';
-import { cx, MOBILE_QUERY, Rail, RailBody, usePanel } from '../../ui';
+import { cx, MOBILE_QUERY, Rail, RailBody, RailResizeHandle, usePanel, useRailResize } from '../../ui';
 import { ContentsPortal } from '../../app';
 import styles from './Outline.module.css';
 
@@ -14,6 +14,12 @@ interface Props {
 /** The Markdown outline rail (legacy `#contents`), docked left of the document. */
 export function Outline({ outline, current }: Props) {
   const panel = usePanel('contents');
+  const resize = useRailResize({
+    storageKey: 'br-outline-rail-width',
+    initial: 268,
+    min: 220,
+    side: 'left',
+  });
 
   const jump = (event: MouseEvent<HTMLAnchorElement>, line: number) => {
     event.preventDefault();
@@ -23,7 +29,14 @@ export function Outline({ outline, current }: Props) {
 
   return (
     <ContentsPortal>
-      <Rail {...panel.railProps} side="left" label="Outline" title="Outline">
+      <Rail
+        {...panel.railProps}
+        side="left"
+        label="Outline"
+        title="Outline"
+        width={resize.width}
+        handle={<RailResizeHandle resize={resize} label="Resize outline panel" />}
+      >
         <RailBody>
           {outline.length > 0 ? (
             <ol className={styles.route}>

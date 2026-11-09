@@ -8,12 +8,21 @@ export const RAIL_MAX = 640;
 export const RAIL_DEFAULT = 360;
 const KEY_STEP = 16;
 
+/** Computes max expandable width: defaults to half the viewport (min 50% width). */
+export function computeRailMax(customMax?: number, min = RAIL_MIN): number {
+  if (customMax !== undefined) return customMax;
+  if (typeof window === 'undefined') return RAIL_MAX;
+  return Math.max(min, Math.floor(window.innerWidth / 2));
+}
+
 export interface UseRailResizeOptions {
   storageKey?: string;
   min?: number;
   max?: number;
   initial?: number;
   step?: number;
+  /** Docking side: right rails expand leftward; left rails expand rightward. */
+  side?: 'left' | 'right';
 }
 
 export interface RailResizeHandleProps {
@@ -38,6 +47,7 @@ export interface RailResize {
   dragging: boolean;
   min: number;
   max: number;
+  side: 'left' | 'right';
   /** Spread on the separator element (see `<RailResizeHandle>`). */
   handleProps: RailResizeHandleProps;
 }
@@ -60,18 +70,21 @@ function writeStored(key: string, value: number): void {
 }
 
 /**
- * Resizable right-docked rail (port of the shell.js chat-rail resize): pointer drag and
- * ArrowLeft/ArrowRight (+/-16px), Home, End on a separator, clamped to min..max, stored
- * in localStorage. Only active at min-width 901px.
+ * Resizable docked rail: pointer drag and Arrow keys (+/-16px), Home, End on a separator,
+ * clamped between min and half the viewport (or options.max), stored in localStorage.
+ * Only active at min-width 901px.
  */
 export function useRailResize(options: UseRailResizeOptions = {}): RailResize {
   const {
     storageKey = RAIL_STORAGE_KEY,
     min = RAIL_MIN,
-    max = RAIL_MAX,
+    max: customMax,
     initial = RAIL_DEFAULT,
     step = KEY_STEP,
+    side = 'right',
   } = options;
+
+  const [max, setMax] = useState(() => computeRailMax(customMax, min));
   const clamp = useCallback((value: number) => Math.min(max, Math.max(min, Math.round(value))), [min, max]);
   const enabled = useMediaQuery(DESKTOP_QUERY);
 
@@ -79,6 +92,23 @@ export function useRailResize(options: UseRailResizeOptions = {}): RailResize {
   const [dragging, setDragging] = useState(false);
   const widthRef = useRef(width);
   const drag = useRef<{ x: number; width: number } | null>(null);
+
+  // Keep max aligned with half of the viewport width across window resizes.
+  useEffect(() => {
+    const handleResize = () => {
+      const nextMax = computeRailMax(customMax, min);
+      setMax(nextMax);
+      setWidth((curr) => {
+        const next = Math.min(nextMax, Math.max(min, curr));
+        widthRef.current = next;
+        return next;
+      });
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [customMax, min]);
 
   const apply = useCallback(
     (value: number, persist: boolean) => {
@@ -124,15 +154,17 @@ export function useRailResize(options: UseRailResizeOptions = {}): RailResize {
     },
     onPointerMove(event) {
       if (!drag.current) return;
-      // The rail docks right, so moving the pointer left widens it.
-      apply(drag.current.width + drag.current.x - event.clientX, false);
+      const delta = side === 'left' ? event.clientX - drag.current.x : drag.current.x - event.clientX;
+      apply(drag.current.width + delta, false);
     },
     onPointerUp: endDrag,
     onPointerCancel: endDrag,
     onKeyDown(event) {
+      const widenKey = side === 'left' ? 'ArrowRight' : 'ArrowLeft';
+      const narrowKey = side === 'left' ? 'ArrowLeft' : 'ArrowRight';
       const keys: Record<string, number> = {
-        ArrowLeft: widthRef.current + step,
-        ArrowRight: widthRef.current - step,
+        [widenKey]: widthRef.current + step,
+        [narrowKey]: widthRef.current - step,
         Home: min,
         End: max,
       };
@@ -143,5 +175,5 @@ export function useRailResize(options: UseRailResizeOptions = {}): RailResize {
     },
   };
 
-  return { width, enabled, dragging, min, max, handleProps };
+  return { width, enabled, dragging, min, max, side, handleProps };
 }

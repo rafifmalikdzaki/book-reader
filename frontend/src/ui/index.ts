@@ -34,6 +34,7 @@ export {
   RAIL_MAX,
   RAIL_MIN,
   RAIL_STORAGE_KEY,
+  computeRailMax,
   useRailResize,
 } from './useRailResize';
 export type { RailResize, RailResizeHandleProps, UseRailResizeOptions } from './useRailResize';

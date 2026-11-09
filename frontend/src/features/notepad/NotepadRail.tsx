@@ -2,7 +2,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type FormEvent } from 'react';
 
 import { createNotepadGroup, deleteNotepadGroup, getNotepad, notepadExportUrl } from '../../api/endpoints';
-import { Button, ConfirmDialog, EmptyState, Input, LinkButton, Rail, RailBody, usePanel, useToast } from '../../ui';
+import {
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  Input,
+  LinkButton,
+  Rail,
+  RailBody,
+  RailResizeHandle,
+  usePanel,
+  useRailResize,
+  useToast,
+} from '../../ui';
 import { ComposeForm } from './ComposeForm';
 import { NoteCard } from './NoteCard';
 import styles from './Notepad.module.css';
@@ -11,6 +23,7 @@ import { NOTEPAD_KEY, useNotepadDraft } from './NotepadProvider';
 /** Researcher notepad rail (`id="notepad"`): groups, notes, compose form, export links. */
 export function NotepadRail() {
   const panel = usePanel('notepad');
+  const resize = useRailResize({ storageKey: 'br-notepad-rail-width' });
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { draft } = useNotepadDraft();
@@ -82,6 +95,8 @@ export function NotepadRail() {
       label="Researcher notepad"
       title="Notes"
       closeLabel="Close notes"
+      width={resize.width}
+      handle={<RailResizeHandle resize={resize} label="Resize notepad panel" />}
       initialFocusRef={commentRef}
     >
       <RailBody>

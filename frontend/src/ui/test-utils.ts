@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 
 /** jsdom has no matchMedia. Stubs it so queries resolve through `viewport`. */
 export function stubViewport(width: number): { set: (width: number) => void } {
+  window.innerWidth = width;
   const listeners = new Set<{ query: string; notify: () => void }>();
   const matches = (query: string): boolean => {
     const min = /min-width:\s*(\d+)px/.exec(query);
@@ -20,10 +21,13 @@ export function stubViewport(width: number): { set: (width: number) => void } {
       for (const entry of listeners) if (entry.notify === notify) listeners.delete(entry);
     },
   }));
+  window.dispatchEvent(new Event('resize'));
   return {
     set(next) {
       width = next;
+      window.innerWidth = next;
       for (const entry of listeners) entry.notify();
+      window.dispatchEvent(new Event('resize'));
     },
   };
 }
