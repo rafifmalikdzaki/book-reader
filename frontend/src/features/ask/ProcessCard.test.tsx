@@ -30,6 +30,7 @@ describe('ProcessCard', () => {
       thought: 'Need the sampling chapter.',
       elapsed: 3.2,
     });
+    fireEvent.click(screen.getByRole('button', { name: /Reading a\.pdf page 4/ }));
     const steps = within(screen.getByRole('list', { name: 'Steps taken' })).getAllByRole('listitem');
     expect(steps).toHaveLength(2);
     expect(screen.getByText('2 steps · 2 passages found')).toBeInTheDocument();
@@ -43,7 +44,7 @@ describe('ProcessCard', () => {
     expect(screen.getByText('Need the sampling chapter.')).toBeInTheDocument();
   });
 
-  it('collapses and re-expands the body from the header toggle', () => {
+  it('starts collapsed with the headline and counts, and toggles the body open and closed', () => {
     renderCard({
       step: 'Reading a.pdf page 4…',
       steps: ['Reading a.pdf page 4…'],
@@ -51,13 +52,17 @@ describe('ProcessCard', () => {
       thought: 'Need the sampling chapter.',
     });
     const toggle = screen.getByRole('button', { name: /Reading a\.pdf page 4/ });
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.click(toggle);
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveTextContent('1 step · 1 passage found');
     expect(screen.queryByRole('list', { name: 'Steps taken' })).not.toBeInTheDocument();
     expect(screen.queryByText('Need the sampling chapter.')).not.toBeInTheDocument();
-    expect(toggle).toHaveTextContent('1 step · 1 passage found');
+
     fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('list', { name: 'Steps taken' })).toBeInTheDocument();
+    expect(screen.getByText('Need the sampling chapter.')).toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('list', { name: 'Steps taken' })).not.toBeInTheDocument();
   });
 });

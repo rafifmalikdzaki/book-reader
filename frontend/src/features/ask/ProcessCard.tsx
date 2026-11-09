@@ -22,7 +22,7 @@ function summary(steps: number, found: number): string {
 
 /** Live view of one agent run: tool steps, the documents they found, and model reasoning. */
 export function ProcessCard({ step, steps, found, thought, elapsed }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   return (
     <div className={styles.processCard} role="status" aria-live="polite">
       <button
