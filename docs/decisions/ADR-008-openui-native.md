@@ -55,6 +55,16 @@ repair inside strings) came from the hand-rolled parser.
   | `mistral:mistral-small-latest` | 1/6 | 5/6 |
   | `mistral:ministral-8b-latest` | 0/6 | 4/6 |
   | `ollama:gpt-oss:20b` | 1/6 | 6/6 |
+  | `mistral:zai-glm-5-3-flash` | 6/6 | 6/6 |
+  | `openrouter:openrouter/free`, `openrouter:nvidia/nemotron-3-ultra-550b-a55b:free` | not measured | not measured |
+
+  The two OpenRouter free models could not be measured: the account hit its free-tier daily
+  quota (429) and the router returned 502/504 errors, in both formats.
+
+  A second Lang run after adding an explicit "arguments are positional, never `title = ...`"
+  rule and a single-line rule to the prompt did not help (mercury-3 4/6, mistral-small 2/6,
+  ministral-8b 0/6, gpt-oss 2/6, glm 6/6), so that change was reverted. The models keep writing
+  keyword arguments despite the instruction.
 
   Nearly every Lang failure was the same mistake: the model wrote named arguments
   (`ConceptCard(title = "...", intuition = "...")`) although the prompt forbids it. The
