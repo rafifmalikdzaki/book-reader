@@ -26,6 +26,8 @@ export type Block =
 const INLINE =
   /(\*\*|__)(.+?)\1|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)|(?<![\\/\w])([\w./-]+\.(?:pdf|md)#(?:p\d+|L\d+))\b/;
 const FENCE = /^\s*```(\w*)\s*$/;
+const OPENUI_COMPONENT_RE =
+  /"component"\s*:\s*"(?:SkillMap|ConceptCard|ComparisonTable|StepWalkthrough|BookList|QuizCheck|ConceptGraph|Graph|Architecture|Chart|BarChart|MetricChart)"/;
 const HEADING = /^\s*(#{1,4})\s+(.+?)\s*$/;
 const BLOCKQUOTE = /^\s*>\s?(.*)$/;
 const TABLE_ROW = /^\s*\|(.+)\|\s*$/;
@@ -117,7 +119,11 @@ export function parseMarkdown(text: string): Block[] {
       const lang = (fenceMatch[1] ?? '').toLowerCase();
       const closed = lines.length > 1 && lines.at(-1)?.trim() === '```';
       const code = lines.slice(1, closed ? -1 : undefined).join('\n');
-      if (lang === 'openui' || lang === 'ui') {
+      if (
+        lang === 'openui' ||
+        lang === 'ui' ||
+        ((lang === 'json' || lang === '') && OPENUI_COMPONENT_RE.test(code))
+      ) {
         return { kind: 'openui', code, closed };
       }
       return { kind: 'fence', code, lang: lang || undefined, closed };

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -258,5 +258,53 @@ describe('Rich Markdown & OpenUI Generative Blocks', () => {
     expect(screen.getByText('Tokens attend to relevant context.')).toBeInTheDocument();
     expect(screen.getByText('Parallelizable across sequence length')).toBeInTheDocument();
     expect(screen.getByText(/Building SkillMap/)).toBeInTheDocument();
+  });
+
+  it('renders ConceptGraph interactive SVG, Chart bars, and auto-detects json fences with trailing commas', () => {
+    const onPrompt = vi.fn();
+    const blocks = [
+      '```json',
+      '{"component": "ConceptGraph", "title": "Attention Pipeline", "nodes": [' +
+        '{"id": "qkv", "label": "QKV Projection", "group": "input", "detail": "Projects **tokens** into `Q, K, V`"},' +
+        '{"id": "out", "label": "Context Output", "group": "output", "detail": "Weighted sum of values",}' +
+        '], "edges": [{"from": "qkv", "to": "out", "label": "softmax"}],}',
+      '```',
+      '',
+      '```openui',
+      JSON.stringify({
+        component: 'Chart',
+        title: 'Latency Benchmark',
+        unit: 'ms',
+        items: [
+          { label: 'Mercury 3', value: 120, displayValue: '120 ms', note: 'Diffusion LLM' },
+          { label: 'Standard Autoregressive', value: 480, displayValue: '480 ms' },
+        ],
+        caption: 'End-to-end tool synthesis latency',
+      }),
+      '```',
+    ].join('\n');
+
+    render(
+      <MemoryRouter>
+        <MarkdownAnswer text={blocks} onPrompt={onPrompt} />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('img', { name: 'Attention Pipeline' })).toBeInTheDocument();
+    expect(screen.getByText(/Projects/)).toBeInTheDocument();
+    expect(screen.getByText('tokens').tagName).toBe('STRONG');
+
+    // Click second node in the ConceptGraph SVG
+    fireEvent.click(screen.getByRole('button', { name: 'Select concept node Context Output' }));
+    expect(screen.getByText('Weighted sum of values')).toBeInTheDocument();
+    screen.getByRole('button', { name: 'Explore Context Output →' }).click();
+    expect(onPrompt).toHaveBeenCalledWith(
+      'Explain Context Output in the context of Attention Pipeline',
+    );
+
+    // Chart assertions
+    expect(screen.getByText('Latency Benchmark')).toBeInTheDocument();
+    expect(screen.getByText('120 ms')).toBeInTheDocument();
+    expect(screen.getByText('Diffusion LLM')).toBeInTheDocument();
   });
 });

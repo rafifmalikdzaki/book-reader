@@ -19,6 +19,33 @@ const LIBRARY_PROMPTS = [
   'Teach me a topic Socratically',
 ];
 
+const OPENUI_SHOWCASE = [
+  {
+    badge: 'ConceptCard',
+    title: 'Concept Breakdown',
+    desc: 'Intuition, formal math & worked example',
+    prompt: 'Break down a core concept from my library with intuition, formal math, and a ConceptCard',
+  },
+  {
+    badge: 'ConceptGraph',
+    title: 'Architecture & Flow',
+    desc: 'Interactive node-link diagram of dependencies',
+    prompt: 'Map the key concepts and their dependencies as an interactive ConceptGraph',
+  },
+  {
+    badge: 'ComparisonTable',
+    title: 'Trade-off Matrix',
+    desc: 'Side-by-side comparison across methods or books',
+    prompt: 'Compare two approaches or algorithms in my library using a ComparisonTable',
+  },
+  {
+    badge: 'SkillMap',
+    title: 'Socratic Mastery',
+    desc: '0–5 subskill diagnostic & one question per turn',
+    prompt: 'Tutor me Socratically with a diagnostic SkillMap and one question at a time',
+  },
+] as const;
+
 interface Props {
   messages: StoredMessage[];
   pending: PendingTurn | null;
@@ -29,6 +56,7 @@ interface Props {
   streamingText?: string;
   sessionStatus?: 'idle' | 'thinking' | 'error';
   onPrompt: (text: string) => void;
+  onActionPrompt?: (text: string) => void;
 }
 
 /** The scrolling `role="log"` thread: stored turns, the optimistic turn, or the empty state. */
@@ -42,6 +70,7 @@ export function Transcript({
   streamingText = '',
   sessionStatus = 'idle',
   onPrompt,
+  onActionPrompt,
 }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const lastMessage = messages[messages.length - 1];
@@ -49,6 +78,7 @@ export function Transcript({
   const showOptimisticUser =
     pending !== null && (!lastIsUser || lastMessage.content !== pending.text);
   const isThinking = pending !== null || sessionStatus === 'thinking';
+  const handleTurnPrompt = onActionPrompt ?? onPrompt;
 
   useEffect(() => {
     if (box.current) box.current.scrollTop = box.current.scrollHeight;
@@ -58,27 +88,43 @@ export function Transcript({
   return (
     <div ref={box} className={styles.thread} role="log" aria-live="polite" aria-busy={loading || isThinking}>
       {blank ? (
-        <EmptyState
-          variant="hero"
-          title="Ask the library"
-          actions={(aboutBook ? BOOK_PROMPTS : LIBRARY_PROMPTS).map((text) => (
-            <button key={text} type="button" className={styles.prompt} onClick={() => onPrompt(text)}>
-              {text}
-            </button>
-          ))}
-        >
-          {aboutBook
-            ? 'Questions use this book and cite the pages they draw from.'
-            : 'Answers search your books and cite the page or line they used.'}
-          {notice ? <span className={styles.notice}>{notice}</span> : null}
-        </EmptyState>
+        <div className={styles.heroWrap}>
+          <EmptyState
+            variant="hero"
+            title="Ask the library"
+            actions={(aboutBook ? BOOK_PROMPTS : LIBRARY_PROMPTS).map((text) => (
+              <button key={text} type="button" className={styles.prompt} onClick={() => onPrompt(text)}>
+                {text}
+              </button>
+            ))}
+          >
+            {aboutBook
+              ? 'Questions use this book and cite the pages they draw from.'
+              : 'Answers search your books and cite the page or line they used.'}
+            {notice ? <span className={styles.notice}>{notice}</span> : null}
+          </EmptyState>
+          <div className={styles.showcaseGrid} aria-label="Generative UI modes">
+            {OPENUI_SHOWCASE.map((item) => (
+              <button
+                key={item.badge}
+                type="button"
+                className={styles.showcaseCard}
+                onClick={() => onPrompt(item.prompt)}
+              >
+                <span className={styles.showcaseBadge}>{item.badge}</span>
+                <strong className={styles.showcaseTitle}>{item.title}</strong>
+                <span className={styles.showcaseDesc}>{item.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       ) : null}
       {messages.map((message) => (
         <ChatMessageView
           key={message.id}
           message={message}
           variant="thread"
-          onPrompt={onPrompt}
+          onPrompt={handleTurnPrompt}
         />
       ))}
       {showOptimisticUser ? (
@@ -88,7 +134,7 @@ export function Transcript({
         <ChatMessageView
           message={{ role: 'assistant', content: streamingText }}
           variant="thread"
-          onPrompt={onPrompt}
+          onPrompt={handleTurnPrompt}
         />
       ) : null}
       {isThinking ? (

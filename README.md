@@ -48,11 +48,11 @@ Mounts `~/Documents/Books` read-only at `/library`. State persists in the `reade
 Add keys to a local, gitignored `.env`:
 
 ```env
-MISTRAL_API_KEY=...          # or MISTRAL_API
 INCEPTION_API_KEY=...
+MISTRAL_API_KEY=...          # or MISTRAL_API
 OPENROUTER_API_KEY=...
 OLLAMA_API_KEY=...
-BOOK_READER_CHAT_PRIORITY=mistral:mistral-small-latest,mistral:ministral-8b-latest,mistral:zai-glm-5-3-flash,inception:mercury-3,openrouter:openrouter/free,openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,ollama:gpt-oss:20b
+BOOK_READER_CHAT_PRIORITY=inception:mercury-3,mistral:mistral-small-latest,mistral:ministral-8b-latest,mistral:zai-glm-5-3-flash,openrouter:openrouter/free,openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,ollama:gpt-oss:20b
 ```
 
 ---
@@ -103,12 +103,14 @@ Instead of dense walls of raw text, responses render tailored OpenUI components 
 
 | Question / Task Type | Rendered Component | Key Affordances |
 | :--- | :--- | :--- |
-| **Socratic Tutoring** | `<SkillMap />` | 0–5 mastery bars, current focus indicator, 1-click command chips |
-| **Section & Concept Analysis** | `<ConceptCard />` | Stacked Intuition, Formal Mechanism, Worked Example, Takeaways |
+| **Socratic Tutoring** | `<SkillMap />` | Radial SVG mastery ring, 0–5 mastery bars, 1-click *Practice* & tutor controls |
+| **Section & Concept Analysis** | `<ConceptCard />` | Stacked Intuition, Formal Mechanism, Worked Example, Takeaways, follow-up actions |
+| **System & Concept Topology** | `<ConceptGraph />` | Interactive SVG node-link DAG diagram with clickable node inspector |
 | **Trade-offs & Comparisons** | `<ComparisonTable />` | Structured side-by-side matrix with synthesis verdict |
-| **Algorithms & Derivations** | `<StepWalkthrough />` | Numbered vertical step timeline with LaTeX equation blocks |
-| **Library Surveys & Recs** | `<BookList />` | Cover thumbnail previews, fit justification, and *Open Book →* actions |
-| **Interactive Socratic Checks** | `<QuizCheck />` | Prompt verification with collapsible hint and selectable choices |
+| **Quantitative Benchmarks** | `<Chart />` | Horizontal comparison bar chart with `tabular-nums` metric scaling |
+| **Algorithms & Derivations** | `<StepWalkthrough />` | Numbered vertical step timeline with LaTeX equation blocks & *Unpack step* |
+| **Library Surveys & Recs** | `<BookList />` | Cover thumbnail previews, fit justification, *Inspect outline* & *Open Book →* |
+| **Interactive Socratic Checks** | `<QuizCheck />` | Prompt verification with collapsible hint and selectable interactive choices |
 
 ### 3. Deep Section & Chapter Extraction
 
@@ -138,6 +140,10 @@ uv run book-reader --index
 
 # Benchmark retrieval accuracy against your collection
 uv run python scripts/benchmark_rag.py --library ~/Documents/Books
+
+# Evaluate Ask + Socratic Tutor + OpenUI capabilities (offline or live Mercury 3)
+uv run python scripts/eval_ask.py
+uv run python scripts/eval_ask.py --live --model inception:mercury-3
 ```
 
 ---

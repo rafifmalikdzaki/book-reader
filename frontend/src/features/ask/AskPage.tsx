@@ -104,6 +104,8 @@ export default function AskPage() {
           categories={data.categories}
           selected={session ? session.categories : draftCategories}
           locked={locked}
+          activeBook={session?.book ?? url.book}
+          activePage={session?.page ?? url.page}
           onChange={session ? actions.setCategories : setDraftCategories}
         />
         <Transcript
@@ -116,11 +118,28 @@ export default function AskPage() {
           streamingText={data.streamingText}
           sessionStatus={data.sessionStatus}
           onPrompt={(prompt) => {
-            if (/tutor|socratic/i.test(prompt)) {
+            if (/tutor|socratic|quiz me/i.test(prompt)) {
               setMode('tutor');
             }
             setText(prompt);
             input.current?.focus();
+          }}
+          onActionPrompt={(prompt) => {
+            const nextMode: ChatMode =
+              /tutor|socratic|quiz me|subskill|show progress|easier|harder|just tell me|save state/i.test(
+                prompt,
+              )
+                ? 'tutor'
+                : mode;
+            if (nextMode !== mode) {
+              setMode(nextMode);
+            }
+            if (!locked && (data.status?.available ?? true)) {
+              void sender.send(prompt, actions.scopeBusy, nextMode);
+            } else {
+              setText(prompt);
+              input.current?.focus();
+            }
           }}
         />
         <p className={styles.error} role="alert" hidden={!shownError}>

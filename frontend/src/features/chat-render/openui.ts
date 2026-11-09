@@ -73,13 +73,55 @@ export interface QuizCheckBlock {
   options?: string[];
 }
 
+export interface GraphNode {
+  id: string;
+  label: string;
+  group?: string;
+  detail?: string;
+  cite?: string;
+}
+
+export interface GraphEdge {
+  from: string;
+  to: string;
+  label?: string;
+}
+
+export interface ConceptGraphBlock {
+  component: 'ConceptGraph';
+  title: string;
+  subtitle?: string;
+  book?: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+export interface ChartItem {
+  label: string;
+  value: number;
+  displayValue?: string;
+  note?: string;
+}
+
+export interface ChartBlock {
+  component: 'Chart';
+  title: string;
+  subtitle?: string;
+  unit?: string;
+  book?: string;
+  items: ChartItem[];
+  caption?: string;
+}
+
 export type OpenUISpec =
   | SkillMapBlock
   | ConceptCardBlock
   | ComparisonTableBlock
   | StepWalkthroughBlock
   | BookListBlock
-  | QuizCheckBlock;
+  | QuizCheckBlock
+  | ConceptGraphBlock
+  | ChartBlock;
 
 export type ParsedOpenUI =
   | { status: 'ready'; spec: OpenUISpec }
@@ -115,6 +157,16 @@ export function citationToHref(cite: string): string | null {
   });
 }
 
+function sanitizeLenientJson(raw: string): string {
+  return raw
+    .replace(/,\s*([}\]])/g, '$1')
+    .replace(
+      /(?<!\\)\\(?=(?:frac|forall|flat|beta|binom|big|bar|bf|theta|tau|times|top|text|tilde|to|nabla|neq|nu|norm|not|rho|rightarrow|right)\b)/g,
+      '\\\\',
+    )
+    .replace(/(?<!\\)\\(?![/\\"'bfnrtu])/g, '\\\\');
+}
+
 export function parseOpenUIBlock(raw: string, closed = true): ParsedOpenUI {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -124,11 +176,16 @@ export function parseOpenUIBlock(raw: string, closed = true): ParsedOpenUI {
   try {
     parsed = JSON.parse(trimmed);
   } catch {
-    if (!closed) {
-      const compMatch = /"component"\s*:\s*"([^"]+)"/.exec(trimmed);
-      return { status: 'streaming', component: compMatch?.[1] };
+    const cleaned = sanitizeLenientJson(trimmed);
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch {
+      if (!closed) {
+        const compMatch = /"component"\s*:\s*"([^"]+)"/.exec(trimmed);
+        return { status: 'streaming', component: compMatch?.[1] };
+      }
+      return { status: 'invalid', raw: trimmed };
     }
-    return { status: 'invalid', raw: trimmed };
   }
 
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -169,7 +226,7 @@ export function parseOpenUIBlock(raw: string, closed = true): ParsedOpenUI {
     }
 
     case 'ConceptCard': {
-      const title = asString(obj.title);
+      const title = asString(obj.title ?? obj.name);
       if (!title) return { status: 'invalid', raw: trimmed };
       return {
         status: 'ready',
@@ -177,17 +234,17 @@ export function parseOpenUIBlock(raw: string, closed = true): ParsedOpenUI {
           component: 'ConceptCard',
           title,
           subtitle: asString(obj.subtitle) || undefined,
-          book: asString(obj.book) || undefined,
-          intuition: asString(obj.intuition) || undefined,
-          formal: asString(obj.formal) || undefined,
-          example: asString(obj.example) || undefined,
-          takeaways: asStringArray(obj.takeaways),
+          book: asString(obj.book ?? obj.cite) || undefined,
+          intuition: asString(obj.intuition ?? obj.summary) || undefined,
+          formal: asString(obj.formal ?? obj.math ?? obj.equation ?? obj.definition) || undefined,
+          example: asString(obj.example ?? obj.worked_example) || undefined,
+          takeaways: asStringArray(obj.takeaways ?? obj.key_takeaways ?? obj.points),
         },
       };
     }
 
     case 'ComparisonTable': {
-      const columns = asStringArray(obj.columns);
+      const columns = asStringArray(obj.columns ?? obj.headers);
       const rawRows = Array.isArray(obj.rows) ? obj.rows : [];
       const rows = rawRows
         .filter((row): row is unknown[] => Array.isArray(row))
@@ -202,21 +259,34 @@ export function parseOpenUIBlock(raw: string, closed = true): ParsedOpenUI {
           title: asString(obj.title) || undefined,
           columns,
           rows,
-          verdict: asString(obj.verdict) || undefined,
+          verdict: asString(obj.verdict ?? obj.summary ?? obj.takeaway) || undefined,
         },
       };
     }
 
     case 'StepWalkthrough': {
-      const rawSteps = Array.isArray(obj.steps) ? obj.steps : [];
+      const rawSteps = Array.isArray(obj.steps)
+        ? obj.steps
+        : Array.isArray(obj.items)
+          ? obj.items
+          : [];
       const steps: WalkthroughStep[] = rawSteps
-        .filter((step): step is Record<string, unknown> => Boolean(step && typeof step === 'object'))
-        .map((step, idx) => ({
-          title: asString(step.title, `Step ${idx + 1}`),
-          detail: asString(step.detail),
-          formula: asString(step.formula) || undefined,
-          cite: asString(step.cite) || undefined,
-        }));
+        .map((step, idx): WalkthroughStep | null => {
+          if (typeof step === 'string') {
+            return { title: `Step ${idx + 1}`, detail: step.trim() };
+          }
+          if (step && typeof step === 'object') {
+            const s = step as Record<string, unknown>;
+            return {
+              title: asString(s.title ?? s.name ?? s.step, `Step ${idx + 1}`),
+              detail: asString(s.detail ?? s.description ?? s.explanation ?? s.text),
+              formula: asString(s.formula ?? s.equation ?? s.math) || undefined,
+              cite: asString(s.cite ?? s.book ?? s.source) || undefined,
+            };
+          }
+          return null;
+        })
+        .filter((s): s is WalkthroughStep => s !== null);
       if (steps.length === 0) return { status: 'invalid', raw: trimmed };
       return {
         status: 'ready',
@@ -261,6 +331,77 @@ export function parseOpenUIBlock(raw: string, closed = true): ParsedOpenUI {
           question,
           hint: asString(obj.hint) || undefined,
           options: asStringArray(obj.options),
+        },
+      };
+    }
+
+    case 'ConceptGraph':
+    case 'Graph':
+    case 'Architecture': {
+      const rawNodes = Array.isArray(obj.nodes) ? obj.nodes : [];
+      const nodes: GraphNode[] = rawNodes
+        .filter((n): n is Record<string, unknown> => Boolean(n && typeof n === 'object'))
+        .map((n, idx) => {
+          const id = asString(n.id, `n${idx + 1}`);
+          return {
+            id,
+            label: asString(n.label || n.title || n.name, id),
+            group: asString(n.group || n.category) || undefined,
+            detail: asString(n.detail || n.description) || undefined,
+            cite: asString(n.cite || n.book) || undefined,
+          };
+        });
+      if (nodes.length === 0) return { status: 'invalid', raw: trimmed };
+      const rawEdges = Array.isArray(obj.edges) ? obj.edges : [];
+      const edges: GraphEdge[] = rawEdges
+        .filter((e): e is Record<string, unknown> => Boolean(e && typeof e === 'object'))
+        .map((e) => ({
+          from: asString(e.from || e.source),
+          to: asString(e.to || e.target),
+          label: asString(e.label || e.relation) || undefined,
+        }))
+        .filter((e) => Boolean(e.from && e.to));
+      return {
+        status: 'ready',
+        spec: {
+          component: 'ConceptGraph',
+          title: asString(obj.title, 'Concept Architecture'),
+          subtitle: asString(obj.subtitle) || undefined,
+          book: asString(obj.book) || undefined,
+          nodes,
+          edges,
+        },
+      };
+    }
+
+    case 'Chart':
+    case 'BarChart':
+    case 'MetricChart': {
+      const rawItems = Array.isArray(obj.items || obj.bars || obj.data)
+        ? ((obj.items || obj.bars || obj.data) as unknown[])
+        : [];
+      const items: ChartItem[] = rawItems
+        .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'))
+        .map((item, idx) => {
+          const rawVal = Number(item.value ?? item.score ?? 0);
+          return {
+            label: asString(item.label || item.name, `Item ${idx + 1}`),
+            value: Number.isFinite(rawVal) ? rawVal : 0,
+            displayValue: asString(item.displayValue) || undefined,
+            note: asString(item.note || item.detail) || undefined,
+          };
+        });
+      if (items.length === 0) return { status: 'invalid', raw: trimmed };
+      return {
+        status: 'ready',
+        spec: {
+          component: 'Chart',
+          title: asString(obj.title, 'Metric Comparison'),
+          subtitle: asString(obj.subtitle) || undefined,
+          unit: asString(obj.unit) || undefined,
+          book: asString(obj.book) || undefined,
+          items,
+          caption: asString(obj.caption) || undefined,
         },
       };
     }

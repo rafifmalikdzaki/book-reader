@@ -41,10 +41,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DEFAULT_PRIORITY = (
+    "inception:mercury-3,"
     "mistral:mistral-small-latest,"
     "mistral:ministral-8b-latest,"
     "mistral:zai-glm-5-3-flash,"
-    "inception:mercury-3,"
     "openrouter:openrouter/free,"
     "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,"
     "ollama:gpt-oss:20b"
@@ -66,9 +66,9 @@ _SOCRATIC_TRIGGERS = re.compile(
 
 _OPENUI_INSTRUCTIONS = (
     "Formatting & Question-Adaptive UI (OpenUI):\n"
-    "- Match your output structure to the user's question type. When appropriate, include "
-    "AT MOST ONE fenced ```openui JSON block (valid JSON object, no comments or trailing commas) "
-    "alongside clear Markdown and LaTeX ($...$ inline, $$...$$ display):\n"
+    "- Match your output structure to the user's question type. Always include a fenced "
+    "```openui JSON block (valid JSON object, no comments or trailing commas) alongside clear "
+    "Markdown and LaTeX ($...$ inline, $$...$$ display) when one of these components fits:\n"
     "  1. Concept / Section Explanation ('explain...', 'what is...', 'break down this section'):\n"
     "     ```openui\n"
     '     {"component":"ConceptCard","title":"...","subtitle":"...","book":"book.pdf#p12",'
@@ -89,19 +89,34 @@ _OPENUI_INSTRUCTIONS = (
     '     {"component":"StepWalkthrough","title":"...","steps":[{"title":"Step 1","detail":"...",'
     '"formula":"...","cite":"book.pdf#p12"}]}\n'
     "     ```\n"
-    "  4. Book Recommendations / Library Survey ('recommend books...', 'which books cover...'):\n"
+    "  4. Architecture / Concept Relationships / Flows "
+    "('map the architecture...', 'how do X, Y, Z connect', 'concept graph'):\n"
+    "     ```openui\n"
+    '     {"component":"ConceptGraph","title":"...","subtitle":"...","book":"book.pdf#p12",'
+    '"nodes":[{"id":"n1","label":"Concept A","group":"input","detail":"...","cite":"book.pdf#p12"},'
+    '{"id":"n2","label":"Concept B","group":"core","detail":"..."}],'
+    '"edges":[{"from":"n1","to":"n2","label":"transforms into"}]}\n'
+    "     ```\n"
+    "  5. Quantitative Metrics / Benchmarks ('benchmark...', 'plot/chart...'):\n"
+    "     ```openui\n"
+    '     {"component":"Chart","title":"...","subtitle":"...","unit":"ms","book":"book.pdf#p18",'
+    '"items":[{"label":"Method A","value":85,"displayValue":"85 ms","note":"O(n^2)"},'
+    '{"label":"Method B","value":24,"displayValue":"24 ms","note":"O(n log n)"}],'
+    '"caption":"Source context"}\n'
+    "     ```\n"
+    "  6. Book Recommendations / Library Survey ('recommend books...', 'which books cover...'):\n"
     "     ```openui\n"
     '     {"component":"BookList","title":"Recommended Reading",'
     '"books":[{"book":"path/to/book.pdf",'
     '"title":"Human Title","category":"Category","why":"Why this book fits",'
     '"start":"Section 2 (p.14)"}]}\n'
     "     ```\n"
-    "  5. Socratic Tutoring / Mastery Tracking:\n"
+    "  7. Socratic Tutoring / Mastery Tracking:\n"
     "     ```openui\n"
     '     {"component":"SkillMap","topic":"...","book":"book.pdf#p12","focus":"Current subskill",'
     '"skills":[{"name":"Subskill 1","level":3,"status":"focus","note":"..."}]}\n'
     "     ```\n"
-    "     or for an interactive check:\n"
+    "     and for an interactive check question:\n"
     "     ```openui\n"
     '     {"component":"QuizCheck","question":"...","hint":"Optional nudge",'
     '"options":["Option A","Option B"]}\n'
