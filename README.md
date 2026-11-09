@@ -2,24 +2,96 @@
 
 # 📖 Book Reader
 
-**A local-first, private reading room and pedagogical research workspace for your PDF and Markdown collection.**
+<p align="center"><strong>A local-first reading room and pedagogical research workspace for your PDF and Markdown collection.</strong></p>
 
-Turn any folder of papers, textbooks, and notes into an organized, searchable library with continuous PDF.js reading, rich Markdown rendering, durable reading memory, and a grounded AI teacher that answers with verifiable citations.
+<p align="center">
+  <a href="#-quick-start">Quick Start</a> ·
+  <a href="#-how-it-works">How It Works</a> ·
+  <a href="#-interactive-generative-ui-openui">Generative UI</a> ·
+  <a href="#-deep-retrieval--search">Deep Retrieval</a> ·
+  <a href="#-your-keys-your-data">Your Keys, Your Data</a> ·
+  <a href="#-development">Development</a> ·
+  <a href="#-architecture--api">Architecture</a>
+</p>
 
 [![CI](https://github.com/rafifmalikdzaki/book-reader/actions/workflows/ci.yml/badge.svg)](https://github.com/rafifmalikdzaki/book-reader/actions/workflows/ci.yml)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat&logo=react&logoColor=black)](https://react.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.116+-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Vite](https://img.shields.io/badge/Vite-8.3-646CFF?style=flat&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Local-First](https://img.shields.io/badge/Local--First-Zero_Telemetry-8A6D3B?style=flat)](#security-and-privacy)
-
-[Quick Start](#-quick-start) • [Key Features](#-key-features) • [AI Integration & Socratic Tutor](#-ai-research--socratic-tutor) • [Search Architecture](#-search--retrieval) • [HTTP API](#-http-api) • [Architecture](#-architecture)
+[![Local-First](https://img.shields.io/badge/Local--First-Zero_Telemetry-8A6D3B?style=flat)](#-your-keys-your-data)
 
 </div>
 
+Book Reader turns any local folder of textbooks, research papers, and technical notes into a quiet, distraction-free reading room.
+
+Instead of passive skimming or shallow RAG summaries that truncate after 500 tokens, Book Reader reads multi-page mathematical proofs, verifies claims against grounded citations, and actively teaches one reasoning step at a time. It pairs a native React 19 PDF viewer and CommonMark reader with anchored marginalia, a Jane Street Socratic Tutor, and question-adaptive Generative UI.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             BOOK READER PLATFORM                            │
+├───────────────────┬───────────────────┬───────────────────┬─────────────────┤
+│ 📚 Library & Shelf│ 📄 Reader Surfaces│ 📝 Notepad System │ 🎓 Pedagogical  │
+│   • Cover previews│   • React-PDF v11 │   • Anchored notes│    AI Teacher   │
+│   • Reading modes │   • Windowed scroll│  • Multi-span loc│   • Explain Mode│
+│   • Move tracking │   • Markdown AST  │   • Markdown /    │   • Socratic    │
+│   • Virtual cats  │   • KaTeX math    │     JSON export   │     Tutor Skill │
+└───────────────────┴───────────────────┴───────────────────┴─────────────────┘
+```
+
 ---
 
-## ⚡ Quick Start
+## ⚡ How It Works
+
+1. **Read & Anchor.** Open books in a native React 19 PDF viewer (`react-pdf` v11) with windowed canvas virtualization, table of contents outline, thumbnail strip, and in-document text search (`<mark>` highlights). Select any passage in PDFs or Markdown notes to anchor marginalia to exact character offsets or source lines.
+2. **Decompose & Diagnose.** The Socratic Tutor decomposes target chapters into 4–8 concrete subskills. Before lecturing, it runs a 3–5 question placement diagnostic **one question at a time** to discover where your understanding ends.
+3. **Teach & Probe.** Master Teacher mode explains with Intuition → Formal Equations → Worked Examples with deep locators (`paper.pdf#p14`). Socratic Tutor mode probes misconceptions, plays devil's advocate on correct answers, and never lectures passively.
+4. **Inspect the Thinking.** Real-time reasoning effort controls (`Low`, `Medium`, `High`) and live process tracking. Watch the agent track subtasks, extract multi-page section spans, and stream its internal reasoning traces before finalizing the response. Completed answers preserve the exact sequence in a collapsible research trace.
+5. **Carry Forward.** Move files, rename folders, or reorganize your filesystem in your OS without fear. Stable SHA-256 content hashes ensure reading positions, notes, and chat sessions follow your documents wherever they move.
+
+**Half-Page Expandable Rails.** Slide-out Ask and Table of Contents side rails dynamically expand up to 50% of the viewport width for comfortable, side-by-side technical study.
+
+**Reading Atmospheres.** Switch effortlessly between *Daylight Lamp*, *Dimmed Desk*, and *Midnight Baize* nocturnal themes without jarring reloads.
+
+---
+
+## 🎨 Interactive Generative UI (OpenUI)
+
+Instead of dense walls of raw text, responses render tailored OpenUI components (<5 KB bundle footprint, zero third-party UI dependencies):
+
+| Question / Task Type | Rendered Component | Key Affordances |
+| :--- | :--- | :--- |
+| **Socratic Tutoring** | `<SkillMap />` | Radial SVG mastery ring, 0–5 mastery bars, 1-click *Practice* & tutor controls |
+| **Section & Concept Analysis** | `<ConceptCard />` | Stacked Intuition, Formal Mechanism, Worked Example, Takeaways, follow-up actions |
+| **System & Concept Topology** | `<ConceptGraph />` | Interactive SVG node-link DAG diagram with clickable node inspector |
+| **Trade-offs & Comparisons** | `<ComparisonTable />` | Structured side-by-side matrix with synthesis verdict |
+| **Quantitative Benchmarks** | `<Chart />` | Horizontal comparison bar chart with `tabular-nums` metric scaling |
+| **Algorithms & Derivations** | `<StepWalkthrough />` | Numbered vertical step timeline with LaTeX equation blocks & *Unpack step* |
+| **Library Surveys & Recs** | `<BookList />` | Cover thumbnail previews, fit justification, *Inspect outline* & *Open Book →* |
+| **Interactive Socratic Checks** | `<QuizCheck />` | Prompt verification with collapsible hint and selectable interactive choices |
+
+---
+
+## 🔍 Deep Retrieval & Search
+
+Unlike standard RAG pipelines that truncate text after a single page:
+- `get_book_outline(book)` inspects the complete PageIndex Flash layout tree or Markdown heading hierarchy.
+- `read_section(book, section)` extracts multi-page section spans (up to 10 pages / 10,000 characters) so mathematical proofs and derivations are never cut off.
+- `list_books(query, category)` scans the library with cached human-readable PDF titles.
+- `read_notes(book, query)` pulls your saved thoughts into the reasoning loop.
+
+Book Reader supports hybrid multi-tier retrieval configured via `--search`:
+
+| Mode | Strategy |
+| :--- | :--- |
+| **`auto`** *(default)* | Elasticsearch BM25 when reachable, then PageIndex section trees, falling back to local text scan |
+| **`pageindex`** | Vectorless hierarchy search over offline PageIndex Flash layout trees; no external services |
+| **`elastic`** | Pure Elasticsearch BM25 full-text chunk search |
+| **`local`** | Fast candidate-scored in-process text scan |
+
+---
+
+## 🚀 Quick Start
 
 ### Option 1: One Command with `uv` (Recommended)
 
@@ -57,105 +129,71 @@ BOOK_READER_CHAT_PRIORITY=inception:mercury-3,mistral:mistral-small-latest,mistr
 
 ---
 
-## ✨ Key Features
+## 🔒 Your Keys, Your Data
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                             BOOK READER PLATFORM                            │
-├───────────────────┬───────────────────┬───────────────────┬─────────────────┤
-│ 📚 Library & Shelf│ 📄 Reader Surfaces│ 📝 Notepad System │ 🎓 Pedagogical  │
-│   • Cover previews│   • PDF.js native │   • Anchored notes│    AI Teacher   │
-│   • Reading modes │   • Markdown AST  │   • Multi-span loc│   • Explain Mode│
-│   • Move tracking │   • KaTeX math    │   • Markdown /    │   • Socratic    │
-│   • Virtual cats  │   • Deep links    │     JSON export   │     Tutor Skill │
-└───────────────────┴───────────────────┴───────────────────┴─────────────────┘
-```
-
-- **Reading Atmospheres**: Switch effortlessly between *Daylight Lamp*, *Dimmed Desk*, and *Midnight Baize* themes.
-- **Native React PDF Viewer (`react-pdf` v11)**: Windowed continuous scroll, left-docked Outline & Page Thumbnails rail, in-document search with `<mark>` text-layer highlights, zoom presets, rotation, and fullscreen. Zero iframe bridges or CDN dependencies.
-- **Strict Markdown Reader**: Server-sanitized CommonMark with Pygments syntax highlighting, heading outlines, and line-based deep links (`notes.md#L40`).
-- **Half-Page Expandable Rails**: Slide-out Ask and Table of Contents side rails dynamically expand up to 50% of the viewport width for comfortable side-by-side study.
-- **Anchored Research Notepad**: Highlight passages in either reader to capture notes anchored to PDF page character offsets or Markdown source lines.
-- **Durable Reading Memory**: Preserves page and scroll progress across sessions and machine reboots.
-- **Content-Hash Move Protection**: Move or rename library folders in your OS; reading positions, notes, and virtual categories track stable SHA-256 content hashes automatically.
+- **Localhost by design.** Single-user, zero telemetry, no external analytics, no cloud subscriptions. Runs bound to `127.0.0.1` by default with DNS rebinding host protection.
+- **Vendored & offline assets.** PDF rendering worker, CMaps, standard fonts, and KaTeX math fonts are served locally from `static/vendor/` with zero remote CDN dependencies.
+- **Your models, your keys.** Direct API integration with Inception Mercury 3, Mistral, OpenRouter, or 100% offline local [Ollama](https://ollama.com/) instances for private, network-free document analysis.
+- **Crash-proof storage.** Plain JSON state files with transactional file locks, pre-write atomic backups, and automatic crash recovery on startup.
+- **Sandboxed untrusted content.** User-authored Markdown HTML execution is disabled. Arbitrary files served via `/raw` are served as forced attachments with `nosniff`.
 
 ---
 
-## 🎓 AI Research & Socratic Tutor
+## 🛠️ Development
 
-Book Reader transforms traditional passive search into an active, pedagogical learning environment.
-
-### 1. Dual Pedagogical Modes
-
-- **Master Teacher Mode (`Explain`)**: Focuses on structured explanations. Employs a proven conceptual hierarchy:
-  1. **Intuition** (why the idea exists in plain language)
-  2. **Formal Definition & Equations** (rigorous mathematical formulation via LaTeX)
-  3. **Worked Examples & Citations** (drawn directly from your book with exact locators like `paper.pdf#p14`)
-- **Jane Street Socratic Tutor Mode (`Socratic Tutor`)**: Implements Jane Street's [`socratic-tutor`](https://github.com/janestreet/agent_skills/blob/master/socratic-tutor/SKILL.md) skill:
-  - Decomposes target chapters into 4–8 concrete subskills.
-  - Runs a 3–5 question placement diagnostic **one question at a time**.
-  - Renders a live **0–5 Mastery Skill Map** (`0 unaware · 1 heard of it · 2 can follow · 3 with help · 4 independent · 5 can teach`).
-  - Maieutic questioning loop: never lectures, probes misconceptions, plays devil's advocate on correct answers, and interleaves spaced review.
-  - Interactive commands supported: `show progress`, `harder`, `easier`, `just tell me`, `save state`, and `resume from:`.
-
-### 2. Lightweight Question-Adaptive Generative UI (OpenUI)
-
-Instead of dense walls of raw text, responses render tailored OpenUI components (<5 KB bundle footprint, zero third-party UI dependencies):
-
-| Question / Task Type | Rendered Component | Key Affordances |
-| :--- | :--- | :--- |
-| **Socratic Tutoring** | `<SkillMap />` | Radial SVG mastery ring, 0–5 mastery bars, 1-click *Practice* & tutor controls |
-| **Section & Concept Analysis** | `<ConceptCard />` | Stacked Intuition, Formal Mechanism, Worked Example, Takeaways, follow-up actions |
-| **System & Concept Topology** | `<ConceptGraph />` | Interactive SVG node-link DAG diagram with clickable node inspector |
-| **Trade-offs & Comparisons** | `<ComparisonTable />` | Structured side-by-side matrix with synthesis verdict |
-| **Quantitative Benchmarks** | `<Chart />` | Horizontal comparison bar chart with `tabular-nums` metric scaling |
-| **Algorithms & Derivations** | `<StepWalkthrough />` | Numbered vertical step timeline with LaTeX equation blocks & *Unpack step* |
-| **Library Surveys & Recs** | `<BookList />` | Cover thumbnail previews, fit justification, *Inspect outline* & *Open Book →* |
-| **Interactive Socratic Checks** | `<QuizCheck />` | Prompt verification with collapsible hint and selectable interactive choices |
-
-### 3. Deep Section & Chapter Extraction
-
-Unlike standard RAG pipelines that truncate text after a single page:
-- `get_book_outline(book)` inspects the complete PageIndex Flash layout tree or Markdown heading hierarchy.
-- `read_section(book, section)` extracts multi-page section spans (up to 10 pages / 10,000 characters) so mathematical proofs and arguments are never cut off.
-- `list_books(query, category)` scans the library with cached human-readable PDF titles.
-- `read_notes(book, query)` pulls your saved thoughts into the reasoning loop.
-
-### 4. Interactive Model Controls & Live Reasoning Process
-
-- **Model & Effort Toolbar**: Select preferred LLM models directly from the chat header (prioritizing Inception Mercury 3) and dial **Reasoning Effort** (`Low`, `Medium`, `High`) to balance speed and analytical depth.
-- **Live Process Timeline**: Real-time visualization during answer generation showing elapsed duration, an active subtask checklist (`✓` completed, `●` in progress), and streaming thought notes.
-- **Persisted Research Disclosure**: Every completed response includes a collapsible `💡 Research & reasoning process (N steps)` trace preserving the exact sequence of retrieval and synthesis steps.
-- **Streaming & Cancellation**: Live token streaming via Server-Sent Events (`GET /api/chat/sessions/{id}/events`) with instant **Stop / Cancel** generation (`POST /api/chat/sessions/{id}/cancel`).
-
----
-
-## 🔍 Search & Retrieval
-
-Book Reader supports hybrid multi-tier retrieval configured via `--search`:
-
-| Mode | Strategy |
-| :--- | :--- |
-| **`auto`** *(default)* | Elasticsearch BM25 when reachable, then PageIndex section trees, falling back to local text scan |
-| **`pageindex`** | Vectorless hierarchy search over offline PageIndex Flash layout trees; no external services |
-| **`elastic`** | Pure Elasticsearch BM25 full-text chunk search |
-| **`local`** | Fast candidate-scored in-process text scan |
+We use [`just`](https://github.com/casey/just) for streamlined local automation:
 
 ```bash
-# Build or update the Elasticsearch index
-uv run book-reader --index
+# Complete quality gate: Python check/test + Frontend check/test/build
+just ci
+
+# Run all linters and typecheckers (Ruff + Mypy + ESLint + TypeScript)
+just check
+
+# Run all test suites (182 Python pytest + 194 Frontend vitest)
+just test
+
+# Auto-format codebase (ruff format + autofix)
+just fmt
+
+# Run Ask + Socratic Tutor evaluation suite (offline or live Mercury 3)
+just eval-offline
+just eval-live
 
 # Benchmark retrieval accuracy against your collection
-uv run python scripts/benchmark_rag.py --library ~/Documents/Books
+just benchmark-rag
 
-# Evaluate Ask + Socratic Tutor + OpenUI capabilities (offline or live Mercury 3)
-uv run python scripts/eval_ask.py
-uv run python scripts/eval_ask.py --live --model inception:mercury-3
+# Dev server with HMR (proxies API to localhost:8000)
+just dev-ui
 ```
+
+*(You can also run commands directly with `uv run ...` and `npm run ...` if `just` is not installed.)*
 
 ---
 
-## 📡 HTTP API
+## 🏗️ Architecture & API
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                          FASTAPI APPLICATION                           │
+│  ┌────────────────────┬────────────────────┬────────────────────────┐  │
+│  │   Library Router   │  Notepad & Progress│  Chat & Sessions Hub   │  │
+│  └─────────┬──────────┴─────────┬──────────┴───────────┬────────────┘  │
+└────────────┼────────────────────┼──────────────────────┼───────────────┘
+             │                    │                      │
+   ┌─────────▼────────┐ ┌─────────▼────────┐   ┌─────────▼────────────┐
+   │ PyMuPDF Cache &  │ │ JSON Store Lock  │   │ LangGraph Agent &    │
+   │ PageIndex Flash  │ │ Atomic Backups   │   │ Provider Priority    │
+   └──────────────────┘ └──────────────────┘   └──────────────────────┘
+             ▲                                           │
+             │           HTTP / SSE Token Stream         ▼
+┌────────────┴───────────────────────────────────────────────────────────┐
+│                           REACT 19 SPA (VITE)                          │
+│  ┌────────────────────┬────────────────────┬────────────────────────┐  │
+│  │ Native PDF/MD View │ /ask Workspace     │ OpenUI Block Renderer  │  │
+│  └────────────────────┴────────────────────┴────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────┘
+```
 
 | Route | Method | Description |
 | :--- | :--- | :--- |
@@ -175,74 +213,6 @@ uv run python scripts/eval_ask.py --live --model inception:mercury-3
 
 ---
 
-## 🏗️ Architecture
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                          FASTAPI APPLICATION                           │
-│  ┌────────────────────┬────────────────────┬────────────────────────┐  │
-│  │   Library Router   │  Notepad & Progress│  Chat & Sessions Hub   │  │
-│  └─────────┬──────────┴─────────┬──────────┴───────────┬────────────┘  │
-└────────────┼────────────────────┼──────────────────────┼───────────────┘
-             │                    │                      │
-   ┌─────────▼────────┐ ┌─────────▼────────┐   ┌─────────▼────────────┐
-   │ PyMuPDF Cache &  │ │ JSON Store Lock  │   │ LangGraph Agent &    │
-   │ PageIndex Flash  │ │ Atomic Backups   │   │ Provider Priority    │
-   └──────────────────┘ └──────────────────┘   └──────────────────────┘
-             ▲                                           │
-             │           HTTP / SSE Token Stream         ▼
-┌────────────┴───────────────────────────────────────────────────────────┐
-│                           REACT 19 SPA (VITE)                          │
-│  ┌────────────────────┬────────────────────┬────────────────────────┐  │
-│  │ PDF.js / MD Reader │ /ask Workspace     │ OpenUI Block Renderer  │  │
-│  └────────────────────┴────────────────────┴────────────────────────┘  │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-- **Backend**: Python 3.12, FastAPI, Uvicorn, PyMuPDF, PageIndex Flash, LangGraph.
-- **Frontend**: React 19, TypeScript strict mode, Vite 8, TanStack Query, React Router, CSS Modules with strict design tokens (`tokens.css`).
-- **Storage**: Plain JSON with file-lock transactions, automatic pre-write backups, and content-addressed recovery.
-
----
-
-## 🛠️ Development
-
-We use [`just`](https://github.com/casey/just) for streamlined, cross-platform build and test automation:
-
-```bash
-# Run full quality gate (Python format/lint/types/tests + Frontend lint/types/tests/build)
-just ci
-
-# Run all linters and typecheckers
-just check
-
-# Run all test suites (182 Python tests + 202 Frontend tests)
-just test
-
-# Auto-format and fix Python code
-just fmt
-
-# Run Ask + Socratic Tutor evaluation suite (offline or live Mercury 3)
-just eval-offline
-just eval-live
-
-# Dev server with HMR (proxies API to localhost:8000)
-just dev-ui
-```
-
-*(You can also run commands directly with `uv run ...` and `npm run ...` if `just` is not installed.)*
-
----
-
-## 🔒 Security and Privacy
-
-- **Single-User Localhost**: No authentication, multi-tenant boundaries, or telemetry. Runs bound to `127.0.0.1` by default with DNS rebinding host protection.
-- **No Remote CDNs**: PDF.js, its web worker, and KaTeX fonts/scripts are vendored locally under `src/book_reader/static/vendor/`.
-- **Untrusted Library Sandboxing**: User-authored Markdown HTML execution is disabled. Arbitrary files served via `/raw` are served as forced attachments with `nosniff`.
-- **Local AI Privacy**: Point your chat provider to a local [Ollama](https://ollama.com/) instance for 100% offline document analysis without network transmission.
-
----
-
 <div align="center">
-  <sub>Built for focused, long-form technical reading and research.</sub>
+  <sub>Built for focused, long-form technical reading and research. Free and open forever.</sub>
 </div>
