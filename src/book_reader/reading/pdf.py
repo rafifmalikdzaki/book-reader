@@ -97,7 +97,11 @@ class PdfCache:
         self._lock = threading.RLock()
         self._docs: OrderedDict[tuple[str, float], pymupdf.Document] = OrderedDict()
         self._word_cache: OrderedDict[tuple[str, float, int], dict[str, object]] = OrderedDict()
-        self._text_max = 64
+        # PageIndex scans read ~240 pages per book in ascending order, which
+        # never revisits entries, so this cache only pays off across queries
+        # when it holds several whole scans at once. Keyed by mtime, so an
+        # edited file drops out on its own.
+        self._text_max = 4096
         self._text_cache: OrderedDict[tuple[str, float, int], str] = OrderedDict()
         self._title_cache: OrderedDict[tuple[str, float], str | None] = OrderedDict()
 

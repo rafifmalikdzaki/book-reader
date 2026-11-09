@@ -89,6 +89,28 @@ def test_empty_query_returns_nothing(tree: tuple[PageIndexSearch, Path]) -> None
     assert searcher.search("   ", limit=5, book="sections.pdf") == []
 
 
+def test_repeat_query_does_not_reextract_page_text(
+    tree: tuple[PageIndexSearch, Path],
+) -> None:
+    searcher, _path = tree
+    pdf = searcher._pdf
+    real_page_text = pdf.page_text
+    extractions = 0
+
+    def counting_page_text(p: Path, page: int) -> str:
+        nonlocal extractions
+        key = (str(p), p.stat().st_mtime, page)
+        with pdf._lock:
+            if key not in pdf._text_cache:
+                extractions += 1
+        return real_page_text(p, page)
+
+    pdf.page_text = counting_page_text  # type: ignore[assignment]
+    assert searcher.search("delta control", limit=5)
+    assert searcher.search("delta control", limit=5)
+    assert extractions == 4
+
+
 def test_searcher_reports_pageindex_backend(tmp_path: Path) -> None:
     root = tmp_path / "library"
     path = build_pdf(root)
