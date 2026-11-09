@@ -10,13 +10,13 @@ from ..chat_types import (
 )
 from ..library.scan import Library
 from ..notepad import NotepadStore
-from ..pdf import PdfCache
+from ..reading.pdf import PdfCache
+from ..reading.sections import SectionIndex
 from ..search import Searcher
-from ..sections import SectionIndex
 
 if TYPE_CHECKING:
     from ..organize import CategoryStore
-    from ..pages import PageIndex
+    from ..reading.pages import PageIndex
     from ..reconcile import LibraryReconciler
 
 logger = logging.getLogger(__name__)

@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..sections import Section
+from ..reading.sections import Section
 from .prompts import _socratic_skill_text, openui_instructions
 from .state import ServiceState
 

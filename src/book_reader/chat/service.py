@@ -24,9 +24,9 @@ from ..chat_types import (
 from ..library.scan import Library
 from ..models import model_info
 from ..notepad import NotepadStore
-from ..pdf import PdfCache
+from ..reading.pdf import PdfCache
+from ..reading.sections import SectionIndex
 from ..search import Searcher
-from ..sections import SectionIndex
 from .graph import GraphMixin
 from .limits import MAX_STEPS
 from .model import _chat_model, _extractive_answer, _message_text, provider_key
@@ -36,7 +36,7 @@ from .tools import ToolsMixin
 
 if TYPE_CHECKING:
     from ..organize import CategoryStore
-    from ..pages import PageIndex
+    from ..reading.pages import PageIndex
     from ..reconcile import LibraryReconciler
 
 logger = logging.getLogger(__name__)

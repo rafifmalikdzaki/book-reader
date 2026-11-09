@@ -18,14 +18,14 @@ from urllib.parse import quote, urlencode
 from fastapi import FastAPI, HTTPException, Query
 
 from .library.scan import Library
-from .mdrender import render_markdown_file
 from .notepad import NotepadStore
 from .organize import CategoryStore, LibraryOrganizer
-from .pages import PageIndex
-from .pdf import PdfCache
-from .progress import ProgressStore
+from .reading.markdown import render_markdown_file
+from .reading.pages import PageIndex
+from .reading.pdf import PdfCache
+from .reading.progress import ProgressStore
+from .reading.sections import SectionIndex
 from .reconcile import LibraryReconciler, ReindexReport
-from .sections import SectionIndex
 
 logger = logging.getLogger(__name__)
 

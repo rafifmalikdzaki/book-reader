@@ -17,9 +17,9 @@ from elasticsearch import Elasticsearch
 
 from .library.models import Book
 from .library.scan import Library
-from .mdrender import search_markdown
-from .pdf import PdfCache
-from .sections import SectionIndex
+from .reading.markdown import search_markdown
+from .reading.pdf import PdfCache
+from .reading.sections import SectionIndex
 
 logger = logging.getLogger(__name__)
 

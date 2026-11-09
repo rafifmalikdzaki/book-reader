@@ -16,9 +16,9 @@ from collections.abc import Callable
 from pathlib import Path
 
 from book_reader.library.scan import Library
-from book_reader.pdf import PdfCache
+from book_reader.reading.pdf import PdfCache
+from book_reader.reading.sections import SectionIndex
 from book_reader.search import ElasticSearch, SearchHit
-from book_reader.sections import SectionIndex
 
 # (question, gold page, gold section keyword)
 GOLDEN: dict[str, list[tuple[str, int, str]]] = {

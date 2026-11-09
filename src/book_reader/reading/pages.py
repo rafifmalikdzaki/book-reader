@@ -10,8 +10,8 @@ from collections.abc import Iterable
 from contextlib import AbstractContextManager
 from pathlib import Path
 
+from ..state.remap import RemapError, apply_remap, plan_remap
 from .pdf import PdfCache
-from .state.remap import RemapError, apply_remap, plan_remap
 
 logger = logging.getLogger(__name__)
 

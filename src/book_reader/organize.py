@@ -23,9 +23,9 @@ import httpx
 
 from .library.models import UNFILED
 from .library.scan import Library
-from .pdf import PdfCache
+from .reading.pdf import PdfCache
+from .reading.sections import SectionIndex
 from .reconcile import LibraryReconciler
-from .sections import SectionIndex
 
 logger = logging.getLogger(__name__)
 

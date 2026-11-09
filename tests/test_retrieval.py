@@ -6,9 +6,9 @@ import pymupdf
 import pytest
 
 from book_reader.library.scan import Library
-from book_reader.pdf import PdfCache
+from book_reader.reading.pdf import PdfCache
+from book_reader.reading.sections import SectionIndex
 from book_reader.search import PageIndexSearch, Searcher
-from book_reader.sections import SectionIndex
 
 
 def build_pdf(root: Path) -> Path:

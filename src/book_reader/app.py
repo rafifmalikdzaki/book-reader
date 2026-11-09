@@ -36,9 +36,10 @@ from .chats import ChatStore
 from .library.scan import Library
 from .notepad import NotepadStore
 from .organize import CategoryStore, LibraryOrganizer, MistralClient
-from .pages import PageIndex
-from .pdf import PdfCache
-from .progress import ProgressStore
+from .reading.pages import PageIndex
+from .reading.pdf import PdfCache
+from .reading.progress import ProgressStore
+from .reading.sections import SectionIndex
 from .reconcile import LibraryReconciler
 from .routes_chat_sessions import register as register_chat_sessions
 from .routes_library import LibraryViews
@@ -46,7 +47,6 @@ from .routes_library import register as register_library
 from .routes_notepad import register as register_notepad
 from .routes_spa import register as register_spa
 from .search import ElasticSearch, Searcher, SearchUnavailable
-from .sections import SectionIndex
 from .security_headers import install as install_security_headers
 from .security_headers import install_host_check
 from .state.lock import StateDirectoryLock

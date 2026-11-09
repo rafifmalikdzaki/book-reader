@@ -13,8 +13,8 @@ from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..notepad import NotepadError
+from ..reading.sections import match_sections
 from ..search import SearchHit, SearchUnavailable
-from ..sections import match_sections
 from .context import ContextMixin
 from .limits import MAX_SOURCE_TEXT
 from .model import _tool_error

@@ -21,10 +21,10 @@ from book_reader.evals import (
 from book_reader.library.scan import Library
 from book_reader.notepad import NotepadStore
 from book_reader.organize import CategoryStore
-from book_reader.pages import PageIndex
-from book_reader.pdf import PdfCache
+from book_reader.reading.pages import PageIndex
+from book_reader.reading.pdf import PdfCache
+from book_reader.reading.sections import SectionIndex
 from book_reader.search import Searcher
-from book_reader.sections import SectionIndex
 
 
 class _AnswerRecorder:

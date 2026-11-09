@@ -37,9 +37,9 @@ from pathlib import Path
 from .chats import ChatStore
 from .library.scan import Library
 from .notepad import NotepadStore
-from .pages import PageIndex
-from .progress import ProgressStore
-from .sections import SectionIndex
+from .reading.pages import PageIndex
+from .reading.progress import ProgressStore
+from .reading.sections import SectionIndex
 
 logger = logging.getLogger(__name__)
 

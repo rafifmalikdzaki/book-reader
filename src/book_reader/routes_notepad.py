@@ -12,8 +12,8 @@ from pydantic import BaseModel, Field
 
 from .library.scan import Library
 from .notepad import MAX_COMMENT, MAX_GROUP_NAME, MAX_QUOTE, NotepadError, NotepadStore
-from .pdf import PdfCache
-from .sections import SectionIndex
+from .reading.pdf import PdfCache
+from .reading.sections import SectionIndex
 
 
 class GroupBody(BaseModel):

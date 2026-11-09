@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 2 done. Task 3: create reading/ and move pdf, mdrender (-> markdown), pages, progress, sections.
+Task 3 done. Task 4: move notepad.py to notes/store.py.
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 2 done. Task 3: create reading/ and move pdf, mdrender (-> markdown), pages
 
 ## Next action
 
-Task 3: create reading/ and move pdf, mdrender (-> markdown), pages, progress, sections.
+Task 4: move notepad.py to notes/store.py.
 
 ## Blockers
 
