@@ -12,6 +12,8 @@
   and FastAPI SPA shell tests.
 - ADRs for the SPA cutover, vendored reader assets, content-hash reindex, local trust
   boundary, and Ask retention.
+- Live agent process on `/ask`: steps, documents found (`found` SSE event) and model
+  reasoning stream into a collapsible card while the answer is generated.
 
 ### Changed
 
@@ -21,6 +23,8 @@
   remount without losing the one-time relocation notice.
 - `/raw` serves only PDF, Markdown, and raster images inline; other library files
   download as `application/octet-stream`.
+- Ask and the reader chat rail auto-scroll only while you are following the latest
+  output; scrolling up stops the view from jumping to the bottom.
 
 - Backend modules are grouped feature-first (`state/`, `library/`, `reading/`, `notes/`,
   `search/`, `chat/`, `organize/`, `reindex/`, `api/`) with a `services.py` composition
