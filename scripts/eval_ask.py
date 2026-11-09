@@ -24,7 +24,7 @@ from book_reader.organize import CategoryStore
 from book_reader.reading.pages import PageIndex
 from book_reader.reading.pdf import PdfCache
 from book_reader.reading.sections import SectionIndex
-from book_reader.search import Searcher
+from book_reader.search.service import Searcher
 
 
 class _AnswerRecorder:

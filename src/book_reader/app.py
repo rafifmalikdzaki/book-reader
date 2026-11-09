@@ -46,7 +46,9 @@ from .routes_library import LibraryViews
 from .routes_library import register as register_library
 from .routes_notepad import register as register_notepad
 from .routes_spa import register as register_spa
-from .search import ElasticSearch, Searcher, SearchUnavailable
+from .search.elastic import ElasticSearch
+from .search.service import Searcher
+from .search.types import SearchUnavailable
 from .security_headers import install as install_security_headers
 from .security_headers import install_host_check
 from .state.lock import StateDirectoryLock

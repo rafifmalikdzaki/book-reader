@@ -18,7 +18,8 @@ from pathlib import Path
 from book_reader.library.scan import Library
 from book_reader.reading.pdf import PdfCache
 from book_reader.reading.sections import SectionIndex
-from book_reader.search import ElasticSearch, SearchHit
+from book_reader.search.elastic import ElasticSearch
+from book_reader.search.types import SearchHit
 
 # (question, gold page, gold section keyword)
 GOLDEN: dict[str, list[tuple[str, int, str]]] = {
@@ -112,7 +113,7 @@ def main() -> None:
     pdf = PdfCache()
     sections = SectionIndex(state)
 
-    from book_reader.search import PageIndexSearch
+    from book_reader.search.pageindex import PageIndexSearch
 
     tree = PageIndexSearch(library, sections, pdf)
     rows = [

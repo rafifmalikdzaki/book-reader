@@ -12,7 +12,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 
-from ..search import SearchHit
+from ..search.types import SearchHit
 
 if TYPE_CHECKING:
     pass

@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..notes.store import NotepadError
 from ..reading.sections import match_sections
-from ..search import SearchHit, SearchUnavailable
+from ..search.types import SearchHit, SearchUnavailable
 from .context import ContextMixin
 from .limits import MAX_SOURCE_TEXT
 from .model import _tool_error

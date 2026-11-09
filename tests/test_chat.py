@@ -22,7 +22,7 @@ from book_reader.library.scan import Library
 from book_reader.notes.store import NotepadStore
 from book_reader.reading.pdf import PdfCache
 from book_reader.reading.sections import SectionIndex
-from book_reader.search import Searcher
+from book_reader.search.service import Searcher
 
 
 def build_chat(library: Path, tmp_path: Path) -> ChatService:

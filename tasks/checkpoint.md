@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Task 4 done. Task 5: split search.py into search/ (types, elastic, pageindex, service).
+Task 5 done. Task 6: fold chat_types/chat_providers/chat_config/chats/models into chat/ and empty chat/__init__.py.
 
 ## Last verified state
 
@@ -13,7 +13,7 @@ Task 4 done. Task 5: split search.py into search/ (types, elastic, pageindex, se
 
 ## Next action
 
-Task 5: split search.py into search/ (types, elastic, pageindex, service).
+Task 6: fold chat_types/chat_providers/chat_config/chats/models into chat/ and empty chat/__init__.py.
 
 ## Blockers
 

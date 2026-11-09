@@ -14,7 +14,9 @@ from book_reader.library.scan import Library
 from book_reader.reading.markdown import render_markdown
 from book_reader.reading.pdf import PdfCache
 from book_reader.reading.sections import SectionIndex
-from book_reader.search import ElasticSearch, Searcher, SearchUnavailable
+from book_reader.search.elastic import ElasticSearch
+from book_reader.search.service import Searcher
+from book_reader.search.types import SearchUnavailable
 
 JPEG_MAGIC = b"\xff\xd8\xff"
 Client = tuple[TestClient, Path]

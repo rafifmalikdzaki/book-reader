@@ -26,7 +26,7 @@ from ..models import model_info
 from ..notes.store import NotepadStore
 from ..reading.pdf import PdfCache
 from ..reading.sections import SectionIndex
-from ..search import Searcher
+from ..search.service import Searcher
 from .graph import GraphMixin
 from .limits import MAX_STEPS
 from .model import _chat_model, _extractive_answer, _message_text, provider_key

@@ -12,7 +12,7 @@ from ..library.scan import Library
 from ..notes.store import NotepadStore
 from ..reading.pdf import PdfCache
 from ..reading.sections import SectionIndex
-from ..search import Searcher
+from ..search.service import Searcher
 
 if TYPE_CHECKING:
     from ..organize import CategoryStore

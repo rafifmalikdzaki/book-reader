@@ -63,6 +63,7 @@ src/book_reader/
     elastic.py                ElasticSearch, RebuildJob
     pageindex.py              PageIndexSearch
     service.py                Searcher and local retrieval
+    text.py                   Shared query-term, snippet and chunk helpers
   notes/
     __init__.py
     store.py                  NotepadStore, groups, notes, export
@@ -299,7 +300,8 @@ tests.
 **Description:** Replace the 903-line `search.py` with four focused modules:
 `types.py` (`SearchHit`, `SearchUnavailable`), `elastic.py` (`ElasticSearch`,
 `RebuildJob` and Elasticsearch helpers), `pageindex.py` (`PageIndexSearch`), and
-`service.py` (`Searcher` plus local scan/snippet helpers). No retrieval behavior
+`service.py` (`Searcher` and the local scan), and `text.py` (query-term, snippet and chunk
+helpers shared by all backends; added so the backends never import each other). No retrieval behavior
 changes.
 
 **Acceptance criteria:**

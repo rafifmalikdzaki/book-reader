@@ -23,7 +23,7 @@ from book_reader.library.scan import Library
 from book_reader.notes.store import NotepadStore
 from book_reader.reading.pdf import PdfCache
 from book_reader.reading.sections import SectionIndex
-from book_reader.search import Searcher
+from book_reader.search.service import Searcher
 
 
 def test_mercury_3_is_primary_default_provider() -> None:

@@ -8,7 +8,8 @@ import pytest
 from book_reader.library.scan import Library
 from book_reader.reading.pdf import PdfCache
 from book_reader.reading.sections import SectionIndex
-from book_reader.search import PageIndexSearch, Searcher
+from book_reader.search.pageindex import PageIndexSearch
+from book_reader.search.service import Searcher
 
 
 def build_pdf(root: Path) -> Path:
@@ -120,7 +121,7 @@ def test_in_book_merges_section_hits_ahead_of_elastic(tmp_path: Path) -> None:
 
     from elasticsearch import Elasticsearch
 
-    from book_reader.search import ElasticSearch
+    from book_reader.search.elastic import ElasticSearch
 
     root = tmp_path / "library"
     path = build_pdf(root)
