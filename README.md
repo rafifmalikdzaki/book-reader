@@ -130,7 +130,8 @@ INCEPTION_API_KEY=...
 MISTRAL_API_KEY=...          # or MISTRAL_API
 OPENROUTER_API_KEY=...
 OLLAMA_API_KEY=...
-BOOK_READER_CHAT_PRIORITY=inception:mercury-3,mistral:mistral-small-latest,mistral:ministral-8b-latest,mistral:zai-glm-5-3-flash,openrouter:openrouter/free,openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,ollama:gpt-oss:20b
+GEMINI_API_KEY=...           # or GEMINI_API / GOOGLE_API_KEY
+BOOK_READER_CHAT_PRIORITY=inception:mercury-3,mistral:mistral-small-latest,mistral:ministral-8b-latest,mistral:zai-glm-5-3-flash,openrouter:openrouter/free,openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,ollama:gpt-oss:20b,gemini:gemini-2.5-flash
 ```
 
 ---
@@ -139,7 +140,7 @@ BOOK_READER_CHAT_PRIORITY=inception:mercury-3,mistral:mistral-small-latest,mistr
 
 - **Localhost by design.** Single-user, zero telemetry, no external analytics, no cloud subscriptions. Runs bound to `127.0.0.1` by default with DNS rebinding host protection.
 - **Vendored & offline assets.** PDF rendering worker, CMaps, standard fonts, and KaTeX math fonts are served locally from `static/vendor/` with zero remote CDN dependencies.
-- **Your models, your keys.** Direct API integration with Inception Mercury 3, Mistral, OpenRouter, or 100% offline local [Ollama](https://ollama.com/) instances for private, network-free document analysis.
+- **Your models, your keys.** Direct API integration with Inception Mercury 3, Mistral, OpenRouter, Google Gemini, or 100% offline local [Ollama](https://ollama.com/) instances for private, network-free document analysis.
 - **Crash-proof storage.** Plain JSON state files with transactional file locks, pre-write atomic backups, and automatic crash recovery on startup.
 - **Sandboxed untrusted content.** User-authored Markdown HTML execution is disabled. Arbitrary files served via `/raw` are served as forced attachments with `nosniff`.
 

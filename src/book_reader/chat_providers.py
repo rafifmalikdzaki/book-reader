@@ -17,7 +17,8 @@ DEFAULT_PRIORITY = (
     "mistral:zai-glm-5-3-flash,"
     "openrouter:openrouter/free,"
     "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free,"
-    "ollama:gpt-oss:20b"
+    "ollama:gpt-oss:20b,"
+    "gemini:gemini-2.5-flash"
 )
 
 PROVIDER_DEFAULTS: dict[str, tuple[str, str, str, str]] = {
@@ -45,11 +46,19 @@ PROVIDER_DEFAULTS: dict[str, tuple[str, str, str, str]] = {
         "gpt-oss:20b",
         "BOOK_READER_OLLAMA_MODEL",
     ),
+    # Google's OpenAI-compatible endpoint.
+    "gemini": (
+        "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "GEMINI_API_KEY",
+        "gemini-2.5-flash",
+        "BOOK_READER_GEMINI_MODEL",
+    ),
 }
 
 
 PROVIDER_KEY_ENVS: dict[str, tuple[str, ...]] = {
     "mistral": ("MISTRAL_API_KEY", "MISTRAL_API"),
+    "gemini": ("GEMINI_API_KEY", "GEMINI_API", "GOOGLE_API_KEY"),
 }
 
 

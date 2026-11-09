@@ -36,6 +36,18 @@ def build_chat(library: Path, tmp_path: Path) -> ChatService:
     return ChatService(catalogue, searcher, pdf, sections, notepad, providers=providers)
 
 
+def test_gemini_provider_accepts_alias_keys_and_uses_the_openai_endpoint() -> None:
+    for key_env in ("GEMINI_API_KEY", "GEMINI_API", "GOOGLE_API_KEY"):
+        [provider] = resolve_providers({key_env: "g", "BOOK_READER_CHAT_PRIORITY": "gemini"})
+        assert (provider.name, provider.model, provider.api_key) == (
+            "gemini",
+            "gemini-2.5-flash",
+            "g",
+        )
+        assert provider.base_url.startswith("https://generativelanguage.googleapis.com/")
+    assert resolve_providers({"BOOK_READER_CHAT_PRIORITY": "gemini"}) == []
+
+
 def test_provider_order_and_missing_keys() -> None:
     env = {
         "INCEPTION_API_KEY": "a",
