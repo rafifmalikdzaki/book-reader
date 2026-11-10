@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import httpx
@@ -282,3 +283,32 @@ def test_import_endpoint_maps_domain_errors(client: tuple[TestClient, Path]) -> 
     assert response.status_code == 400
     assert "DOI" in response.json()["detail"]
     assert test_client.get("/api/papers/keywords").json() == {"books": {}}
+
+
+def test_keywords_read_each_pdf_once_until_it_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A cold read opens every PDF; repeat calls must not, or the home page crawls."""
+    first = tmp_path / "a.pdf"
+    second = tmp_path / "b.pdf"
+    first.write_bytes(b"%PDF-1.4 a")
+    second.write_bytes(b"%PDF-1.4 bb")
+    reads: list[str] = []
+
+    def read(path: Path) -> dict[str, object]:
+        reads.append(path.name)
+        return {"keywords": [], "authors": [], "doi": "10.1000/x"}
+
+    monkeypatch.setattr("book_reader.papers.service._read_metadata", read)
+    library = Library(tmp_path)
+    offline = fetcher(httpx.MockTransport(lambda _request: httpx.Response(500)))
+    service = PaperService(library, offline)
+
+    assert set(service.keywords(library.scan(force=True))) == {first.name, second.name}
+    service.keywords(library.scan(force=True))
+    assert reads == [first.name, second.name]
+
+    mtime = first.stat().st_mtime_ns
+    os.utime(first, ns=(mtime, mtime + 1_000_000))
+    service.keywords(library.scan(force=True))
+    assert reads == [first.name, second.name, first.name]
