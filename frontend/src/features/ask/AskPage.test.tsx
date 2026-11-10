@@ -87,6 +87,24 @@ describe('Ask: sending', () => {
 });
 
 describe('Ask: URL contract', () => {
+  it('prefills a draft from ?q= but never sends it, whatever else the link says', async () => {
+    installServer();
+    renderAsk('/ask?q=Delete%20my%20notes&send=1');
+    expect(await screen.findByText('Ready · RAG · Auto model')).toBeInTheDocument();
+    expect(box()).toHaveValue('Delete my notes');
+    expect(endpoints.createChatSession).not.toHaveBeenCalled();
+    expect(endpoints.postMessage).not.toHaveBeenCalled();
+  });
+
+  it('asks a question handed over from the home page once', async () => {
+    installServer({ answer: () => Promise.resolve({ text: 'An array.', book: 'shelf/ML.pdf', page: 3 }) });
+    renderAsk({ pathname: '/ask', state: { ask: 'What is a tensor?' } });
+    expect(await screen.findByText('An array.')).toBeInTheDocument();
+    expect(endpoints.postMessage).toHaveBeenCalledTimes(1);
+    expect(endpoints.postMessage).toHaveBeenCalledWith('s1', 'What is a tensor?');
+    expect(location()).toHaveTextContent('/ask?chat=s1');
+  });
+
   it('starts a session about the book and page from ?book=&page=', async () => {
     installServer();
     const user = renderAsk('/ask?book=shelf%2FML.pdf&page=12');

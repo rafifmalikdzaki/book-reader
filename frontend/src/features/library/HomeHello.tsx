@@ -27,7 +27,8 @@ export function HomeHello({ bookCount, zoteroText, onAddPaper }: HomeHelloProps)
 
   const ask = () => {
     const text = question.trim();
-    if (text) void navigate(`/ask?q=${encodeURIComponent(text)}&send=1`);
+    // Handed over as navigation state, not in the URL: a link must never be able to ask for you.
+    if (text) void navigate('/ask', { state: { ask: text } });
   };
 
   return (

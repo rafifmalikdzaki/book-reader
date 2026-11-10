@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import type { ChatMode } from '../../api/types';
 import { useStage } from '../../app';
@@ -27,7 +28,7 @@ export default function AskPage() {
   const { session } = data;
   const drawer = useDrawer();
   const input = useRef<HTMLTextAreaElement>(null);
-  const [text, setText] = useState(() => (url.q && !url.send ? url.q : ''));
+  const [text, setText] = useState(() => url.q ?? '');
   const [mode, setMode] = useState<ChatMode>('teacher');
   const [error, setError] = useState('');
   const [draftCategories, setDraftCategories] = useState<string[]>([]);
@@ -43,13 +44,18 @@ export default function AskPage() {
     select: url.select,
     onSendingChange: setSending,
   });
-  // A question typed on the home page arrives as `?q=…&send=1`: ask it once, on arrival.
+  // A question typed on the home page arrives as navigation state: ask it once, on arrival.
+  // State cannot be forged by a link, and it is cleared first so a reload does not ask again.
+  const location = useLocation();
+  const navigate = useNavigate();
   const handedOver = useRef(false);
-  const handOver = url.send ? url.q : null;
+  const state = location.state as { ask?: unknown } | null;
+  const handOver = typeof state?.ask === 'string' && state.ask.trim() ? state.ask : null;
   const sendNow = sender.send;
   useEffect(() => {
     if (!handOver || handedOver.current) return;
     handedOver.current = true;
+    void navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: null });
     void sendNow(handOver, false);
     // `sendNow` is a new function every render; the ref makes this run once per arrival.
     // eslint-disable-next-line react-hooks/exhaustive-deps

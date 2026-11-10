@@ -129,7 +129,7 @@ function Probe() {
   return <output data-testid="location">{pathname + search}</output>;
 }
 
-export function renderAsk(path = '/ask') {
+export function renderAsk(path: string | { pathname: string; state: unknown } = '/ask') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const user = userEvent.setup();
   render(

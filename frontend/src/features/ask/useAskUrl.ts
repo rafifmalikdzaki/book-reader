@@ -7,14 +7,13 @@ export interface AskUrl {
   book: string | null;
   page: number | null;
   expired: boolean;
-  /** Question handed over from the home page (`?q=`); `send` asks it straight away. */
+  /** Draft question to prefill the composer with (`?q=`). It is never sent on its own. */
   q: string | null;
-  send: boolean;
   /** Open a chat (or the blank composer for `null`); replaces the history entry. */
   select: (id: string | null) => void;
 }
 
-/** The `/ask` URL contract: `?chat=<id>`, `?book=&page=`, `?expired=1`, `?q=&send=1`. */
+/** The `/ask` URL contract: `?chat=<id>`, `?book=&page=`, `?expired=1`, `?q=<draft>`. */
 export function useAskUrl(): AskUrl {
   const [params, setParams] = useSearchParams();
   const select = useCallback(
@@ -28,7 +27,6 @@ export function useAskUrl(): AskUrl {
     page: chatId ? null : Number(params.get('page')) || null,
     expired: params.get('expired') === '1',
     q: chatId ? null : params.get('q'),
-    send: params.get('send') === '1',
     select,
   };
 }
