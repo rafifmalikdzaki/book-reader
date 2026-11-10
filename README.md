@@ -17,6 +17,7 @@ Read, annotate and interrogate your own books. Nothing leaves your machine excep
 [Features](#-features) ·
 [Ask](#-ask-grounded-answers-with-a-visible-process) ·
 [Retrieval](#-retrieval) ·
+[Performance](#-performance) ·
 [Configuration](#%EF%B8%8F-configuration) ·
 [Development](#%EF%B8%8F-development) ·
 [Architecture](#%EF%B8%8F-architecture) ·
@@ -32,11 +33,15 @@ It is built for one person on one machine: no accounts, no database to import in
 
 <div align="center">
 
-<img src="docs/screenshots/library.jpg" alt="The library: a grid of book covers with page counts and reading progress, grouped by category" width="100%">
+<img src="docs/screenshots/home.jpg" alt="Book Reader home: greeting, an Ask box, continue reading, recently opened books, notes, recent chats, and the library below" width="100%">
+
+<sub><b>Home</b> — a desk, not a file list: what you are reading, what you noted, what you asked, and the shelves below</sub>
+
+<img src="docs/screenshots/library.jpg" alt="Book Reader library: book covers with page counts and reading progress, grouped by category, with list and tile views" width="100%">
 
 <sub><b>Library</b> — covers, progress and categories from the folder you already keep</sub>
 
-<img src="docs/screenshots/ask.png" alt="Ask: a chat workspace with model, effort and category scope controls above the composer" width="100%">
+<img src="docs/screenshots/ask.jpg" alt="Book Reader Ask: session rail, model and effort controls, category scope, capability tour, and composer" width="100%">
 
 <sub><b>Ask</b> — library-wide or book-scoped questions, answered from your books with page citations</sub>
 
@@ -53,6 +58,7 @@ It is built for one person on one machine: no accounts, no database to import in
 | 📄 **Readers** | Native React 19 PDF viewer (`react-pdf` v11) with windowed rendering, single or two-page (facing) view, outline, thumbnails and in-document search. CommonMark reader with KaTeX math and syntax highlighting. |
 | 📝 **Notepad** | Select a passage to anchor a note to book + page + character span + section (PDF) or line range (Markdown). Group notes, export as Markdown or JSON context. |
 | 💬 **Ask** | Persistent chat sessions grouped by activity and project, scoped to categories or a single book, with live process tracking and cancel. |
+| 🧭 **Adaptive prompts** | The backend composes the system prompt per question from small steering modules, and binds only the tools that question needs — a locator question costs ~0.9k prompt tokens instead of ~3.5k. |
 | 🎓 **Tutor mode** | A Socratic tutor that maps a topic into 4–8 subskills, runs a one-question-at-a-time diagnostic, and tracks 0–5 mastery. |
 | 🧩 **Generative UI** | Answers render typed components (concept cards, graphs, comparison tables, charts, walkthroughs, quizzes) instead of walls of text. |
 | 🔎 **Retrieval** | Elasticsearch BM25 → PageIndex section trees → local scan, degrading gracefully when a backend is missing. |
@@ -112,6 +118,12 @@ Providers are tried in priority order and fall back automatically; see [Configur
    | `read_document` | Specific pages or lines |
    | `read_notes` / `add_note` | Read your marginalia into the loop; save a finding back as a note |
 
+   The instruction set adapts to the question. A deterministic selector picks at most two
+   steering modules — locate, explain, compare, derive, map, quantify, survey, notes, deep
+   read, tutor — and binds only their tools. Locator and note questions skip the visual
+   component guide entirely; explanation-shaped questions keep it. Nothing is chosen by a
+   second model call, so this costs no latency.
+
 2. **Watch it work.** While the answer is generated, a live process card streams the tool steps, the passages found (with links straight to the page), and the model's reasoning. Collapse it when you only want the answer; scrolling up never yanks you back down. Finished answers keep the trace in a collapsible *thought* section.
 3. **Choose model and effort.** Switch the active model and reasoning effort (`low`, `medium`, `high`, `default`) from the bar above the transcript, in both `/ask` and the reader rail.
 4. **Stop any time.** The Stop button cancels the in-flight generation server-side.
@@ -152,10 +164,48 @@ The model writes JSON blocks by default; set `BOOK_READER_OPENUI_FORMAT=lang` to
 
 On the maintainer's library benchmark, PageIndex hybrid reached hit@1 1.00 (MRR 0.95, ~9 ms) against 0.90 for Elasticsearch and 0.20 for the local scan (`just benchmark-rag`, [details](docs/NEXT-STEPS.md)). Your numbers will differ with your library.
 
+Retrieval is cached for the life of the process: decoded section trees, whitespace-normalized page text, and a 64-entry query→hits LRU keyed by each file's `(rel, mtime, size)` and the cached tree set. A repeated question costs ~0.2 ms; a new one reuses every page already extracted. An edited file misses instead of answering from stale text.
+
 ```bash
 uv run book-reader --index      # build the Elasticsearch index, then exit (--force-index rebuilds)
 uv run book-reader --reindex    # after moving/renaming files outside the app: match by content, migrate state
 ```
+
+## 📊 Performance
+
+Measured on the maintainer's machine against the real library — 186 books, 10 cached
+PageIndex section trees, loopback, no model calls in the retrieval timings. The full ledger,
+including rejected ideas, is in [`docs/performance.md`](docs/performance.md).
+
+**Retrieval** (`library_wide(query, 12)`, in-process):
+
+| Operation | Before | After |
+| :--- | ---: | ---: |
+| Repeat of the same question, warm process | 331 ms | **0.2 ms** |
+| Six identical tool calls in one answer | 1.31 s | **0.7 ms** |
+| A new question, warm process (pages already read) | 303 ms | **163 ms** |
+| First question after a restart (516 pages extracted) | 1.91 s | 1.71 s |
+
+The first post-restart scan still pays for extracting the pages it needs; a later question
+reuses them. The wins come from memoizing decoded section trees (62% of the warm profile),
+caching normalized page text, and returning a remembered hit list — not from reading less of
+the book. These are retrieval numbers: on a real answer the model's own latency dominates.
+
+**Prompt cost** (system prompt + tool schemas and descriptions, ≈ characters / 4):
+
+| Ask request | Before | After |
+| :--- | ---: | ---: |
+| Plain question, no book open | 3,461 tok | **1,380 tok** |
+| Locator question ("what page defines…") | 3,461 tok | **946 tok** |
+| Save a passage to notes | 3,461 tok | **806 tok** |
+| Library survey ("which books should I read…") | 3,461 tok | 3,084 tok |
+| Explanation ("explain consistent hashing") | ~3,200 tok | 2,653 tok |
+| Book page + 8k-character excerpt, locator | 5,141 tok | 3,021 tok |
+| Socratic tutor | 5,530 tok | 5,001 tok |
+
+**Web** (headless Chromium, 1440×900, loopback, warm server): LCP 948 ms on `/` and 424 ms
+on `/ask`, CLS 0.03 / 0, initial JS 164.7 KB gzip with route chunks loaded on demand.
+PDF.js and KaTeX are vendored and precompressed; no CDN is contacted.
 
 ## ⚙️ Configuration
 
