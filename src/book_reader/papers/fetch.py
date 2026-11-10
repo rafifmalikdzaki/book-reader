@@ -2,17 +2,20 @@
 
 Metadata comes from fixed hosts (arXiv, Crossref, optionally Unpaywall). The PDF link for a
 DOI comes out of that metadata, so it is treated as untrusted: https only, public addresses
-only, every redirect re-checked, and a size cap.
+only, every redirect re-checked, the connection pinned to the address that was checked, and
+a size cap.
 """
 
 from __future__ import annotations
 
 import ipaddress
 import logging
+import re
 import socket
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import BinaryIO
 from urllib.parse import quote, urljoin, urlsplit
 
 import httpx
@@ -32,6 +35,7 @@ MAX_REDIRECTS = 5
 TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 PDF_MAGIC = b"%PDF-"
 
+_VERSION = re.compile(r"v\d+$")
 _ATOM = {"a": "http://www.w3.org/2005/Atom", "x": "http://arxiv.org/schemas/atom"}
 
 # Readable names for the arXiv categories a research library meets most; others keep their code.
@@ -81,38 +85,45 @@ class Paper:
     pdf_urls: list[str] = field(default_factory=list)
 
 
-HostCheck = Callable[[str], bool]
+# Maps a host name to the one address to connect to, or None when the host must be refused.
+HostResolver = Callable[[str], str | None]
 
 
-def is_public_host(host: str) -> bool:
-    """True when every address the name resolves to is a public one."""
+def public_address(host: str) -> str | None:
+    """An address for ``host``, provided every address it resolves to is a public one."""
     try:
         infos = socket.getaddrinfo(host, None)
     except OSError:
-        return False
-    addresses = {str(info[4][0]) for info in infos}
-    if not addresses:
-        return False
-    for address in addresses:
-        ip = ipaddress.ip_address(address.split("%", 1)[0])
-        if not ip.is_global:
-            return False
-    return True
+        return None
+    addresses = list(dict.fromkeys(str(info[4][0]).split("%", 1)[0] for info in infos))
+    if not addresses or not all(ipaddress.ip_address(a).is_global for a in addresses):
+        return None
+    return addresses[0]
+
+
+def _pinned(url: str, host: str, address: str) -> str:
+    """``url`` aimed at ``address``, so the name is not resolved a second time on connect."""
+    if address == host:
+        return url
+    parts = urlsplit(url)
+    literal = f"[{address}]" if ":" in address else address
+    netloc = f"{literal}:{parts.port}" if parts.port else literal
+    return parts._replace(netloc=netloc).geturl()
 
 
 class PaperFetcher:
-    """HTTP side of a paper import. ``transport`` and ``host_check`` are test seams."""
+    """HTTP side of a paper import. ``transport`` and ``resolve`` are test seams."""
 
     def __init__(
         self,
         *,
         unpaywall_email: str = "",
         transport: httpx.BaseTransport | None = None,
-        host_check: HostCheck = is_public_host,
+        resolve: HostResolver = public_address,
     ) -> None:
         self._email = unpaywall_email.strip()
         self._transport = transport
-        self._host_check = host_check
+        self._resolve = resolve
 
     def _client(self) -> httpx.Client:
         return httpx.Client(
@@ -128,8 +139,8 @@ class PaperFetcher:
                 return self._arxiv(client, paper_id.value)
             return self._doi(client, paper_id.value)
 
-    def download(self, paper: Paper) -> bytes:
-        """The first candidate URL that really returns a PDF."""
+    def download(self, paper: Paper, out: BinaryIO) -> None:
+        """Stream the first candidate URL that really returns a PDF into ``out``."""
         if not paper.pdf_urls:
             raise NoOpenAccessPdf(
                 "No open-access PDF was found for this DOI. Download it yourself and drop it"
@@ -138,12 +149,10 @@ class PaperFetcher:
         with self._client() as client:
             for url in paper.pdf_urls:
                 try:
-                    data = self._fetch_pdf(client, url)
+                    if self._fetch_pdf(client, url, out):
+                        return
                 except (httpx.HTTPError, UpstreamFailed) as exc:
                     logger.info("paper pdf candidate failed: %s (%s)", url, exc)
-                    continue
-                if data is not None:
-                    return data
         raise NoOpenAccessPdf(
             "The paper was found, but none of its links returned a readable PDF"
             " (it may be behind a paywall)."
@@ -197,7 +206,7 @@ class PaperFetcher:
             ],
             year=_text(entry, "a:published")[:4],
             keywords=list(dict.fromkeys(categories)),
-            doi=_text(entry, "x:doi") or f"10.48550/arXiv.{arxiv_id.split('v')[0]}",
+            doi=_text(entry, "x:doi") or f"10.48550/arXiv.{_VERSION.sub('', arxiv_id)}",
             pdf_urls=[ARXIV_PDF + arxiv_id],
         )
 
@@ -258,27 +267,41 @@ class PaperFetcher:
                 urls.append(str(location["url_for_pdf"]))
         return urls
 
-    def _fetch_pdf(self, client: httpx.Client, url: str) -> bytes | None:
+    def _fetch_pdf(self, client: httpx.Client, url: str, out: BinaryIO) -> bool:
         for _hop in range(MAX_REDIRECTS + 1):
             parts = urlsplit(url)
-            if parts.scheme != "https" or not parts.hostname:
+            host = parts.hostname
+            if parts.scheme != "https" or not host:
                 raise UpstreamFailed("refusing a non-https link")
-            if not self._host_check(parts.hostname):
+            address = self._resolve(host)
+            if address is None:
                 raise UpstreamFailed("refusing a link to a non-public address")
-            with client.stream("GET", url, headers={"Accept": "application/pdf"}) as response:
+            # Connect to the address that was just checked; TLS still verifies the host name.
+            with client.stream(
+                "GET",
+                _pinned(url, host, address),
+                headers={"Accept": "application/pdf", "Host": parts.netloc},
+                extensions={"sni_hostname": host},
+            ) as response:
                 if response.is_redirect:
                     url = urljoin(url, response.headers.get("location", ""))
                     continue
                 if response.status_code != 200:
-                    return None
-                body = bytearray()
+                    return False
+                out.seek(0)
+                out.truncate()
+                head = b""
+                size = 0
                 for chunk in response.iter_bytes():
-                    body.extend(chunk)
-                    if len(body) > MAX_PDF_BYTES:
+                    size += len(chunk)
+                    if size > MAX_PDF_BYTES:
                         raise UpstreamFailed("the PDF is larger than the import limit")
-                    if len(body) >= len(PDF_MAGIC) and not body.startswith(PDF_MAGIC):
-                        return None
-                return bytes(body) if body.startswith(PDF_MAGIC) else None
+                    if len(head) < len(PDF_MAGIC):
+                        head = (head + chunk)[: len(PDF_MAGIC)]
+                        if len(head) == len(PDF_MAGIC) and head != PDF_MAGIC:
+                            return False
+                    out.write(chunk)
+                return head == PDF_MAGIC
         raise UpstreamFailed("too many redirects")
 
 

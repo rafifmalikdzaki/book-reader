@@ -20,8 +20,8 @@ import pymupdf
 
 from ..library.models import Book
 from ..library.scan import Library
-from .errors import PaperError, UpstreamFailed
-from .fetch import PDF_MAGIC, Paper, PaperFetcher
+from .errors import PaperError
+from .fetch import Paper, PaperFetcher
 from .identifiers import parse_identifier
 
 logger = logging.getLogger(__name__)
@@ -49,10 +49,12 @@ def paper_filename(paper: Paper) -> str:
     return (text[:140].rstrip(" .") or "paper") + ".pdf"
 
 
-def embed_metadata(data: bytes, paper: Paper) -> bytes:
-    """Write the registry's metadata into the PDF; hand back the original bytes on failure."""
+def embed_metadata(path: Path, paper: Paper) -> None:
+    """Append the registry's metadata to the PDF in place; leave the file alone on failure."""
     try:
-        with pymupdf.open(stream=data, filetype="pdf") as doc:  # type: ignore[no-untyped-call]
+        with pymupdf.open(path) as doc:  # type: ignore[no-untyped-call]
+            if not doc.can_save_incrementally():
+                raise ValueError("not incrementally writable")
             current = dict(doc.metadata or {})
             subject = str(current.get("subject") or "")
             current.update(
@@ -64,10 +66,9 @@ def embed_metadata(data: bytes, paper: Paper) -> bytes:
                 }
             )
             doc.set_metadata(current)
-            return bytes(doc.tobytes(garbage=0, deflate=False))
+            doc.saveIncr()
     except Exception:
         logger.info("could not embed metadata into %s; saving the PDF unchanged", paper.identifier)
-        return data
 
 
 def split_keywords(raw: str) -> list[str]:
@@ -100,25 +101,25 @@ class PaperService:
         rel = target.relative_to(self._library.root).as_posix()
         if target.exists():
             return _result(paper, rel, created=False)
-        data = self._fetcher.download(paper)
-        if not data.startswith(PDF_MAGIC):
-            raise UpstreamFailed("The download was not a PDF.")
-        data = embed_metadata(data, paper)
         try:
             folder.mkdir(exist_ok=True)
             handle, temporary = tempfile.mkstemp(dir=folder, prefix=".import-", suffix=".part")
-            try:
-                with os.fdopen(handle, "wb") as out:
-                    out.write(data)
-                os.chmod(temporary, 0o644)  # mkstemp's 0600 would hide it from other readers
-                # link() fails if the name was taken meanwhile, so nothing is ever overwritten.
-                os.link(temporary, target)
-            finally:
-                os.unlink(temporary)
+        except OSError as exc:
+            raise PaperError(f"The paper could not be saved into the library: {exc}") from exc
+        try:
+            # Streamed to disk: a paper can be far larger than it is worth holding in memory.
+            with os.fdopen(handle, "w+b") as out:
+                self._fetcher.download(paper, out)
+            embed_metadata(Path(temporary), paper)
+            os.chmod(temporary, 0o644)  # mkstemp's 0600 would hide it from other readers
+            # link() fails if the name was taken meanwhile, so nothing is ever overwritten.
+            os.link(temporary, target)
         except FileExistsError:
             return _result(paper, rel, created=False)
         except OSError as exc:
             raise PaperError(f"The paper could not be saved into the library: {exc}") from exc
+        finally:
+            os.unlink(temporary)
         self._library.scan(force=True)
         return _result(paper, rel, created=True)
 

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 from ...library.scan import Library
-from ...papers.errors import PaperError
 from ...papers.service import PaperService
 
 
@@ -19,10 +18,7 @@ def register(app: FastAPI, *, papers: PaperService, library: Library) -> None:
 
     @app.post("/api/papers/import")
     def api_papers_import(body: ImportBody) -> dict[str, object]:
-        try:
-            return papers.import_paper(body.identifier)
-        except PaperError as exc:
-            raise HTTPException(status_code=exc.status, detail=exc.detail) from exc
+        return papers.import_paper(body.identifier)
 
     @app.get("/api/papers/keywords")
     def api_papers_keywords() -> dict[str, object]:

@@ -41,7 +41,7 @@ def pdf_bytes() -> bytes:
 
 
 def fetcher(handler: httpx.MockTransport, *, public: bool = True) -> PaperFetcher:
-    return PaperFetcher(transport=handler, host_check=lambda _host: public)
+    return PaperFetcher(transport=handler, resolve=lambda host: host if public else None)
 
 
 @pytest.mark.parametrize(
@@ -178,6 +178,89 @@ def test_pdf_links_to_private_or_plain_http_hosts_are_refused(tmp_path: Path) ->
     with pytest.raises(NoOpenAccessPdf):
         service.import_paper("10.1000/ssrf")
     assert all("api.crossref.org" in url for url in requested)
+
+
+def one_link(url: str, body: bytes) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.crossref.org":
+            return httpx.Response(
+                200, json=crossref([{"URL": url, "content-type": "application/pdf"}])
+            )
+        return httpx.Response(200, content=body)
+
+    return httpx.MockTransport(handler)
+
+
+def test_plain_http_links_are_refused_even_on_public_hosts(tmp_path: Path) -> None:
+    service = PaperService(
+        Library(tmp_path), fetcher(one_link("http://pub.example/a.pdf", pdf_bytes()))
+    )
+    with pytest.raises(NoOpenAccessPdf):
+        service.import_paper("10.1000/http")
+    assert not list(tmp_path.rglob("*.pdf"))
+
+
+def test_oversized_downloads_are_refused_and_leave_nothing_behind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("book_reader.papers.fetch.MAX_PDF_BYTES", 64)
+    service = PaperService(
+        Library(tmp_path), fetcher(one_link("https://pub.example/a.pdf", pdf_bytes()))
+    )
+    with pytest.raises(NoOpenAccessPdf):
+        service.import_paper("10.1000/huge")
+    assert not list((tmp_path / "Papers").iterdir())
+
+
+def test_download_connects_to_the_address_that_was_checked(tmp_path: Path) -> None:
+    seen: list[tuple[str, str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.crossref.org":
+            return httpx.Response(
+                200,
+                json=crossref(
+                    [{"URL": "https://pub.example/a.pdf", "content-type": "application/pdf"}]
+                ),
+            )
+        seen.append(
+            (request.url.host, request.headers["host"], request.extensions.get("sni_hostname"))
+        )
+        return httpx.Response(200, content=pdf_bytes())
+
+    pinned = PaperFetcher(
+        transport=httpx.MockTransport(handler), resolve=lambda _host: "93.184.216.34"
+    )
+    PaperService(Library(tmp_path), pinned).import_paper("10.1000/pinned")
+    assert seen == [("93.184.216.34", "pub.example", "pub.example")]
+
+
+def test_a_file_that_appears_during_the_download_is_not_overwritten(tmp_path: Path) -> None:
+    target = tmp_path / "Papers" / "Hopper 2021 - Open Paper.pdf"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.crossref.org":
+            return httpx.Response(
+                200,
+                json=crossref(
+                    [{"URL": "https://pub.example/a.pdf", "content-type": "application/pdf"}]
+                ),
+            )
+        target.write_bytes(b"mine")  # someone saved the same name while we were fetching
+        return httpx.Response(200, content=pdf_bytes())
+
+    service = PaperService(Library(tmp_path), fetcher(httpx.MockTransport(handler)))
+    result = service.import_paper("10.1000/open")
+    assert result["created"] is False
+    assert target.read_bytes() == b"mine"
+    assert [path.name for path in target.parent.iterdir()] == [target.name]
+
+
+def test_old_style_arxiv_ids_keep_their_category_in_the_doi(tmp_path: Path) -> None:
+    feed = ARXIV_FEED.replace("2403.04807v1", "solv-int/9901001v2")
+    transport = httpx.MockTransport(lambda _request: httpx.Response(200, text=feed))
+    paper = fetcher(transport).describe(PaperId("arxiv", "solv-int/9901001v2"))
+    assert paper.doi == "10.48550/arXiv.solv-int/9901001"
 
 
 def test_filenames_and_keywords_are_sanitised() -> None:
