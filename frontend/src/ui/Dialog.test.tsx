@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
@@ -51,7 +51,12 @@ describe('Dialog', () => {
     const user = userEvent.setup();
     render(<Harness />);
     await user.click(screen.getByRole('button', { name: 'Open options' }));
-    for (let i = 0; i < 4; i += 1) await user.tab();
-    expect(screen.getByRole('dialog')).toContainElement(document.activeElement as HTMLElement);
+    const dialog = screen.getByRole('dialog');
+    for (let i = 0; i < 4; i += 1) {
+      await user.tab();
+      // Base UI moves focus off its focus guard on the next animation frame, so a
+      // tab can land on the guard for one frame before it is sent back inside.
+      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+    }
   });
 });
