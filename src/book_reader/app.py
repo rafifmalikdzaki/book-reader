@@ -19,10 +19,12 @@ from .api.routes.chat_sessions import register as register_chat_sessions
 from .api.routes.library import register as register_library
 from .api.routes.notepad import register as register_notepad
 from .api.routes.organize import register as register_organize
+from .api.routes.papers import register as register_papers
 from .api.routes.reading import register as register_reading
 from .api.routes.search import register as register_search
 from .api.routes.spa import register as register_spa
 from .api.routes.system import register as register_system
+from .api.routes.zotero import register as register_zotero
 from .api.security import install as install_security_headers
 from .api.security import install_host_check
 from .api.static import GzipStaticFiles
@@ -46,13 +48,15 @@ def create_app(
     search_mode: str | None = None,
     chat: ChatBackend | None = None,
     static_dir: Path | None = None,
+    zotero_dir: Path | None = None,
     allowed_hosts: Sequence[str] | None = None,
 ) -> FastAPI:
     """Build the app with its own library, caches, and stores.
 
     ``static_dir`` overrides the packaged static folder (tests use a tmp bundle).
     ``allowed_hosts`` rejects requests whose Host header is not listed (DNS-rebinding
-    guard); ``None`` disables the check.
+    guard); ``None`` disables the check. ``zotero_dir`` is a Zotero data directory read
+    for metadata only; ``None`` leaves Zotero off.
     """
     static_root = static_dir if static_dir is not None else PACKAGE_DIR / "static"
     state_path = Path(state_dir)
@@ -65,6 +69,7 @@ def create_app(
             es_url=es_url,
             es_index=es_index,
             search_mode=search_mode,
+            zotero_dir=zotero_dir,
         )
     except BaseException:
         process_lock.release()
@@ -141,6 +146,8 @@ def create_app(
     register_chat(app, chat=chat_service, library=library, preferences=preferences)
     register_organize(app, organizer=organizer)
     register_system(app, reconciler=reconciler)
+    register_zotero(app, zotero=services.zotero, library=library)
+    register_papers(app, papers=services.papers, library=library)
     if allowed_hosts:
         install_host_check(app, allowed_hosts)
     return app

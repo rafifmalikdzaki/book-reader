@@ -16,6 +16,8 @@ from .notes.store import NotepadStore
 from .organize.categories import CategoryStore
 from .organize.mistral import MistralClient
 from .organize.service import LibraryOrganizer
+from .papers.fetch import PaperFetcher
+from .papers.service import PaperService
 from .reading.pages import PageIndex
 from .reading.pdf import PdfCache
 from .reading.progress import ProgressStore
@@ -24,6 +26,7 @@ from .reindex.reconciler import LibraryReconciler
 from .search.elastic import ElasticSearch
 from .search.service import Searcher
 from .state.preferences import Preferences
+from .zotero.library import ZoteroLibrary
 
 if TYPE_CHECKING:
     from .chat.service import ChatService
@@ -52,6 +55,8 @@ class Services:
     reconciler: LibraryReconciler
     categories: CategoryStore
     organizer: LibraryOrganizer | None
+    zotero: ZoteroLibrary | None
+    papers: PaperService
 
 
 def build_services(
@@ -61,6 +66,7 @@ def build_services(
     es_url: str | None = None,
     es_index: str | None = None,
     search_mode: str | None = None,
+    zotero_dir: Path | None = None,
 ) -> Services:
     root = Path(library_root).resolve()
     state = Path(state_dir)
@@ -134,4 +140,9 @@ def build_services(
         reconciler=reconciler,
         categories=categories,
         organizer=organizer,
+        zotero=ZoteroLibrary(zotero_dir) if zotero_dir is not None else None,
+        papers=PaperService(
+            library,
+            PaperFetcher(unpaywall_email=os.environ.get("BOOK_READER_UNPAYWALL_EMAIL", "")),
+        ),
     )

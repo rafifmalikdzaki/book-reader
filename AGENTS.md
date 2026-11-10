@@ -55,8 +55,15 @@ just vendor-katex               # Vendor KaTeX
   `chat_model`, `chat_effort`) persist across sessions. Generation tracks step
   progress and thought traces, storing `thought_steps` directly in session message state.
 - Text state (notes, progress, categories, chat book/source contexts) is
-  content-addressed and portable. Zotero is not integrated; the content hash is
-  the intended future join key.
+  content-addressed and portable.
+- Zotero (`zotero/`) is read-only: `zotero.sqlite` is opened immutable and matched to
+  books by attachment md5, filename, arXiv id/DOI, then title. Never write to it, never
+  store its data in the state dir; it is re-read when the database changes.
+- Paper import (`papers/`) is the only code that fetches from the network on the user's
+  behalf and the only code that adds a file to the library (`Papers/`, never overwriting).
+  Keep every download behind `PaperFetcher`'s checks (https, public address, redirect
+  re-validation, size cap, PDF magic). Metadata lives in the PDF's own Info dictionary,
+  not in a state store. Tests use `httpx.MockTransport`; none may reach the network.
 
 ## Decision records
 

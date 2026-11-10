@@ -11,6 +11,7 @@
 | [ADR-007](ADR-007-react-pdf-viewer.md) | Render PDFs natively in React 19 via `react-pdf` v11 with windowed canvas virtualization and local CMap/font assets. |
 | [ADR-008](ADR-008-openui-native.md) | Render chat blocks with the official OpenUI library (OpenUI Lang, generated and committed prompt, legacy JSON kept until chats expire). |
 | [ADR-009](ADR-009-feature-first-backend.md) | Group the backend into feature packages with a services composition root; domain errors instead of HTTP exceptions; tests mirror packages. |
+| [ADR-010](ADR-010-zotero-and-paper-import.md) | Read Zotero locally and read-only; import papers by DOI/arXiv id through one guarded fetcher, with metadata kept in the PDF itself. |
 
 ADRs are append-only. If a decision changes, add a new record and mark the old
 one as superseded or deprecated; do not rewrite history.

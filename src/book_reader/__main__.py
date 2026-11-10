@@ -89,6 +89,12 @@ def default_state_dir() -> Path:
     return Path.home() / ".local" / "state" / "book-reader"
 
 
+def default_zotero_dir() -> str:
+    """``~/Zotero`` when a Zotero database lives there, else off."""
+    candidate = Path.home() / "Zotero"
+    return str(candidate) if (candidate / "zotero.sqlite").is_file() else ""
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="book-reader",
@@ -130,6 +136,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["auto", "elastic", "pageindex", "local"],
         default=os.environ.get("BOOK_READER_SEARCH", "auto"),
         help="search backend preference (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--zotero-dir",
+        default=os.environ.get("BOOK_READER_ZOTERO_DIR", default_zotero_dir()),
+        help="Zotero data directory, read for metadata only; empty disables (default: %(default)s)",
     )
     parser.add_argument(
         "--reindex",
@@ -243,6 +254,7 @@ def main(argv: list[str] | None = None) -> None:
             es_url=args.es_url,
             es_index=args.es_index,
             search_mode=args.search,
+            zotero_dir=Path(args.zotero_dir).expanduser() if args.zotero_dir else None,
             allowed_hosts=allowed_hosts_for(
                 args.host, os.environ.get("BOOK_READER_ALLOWED_HOSTS", "")
             ),
