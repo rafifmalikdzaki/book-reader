@@ -33,10 +33,10 @@ EMPTY_FEED = '<feed xmlns="http://www.w3.org/2005/Atom"></feed>'
 
 
 def pdf_bytes() -> bytes:
-    doc = pymupdf.open()
+    doc = pymupdf.open()  # type: ignore[no-untyped-call]
     doc.new_page().insert_text((72, 72), "paper body")
-    data = bytes(doc.tobytes())
-    doc.close()
+    data = bytes(doc.tobytes())  # type: ignore[no-untyped-call]
+    doc.close()  # type: ignore[no-untyped-call]
     return data
 
 
@@ -82,7 +82,7 @@ def test_arxiv_import_saves_the_pdf_with_its_metadata(tmp_path: Path) -> None:
     assert result["rel"] == "Papers/Lovelace 2024 - Mathematics of Neural Networks.pdf"
     assert result["keywords"] == ["Machine Learning", "math.XX"]
     saved = tmp_path / str(result["rel"])
-    with pymupdf.open(saved) as doc:
+    with pymupdf.open(saved) as doc:  # type: ignore[no-untyped-call]
         assert doc.metadata["title"] == "Mathematics of Neural Networks"
         assert doc.metadata["author"] == "Ada Lovelace; Alan Turing"
     assert not list((tmp_path / "Papers").glob(".import-*"))
