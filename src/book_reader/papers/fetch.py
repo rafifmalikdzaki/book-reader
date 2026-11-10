@@ -221,12 +221,9 @@ class PaperFetcher:
         authors: list[str] = []
         raw_authors = work.get("author")
         for author in raw_authors if isinstance(raw_authors, list) else []:
-            if isinstance(author, dict):
-                name = " ".join(
-                    str(author[part]) for part in ("given", "family") if author.get(part)
-                ) or str(author.get("name") or "")
-                if name:
-                    authors.append(name)
+            name = _author_name(author) if isinstance(author, dict) else ""
+            if name:
+                authors.append(name)
         subjects = work.get("subject")
         keywords = [str(s) for s in subjects] if isinstance(subjects, list) else []
         urls: list[str] = []
@@ -290,19 +287,25 @@ class PaperFetcher:
                     return False
                 out.seek(0)
                 out.truncate()
-                head = b""
-                size = 0
+                prefix = b""
+                received = 0
                 for chunk in response.iter_bytes():
-                    size += len(chunk)
-                    if size > MAX_PDF_BYTES:
+                    received += len(chunk)
+                    if received > MAX_PDF_BYTES:
                         raise UpstreamFailed("the PDF is larger than the import limit")
-                    if len(head) < len(PDF_MAGIC):
-                        head = (head + chunk)[: len(PDF_MAGIC)]
-                        if len(head) == len(PDF_MAGIC) and head != PDF_MAGIC:
-                            return False
+                    # Only the first bytes are kept, so the magic check does not grow with the body.
+                    prefix = (prefix + chunk)[: len(PDF_MAGIC)]
+                    if len(prefix) == len(PDF_MAGIC) and prefix != PDF_MAGIC:
+                        return False
                     out.write(chunk)
-                return head == PDF_MAGIC
+                return prefix == PDF_MAGIC
         raise UpstreamFailed("too many redirects")
+
+
+def _author_name(author: dict[str, object]) -> str:
+    """``Given Family``, or the single ``name`` Crossref gives for a corporate author."""
+    parts = (str(author[part]) for part in ("given", "family") if author.get(part))
+    return " ".join(parts) or str(author.get("name") or "")
 
 
 def _text(node: ET.Element | None, path: str) -> str:

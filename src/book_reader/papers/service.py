@@ -73,14 +73,15 @@ def embed_metadata(path: Path, paper: Paper) -> None:
 
 def split_keywords(raw: str) -> list[str]:
     words: list[str] = []
+    seen: set[str] = set()
     for part in _SPLIT.split(raw.strip()):
         word = " ".join(part.split())
-        if _LINK.search(word) or not _WORDY.search(word):
+        key = word.casefold()
+        if _LINK.search(word) or not _WORDY.search(word) or key in seen:
             continue
-        if 1 < len(word) <= MAX_KEYWORD_LENGTH and word.casefold() not in {
-            seen.casefold() for seen in words
-        }:
+        if 1 < len(word) <= MAX_KEYWORD_LENGTH:
             words.append(word)
+            seen.add(key)
     return words[:MAX_KEYWORDS]
 
 
