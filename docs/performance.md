@@ -55,3 +55,43 @@ Measured with Playwright/Chromium 1440×900 on loopback against the running cont
 | Container idle | 0.12 % CPU, 207 MB RSS | — | fine |
 
 System heat on the same machine at that time was **not** the app: a `pytest` run in `~/Research/kalbe/crd-dem-surrogate` (PID 946779) sat at ~97 % CPU and browser renderers (msedge 43 %, firefox RDD 33 %) held cores at 61–84 °C; the container stayed at 0.12 %. No app change made — per measure-first, nothing here justified one.
+
+## 2026-11-10 baseline (main @ a1e03ea, docker `book-reader-local`, 186 books)
+
+Same machine, 1440×900, loopback. "Cold" is the first request after the container was
+recreated, so it pays the process's first scan and first PDF pass; "warm" is the repeat.
+
+| Metric | Cold | Warm | Budget | Verdict |
+|---|---|---|---|---|
+| `GET /api/library` | 1.445 s | 0.097 s | < 200 ms p95 (warm) | fine |
+| `GET /api/papers/keywords` | 2.278 s | 0.005 s | — | see below |
+| `GET /api/zotero` | 0.391 s | 0.005 s | — | fine |
+| Shell HTML `/`, `/ask` | — | 3–4 ms, 602 B gzip | — | fine |
+| LCP `/` / `/ask` | — | 948 ms / 424 ms | ≤ 2.5 s | Good |
+| CLS `/` | — | 0.03 | ≤ 0.1 | Good |
+| FCP `/` | — | 712 ms | — | Good |
+| Long task on `/` | — | one 129 ms | — | no pattern |
+
+Build (production bundle from `just ci`): `index` 529.6 KB raw / **164.7 KB gzip** (budget
+200 KB gzip), `ui` 270.7 / 91.2, `reader-pdf` route chunk 653.9 / 197.7, `AskPage` 28.6 / 9.9;
+`index.css` 41.4 / 9.2. Vite warns that `index` and `reader-pdf` exceed 500 KB raw; initial
+transfer stays inside the gzip budget.
+
+`/api/papers/keywords` opens every PDF once per process to read its Info dictionary (13 of
+186 books carry keywords or a DOI; the response is 1.5 KB). It runs in parallel with the
+library list and is off the critical path: the list paints at ~1.45 s and bylines fill in at
+~2.28 s. The zip is requested once per launch, not per navigation.
+
+**Verdict:** no optimization change. The only idea with a measurable win — persisting this
+cache into the state directory — would create a new state store that the project requires to
+join the reindex transaction, backup list and shared lock, for a once-per-boot gain. Rejected.
+Instead, the in-process cache (keyed by rel, size, mtime) now has a regression test
+(`test_keywords_read_each_pdf_once_until_it_changes`) so a repeat request cannot silently go
+back to opening 186 PDFs.
+
+Deferred candidate, if cold start ever matters: `/api/library` already opens each PDF for
+page counts and section titles in `api/views.py`; sharing that one pass with the metadata
+read would take cold home from ~2.28 s to ~1.5 s, at the cost of a cross-domain change.
+
+Two-page view verified live: toggle pressed, pages 2 and 3 render side by side, zoom refits
+to 138 %, no console errors, reader stays on page 3.
