@@ -108,9 +108,7 @@ class SectionIndex:
             self._cache = None
             self._decoded.clear()
 
-    def _decoded_entry(
-        self, rel: str, entry: dict[str, object]
-    ) -> list[Section] | None:
+    def _decoded_entry(self, rel: str, entry: dict[str, object]) -> list[Section] | None:
         """``entry``'s sections, decoded once per live cache entry.
 
         An entry replaced in the cache (new extraction, remap) is a different object and
