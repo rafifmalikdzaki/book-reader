@@ -2,6 +2,21 @@ import { useState, type FormEvent } from 'react';
 
 import { Button, cx, usePanel } from '../../ui';
 import {
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  CloseIcon,
+  ExternalIcon,
+  FullscreenIcon,
+  MinusIcon,
+  PlusIcon,
+  RotateIcon,
+  SearchIcon,
+  SinglePageIcon,
+  TwoPageIcon,
+} from '../chat-render/icons';
+import {
   clampPage,
   formatZoomValue,
   parseZoomValue,
@@ -18,11 +33,16 @@ export interface PdfToolbarProps {
   zoom: ZoomMode;
   effectiveScale: number;
   rotation: number;
+  /** Two-page (facing pages) view is on. */
+  spread: boolean;
+  /** False when the window is too narrow for facing pages. */
+  spreadAvailable: boolean;
   search: PdfSearchController;
   onSelectPage: (page: number) => void;
   onChangeZoom: (zoom: ZoomMode) => void;
   onStepZoom: (direction: 1 | -1) => void;
   onRotate: () => void;
+  onToggleSpread: () => void;
   onToggleFullscreen: () => void;
 }
 
@@ -34,11 +54,14 @@ export function PdfToolbar({
   zoom,
   effectiveScale,
   rotation,
+  spread,
+  spreadAvailable,
   search,
   onSelectPage,
   onChangeZoom,
   onStepZoom,
   onRotate,
+  onToggleSpread,
   onToggleFullscreen,
 }: PdfToolbarProps) {
   const contents = usePanel('contents');
@@ -67,7 +90,7 @@ export function PdfToolbar({
             disabled={currentPage <= 1}
             onClick={() => onSelectPage(clampPage(currentPage - 1, numPages))}
           >
-            ‹
+            <ChevronLeftIcon />
           </button>
           <form className={styles.pageForm} onSubmit={submitPage}>
             <input
@@ -88,7 +111,7 @@ export function PdfToolbar({
             disabled={numPages > 0 && currentPage >= numPages}
             onClick={() => onSelectPage(clampPage(currentPage + 1, numPages))}
           >
-            ›
+            <ChevronRightIcon />
           </button>
         </div>
 
@@ -99,30 +122,33 @@ export function PdfToolbar({
             aria-label="Zoom out"
             onClick={() => onStepZoom(-1)}
           >
-            −
+            <MinusIcon />
           </button>
-          <select
-            aria-label="Zoom level"
-            className={styles.zoomSelect}
-            value={formatZoomValue(zoom)}
-            onChange={(event) => onChangeZoom(parseZoomValue(event.target.value))}
-          >
-            <option value="page-width">Fit Width ({Math.round(effectiveScale * 100)}%)</option>
-            <option value="page-fit">Fit Page</option>
-            <option value="0.5">50%</option>
-            <option value="0.75">75%</option>
-            <option value="1">100%</option>
-            <option value="1.25">125%</option>
-            <option value="1.5">150%</option>
-            <option value="2">200%</option>
-          </select>
+          <span className={styles.zoomWrap}>
+            <select
+              aria-label="Zoom level"
+              className={styles.zoomSelect}
+              value={formatZoomValue(zoom)}
+              onChange={(event) => onChangeZoom(parseZoomValue(event.target.value))}
+            >
+              <option value="page-width">Fit width · {Math.round(effectiveScale * 100)}%</option>
+              <option value="page-fit">Fit page</option>
+              <option value="0.5">50%</option>
+              <option value="0.75">75%</option>
+              <option value="1">100%</option>
+              <option value="1.25">125%</option>
+              <option value="1.5">150%</option>
+              <option value="2">200%</option>
+            </select>
+            <ChevronDownIcon className={styles.zoomChevron} width={12} height={12} />
+          </span>
           <button
             type="button"
             className={styles.iconBtn}
             aria-label="Zoom in"
             onClick={() => onStepZoom(1)}
           >
-            +
+            <PlusIcon />
           </button>
           <button
             type="button"
@@ -131,7 +157,25 @@ export function PdfToolbar({
             title={`Rotate clockwise (current: ${rotation}°)`}
             onClick={onRotate}
           >
-            ↻
+            <RotateIcon />
+          </button>
+          <span className={styles.divider} aria-hidden="true" />
+          <button
+            type="button"
+            className={cx(styles.iconBtn, spread && styles.iconBtnActive)}
+            aria-label="Two-page view"
+            aria-pressed={spread}
+            disabled={!spreadAvailable}
+            title={
+              spreadAvailable
+                ? spread
+                  ? 'Show one page at a time'
+                  : 'Show facing pages side by side'
+                : 'Widen the window for two-page view'
+            }
+            onClick={onToggleSpread}
+          >
+            {spread ? <TwoPageIcon /> : <SinglePageIcon />}
           </button>
         </div>
 
@@ -143,7 +187,7 @@ export function PdfToolbar({
             aria-expanded={search.open}
             onClick={() => search.setOpen(!search.open)}
           >
-            Find
+            <SearchIcon width={13} height={13} /> Find
           </button>
           <button
             type="button"
@@ -152,7 +196,7 @@ export function PdfToolbar({
             title="Toggle fullscreen"
             onClick={onToggleFullscreen}
           >
-            ⛶
+            <FullscreenIcon />
           </button>
           <a
             className={styles.rawLink}
@@ -161,7 +205,7 @@ export function PdfToolbar({
             rel="noreferrer"
             title="Open raw PDF in new tab"
           >
-            PDF ↗
+            PDF <ExternalIcon width={12} height={12} />
           </a>
         </div>
       </div>
@@ -201,7 +245,7 @@ export function PdfToolbar({
             disabled={search.matches.length === 0}
             onClick={search.prevMatch}
           >
-            ↑
+            <ChevronUpIcon />
           </button>
           <button
             type="button"
@@ -210,7 +254,7 @@ export function PdfToolbar({
             disabled={search.matches.length === 0}
             onClick={search.nextMatch}
           >
-            ↓
+            <ChevronDownIcon />
           </button>
           <button
             type="button"
@@ -218,7 +262,7 @@ export function PdfToolbar({
             aria-label="Close find bar"
             onClick={search.closeSearch}
           >
-            ✕
+            <CloseIcon />
           </button>
         </div>
       ) : null}

@@ -10,6 +10,7 @@ import {
   isPageRendered,
   nextRotation,
   pageFromNode,
+  pageRows,
   parsePageHash,
   parseZoomValue,
   stepZoom,
@@ -17,6 +18,25 @@ import {
 } from './bridgeMath';
 
 describe('bridge maths', () => {
+  it('pairs facing pages after a lone cover in two-page view', () => {
+    expect(pageRows(3, false)).toEqual([[1], [2], [3]]);
+    expect(pageRows(6, true)).toEqual([[1], [2, 3], [4, 5], [6]]);
+    expect(pageRows(5, true)).toEqual([[1], [2, 3], [4, 5]]);
+    expect(pageRows(0, true)).toEqual([]);
+  });
+
+  it('fits two columns into the same width', () => {
+    const one = computePageDimensions({ containerWidth: 1272, containerHeight: 800, zoom: 'page-width' });
+    const two = computePageDimensions({
+      containerWidth: 1272,
+      containerHeight: 800,
+      zoom: 'page-width',
+      columns: 2,
+    });
+    expect(one.width).toBe(1224);
+    expect(two.width).toBe(612);
+  });
+
   it('reads only #p<n> hashes', () => {
     expect(parsePageHash('#p12')).toBe(12);
     expect(parsePageHash('#page=12')).toBe(0);

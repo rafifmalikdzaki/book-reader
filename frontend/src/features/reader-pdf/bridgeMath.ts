@@ -107,6 +107,8 @@ export interface PageDimensionInput {
   intrinsicHeight?: number;
   zoom: ZoomMode;
   rotation?: number;
+  /** Pages shown side by side: 2 in two-page view, so each page fits half the width. */
+  columns?: number;
 }
 
 export interface PageDimensions {
@@ -122,6 +124,7 @@ export function computePageDimensions({
   intrinsicHeight = DEFAULT_INTRINSIC_HEIGHT,
   zoom,
   rotation = 0,
+  columns = 1,
 }: PageDimensionInput): PageDimensions {
   const quarterTurns = Math.abs(Math.round(rotation / 90)) % 2;
   const baseW = quarterTurns === 1 ? intrinsicHeight : intrinsicWidth;
@@ -129,7 +132,8 @@ export function computePageDimensions({
   const safeW = baseW > 0 ? baseW : DEFAULT_INTRINSIC_WIDTH;
   const safeH = baseH > 0 ? baseH : DEFAULT_INTRINSIC_HEIGHT;
 
-  const availW = Math.max(280, (containerWidth || 820) - 48);
+  const perRow = Math.max(1, Math.floor(columns));
+  const availW = Math.max(280, ((containerWidth || 820) - 48) / perRow);
   const availH = Math.max(320, (containerHeight || 760) - 40);
 
   let scale = 1;
@@ -146,6 +150,27 @@ export function computePageDimensions({
     height: Math.round(safeH * scale),
     scale: Number(scale.toFixed(3)),
   };
+}
+
+/** Narrower than this, two-page view falls back to one page so text stays readable. */
+export const SPREAD_MIN_WIDTH = 720;
+
+/**
+ * Pages grouped into rows. Two-page view lays the book out as it is bound: the cover
+ * alone, then left/right pairs (2-3, 4-5, …), so facing pages stay facing.
+ */
+export function pageRows(numPages: number, spread: boolean): number[][] {
+  const total = Math.max(0, Math.floor(numPages));
+  const rows: number[][] = [];
+  if (!spread) {
+    for (let page = 1; page <= total; page += 1) rows.push([page]);
+    return rows;
+  }
+  if (total >= 1) rows.push([1]);
+  for (let page = 2; page <= total; page += 2) {
+    rows.push(page + 1 <= total ? [page, page + 1] : [page]);
+  }
+  return rows;
 }
 
 export function isPageRendered(

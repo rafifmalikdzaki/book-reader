@@ -75,6 +75,13 @@
   border-color: var(--field-line);
 }
 
+.iconBtnActive,
+.iconBtnActive:hover:not(:disabled) {
+  background: var(--baize);
+  border-color: var(--brass);
+  color: var(--on-dark-lit);
+}
+
 .iconBtn:disabled {
   opacity: 0.42;
   cursor: not-allowed;
@@ -117,9 +124,24 @@
   white-space: nowrap;
 }
 
+.zoomWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.zoomChevron {
+  position: absolute;
+  right: 8px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
 .zoomSelect {
   height: 30px;
-  padding: 0 8px;
+  padding: 0 26px 0 10px;
+  appearance: none;
+  font-variant-numeric: tabular-nums;
   border-radius: var(--radius-sm);
   border: 1px solid var(--field-line);
   background: var(--paper-lit);
@@ -129,6 +151,9 @@
 }
 
 .toolChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   height: 30px;
   padding: 0 10px;
   border-radius: var(--radius-sm);
@@ -153,6 +178,7 @@
 .rawLink {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   height: 30px;
   padding: 0 9px;
   border-radius: var(--radius-sm);
@@ -215,6 +241,23 @@
   flex-direction: column;
   align-items: center;
   gap: 20px;
+}
+
+/* Two-page view: facing pages meet at the gutter like an open book. */
+.spreadRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.spreadRow > .pageSlot + .pageSlot {
+  margin-left: -1px;
+  box-shadow: var(--shadow-plate), inset 14px 0 14px -14px var(--veil);
+}
+
+.spreadRow > .pageSlot:first-child:not(:only-child) {
+  box-shadow: var(--shadow-plate), inset -14px 0 14px -14px var(--veil);
 }
 
 .loadingState {

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -9,6 +10,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import type { BookDetail } from '../../api/types';
 import { useSetBookContext, useStage } from '../../app';
+import { readStorage, writeStorage } from '../../app/storage';
 import { buttonClassName, cx } from '../../ui';
 import { useNotepad, type NoteDraft } from '../notepad';
 import {
@@ -21,7 +23,10 @@ import {
   initialPage,
   isPageRendered,
   nextRotation,
+  PAGE_OVERSCAN,
+  pageRows,
   parsePageHash,
+  SPREAD_MIN_WIDTH,
   stepZoom,
   type ZoomMode,
 } from './bridgeMath';
@@ -55,6 +60,8 @@ interface BubbleState {
 
 const MAX_OWN_HASHES = 32;
 const RESIZE_DEBOUNCE_MS = 180;
+/** Remembered across books: a reader who likes facing pages likes them everywhere. */
+const SPREAD_STORAGE_KEY = 'book-reader.pdf-spread';
 
 function rawHref(rel: string): string {
   return '/raw/' + rel.split('/').map(encodeURIComponent).join('/');
@@ -119,6 +126,7 @@ function PdfSurface({ book }: PdfReaderProps) {
   const [outline, setOutline] = useState<PdfOutlineItem[]>([]);
   const [zoom, setZoom] = useState<ZoomMode>('page-width');
   const [rotation, setRotation] = useState<number>(0);
+  const [spreadWanted, setSpreadWanted] = useState(() => readStorage(SPREAD_STORAGE_KEY) === '1');
   const [intrinsicSize, setIntrinsicSize] = useState({
     width: DEFAULT_INTRINSIC_WIDTH,
     height: DEFAULT_INTRINSIC_HEIGHT,
@@ -330,6 +338,10 @@ function PdfSurface({ book }: PdfReaderProps) {
     }
   }, [commitPage]);
 
+  const spreadAvailable = containerSize.width >= SPREAD_MIN_WIDTH;
+  const spread = spreadWanted && spreadAvailable;
+  const rows = useMemo(() => pageRows(numPages, spread), [numPages, spread]);
+
   const pageDims = useMemo(
     () =>
       computePageDimensions({
@@ -339,9 +351,33 @@ function PdfSurface({ book }: PdfReaderProps) {
         intrinsicHeight: intrinsicSize.height,
         zoom,
         rotation,
+        columns: spread ? 2 : 1,
       }),
-    [containerSize.height, containerSize.width, intrinsicSize.height, intrinsicSize.width, rotation, zoom],
+    [
+      containerSize.height,
+      containerSize.width,
+      intrinsicSize.height,
+      intrinsicSize.width,
+      rotation,
+      spread,
+      zoom,
+    ],
   );
+
+  // Zooming or switching to facing pages reflows every slot; keep the page being read in view.
+  const anchored = useRef(false);
+  useLayoutEffect(() => {
+    if (!anchored.current) {
+      anchored.current = true;
+      return;
+    }
+    programmaticScroll.current = true;
+    scrollPageSlotIntoView(viewportRef.current, currentPageRef.current);
+    const timer = window.setTimeout(() => {
+      programmaticScroll.current = false;
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [pageDims.height, pageDims.width, spread]);
 
   const customTextRenderer = useMemo(() => {
     const q = searchController.open ? searchController.query.trim() : '';
@@ -360,6 +396,13 @@ function PdfSurface({ book }: PdfReaderProps) {
     setRotation((prev) => nextRotation(prev));
   }, []);
 
+  const handleToggleSpread = useCallback(() => {
+    setSpreadWanted((prev) => {
+      writeStorage(SPREAD_STORAGE_KEY, prev ? '0' : '1');
+      return !prev;
+    });
+  }, []);
+
   const handleToggleFullscreen = useCallback(() => {
     const shell = shellRef.current;
     if (!shell) return;
@@ -376,6 +419,43 @@ function PdfSurface({ book }: PdfReaderProps) {
   }, [bubble]);
 
   const fileUrl = rawHref(book.rel);
+
+  // Facing pages need one more page of overscan so both halves of the next spread are ready.
+  const overscan = spread ? PAGE_OVERSCAN + 1 : PAGE_OVERSCAN;
+  const renderSlot = (pageNumber: number) => {
+    const shouldRenderCanvas = isPageRendered(pageNumber, currentPage, overscan);
+    return (
+      <div
+        key={pageNumber}
+        id={`pdf-page-${pageNumber}`}
+        className={cx(styles.pageSlot, 'page', pageNumber === currentPage && styles.pageSlotCurrent)}
+        data-page-number={pageNumber}
+        style={{
+          width: `${pageDims.width}px`,
+          minHeight: `${pageDims.height}px`,
+        }}
+      >
+        {shouldRenderCanvas ? (
+          <PdfPage
+            pageNumber={pageNumber}
+            width={pageDims.width}
+            rotate={rotation}
+            renderTextLayer
+            renderAnnotationLayer
+            customTextRenderer={customTextRenderer}
+            suspense={false}
+            onLoadSuccess={pageNumber === 1 ? handlePageLoadSuccess : undefined}
+            loading={<div className={styles.pagePlaceholder}>Page {pageNumber}</div>}
+          />
+        ) : (
+          <div className={styles.pagePlaceholder}>Page {pageNumber}</div>
+        )}
+        <span className={styles.pageBadge} aria-hidden="true">
+          {pageNumber} / {numPages}
+        </span>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -400,11 +480,14 @@ function PdfSurface({ book }: PdfReaderProps) {
           zoom={zoom}
           effectiveScale={pageDims.scale}
           rotation={rotation}
+          spread={spread}
+          spreadAvailable={spreadAvailable}
           search={searchController}
           onSelectPage={(page) => commitPage(page, { record: true, scroll: true })}
           onChangeZoom={setZoom}
           onStepZoom={handleStepZoom}
           onRotate={handleRotate}
+          onToggleSpread={handleToggleSpread}
           onToggleFullscreen={handleToggleFullscreen}
         />
 
@@ -432,47 +515,15 @@ function PdfSurface({ book }: PdfReaderProps) {
             onLoadError={handleDocumentLoadError}
             onSourceError={handleDocumentLoadError}
           >
-            {Array.from({ length: numPages }, (_, idx) => {
-              const pageNumber = idx + 1;
-              const shouldRenderCanvas = isPageRendered(pageNumber, currentPage);
-              return (
-                <div
-                  key={pageNumber}
-                  id={`pdf-page-${pageNumber}`}
-                  className={cx(
-                    styles.pageSlot,
-                    'page',
-                    pageNumber === currentPage && styles.pageSlotCurrent,
-                  )}
-                  data-page-number={pageNumber}
-                  style={{
-                    width: `${pageDims.width}px`,
-                    minHeight: `${pageDims.height}px`,
-                  }}
-                >
-                  {shouldRenderCanvas ? (
-                    <PdfPage
-                      pageNumber={pageNumber}
-                      width={pageDims.width}
-                      rotate={rotation}
-                      renderTextLayer
-                      renderAnnotationLayer
-                      customTextRenderer={customTextRenderer}
-                      suspense={false}
-                      onLoadSuccess={pageNumber === 1 ? handlePageLoadSuccess : undefined}
-                      loading={
-                        <div className={styles.pagePlaceholder}>Page {pageNumber}</div>
-                      }
-                    />
-                  ) : (
-                    <div className={styles.pagePlaceholder}>Page {pageNumber}</div>
-                  )}
-                  <span className={styles.pageBadge} aria-hidden="true">
-                    {pageNumber} / {numPages}
-                  </span>
+            {rows.map((row) =>
+              row.length === 1 && !spread ? (
+                renderSlot(row[0] ?? 1)
+              ) : (
+                <div key={`row-${row[0]}`} className={styles.spreadRow} data-spread-row>
+                  {row.map(renderSlot)}
                 </div>
-              );
-            })}
+              ),
+            )}
           </PdfDocument>
         </div>
 

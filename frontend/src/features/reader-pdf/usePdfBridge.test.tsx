@@ -265,6 +265,32 @@ describe('toolbar navigation, zoom, and rotation', () => {
   });
 });
 
+describe('two-page view', () => {
+  afterEach(() => window.localStorage.removeItem('book-reader.pdf-spread'));
+
+  it('lays facing pages side by side at half width and remembers the choice', async () => {
+    renderReader();
+    await tick(10);
+    const single = Number(screen.getAllByTestId(/^rendered-pdf-page-/)[0]?.dataset.width);
+    expect(document.querySelector('[data-spread-row]')).toBeNull();
+
+    const toggle = screen.getByRole('button', { name: 'Two-page view' });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    const rows = document.querySelectorAll('[data-spread-row]');
+    expect(rows[0]?.querySelectorAll('.page')).toHaveLength(1);
+    expect(rows[1]?.querySelectorAll('.page')).toHaveLength(2);
+    const facing = Number(screen.getAllByTestId(/^rendered-pdf-page-/)[0]?.dataset.width);
+    expect(facing).toBe(Math.round(single / 2));
+    expect(window.localStorage.getItem('book-reader.pdf-spread')).toBe('1');
+
+    fireEvent.click(toggle);
+    expect(document.querySelector('[data-spread-row]')).toBeNull();
+  });
+});
+
 describe('contents rail (outline & page thumbnails)', () => {
   it('extracts the PDF outline and jumps to chapters or page thumbnails on click', async () => {
     renderReader(makeBook({ page: 1, page_count: 10 }));
