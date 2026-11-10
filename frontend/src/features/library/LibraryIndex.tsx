@@ -1,17 +1,23 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useLibrarySearchParams } from '../../app';
+import { readStorage, writeStorage } from '../../app/storage';
 import type { LibraryResponse } from '../../api/types';
 import { EmptyState, LinkButton } from '../../ui';
 import { BookTable } from './BookTable';
 import { BookTiles } from './BookTiles';
-import { IndexSide } from './IndexSide';
+import { AddPaperDialog } from './AddPaperDialog';
 import { filterBooks, filterGroups } from './filterBooks';
+import { GROUP_KEY, groupByFacet, type GroupBy } from './grouping';
+import home from './Home.module.css';
+import { RecentBooks, RecentChats, ResumeNotes } from './HomeDesk';
+import { HomeHello } from './HomeHello';
 import { LibraryHead } from './LibraryHead';
 import styles from './LibraryIndex.module.css';
 import { OrganizeDialog } from './OrganizeDialog';
 import { ResumeCard } from './ResumeCard';
 import { SearchDock } from './SearchDock';
+import { useBookMeta } from './useBookMeta';
 import { useInsideSearch } from './useInsideSearch';
 import { useLibraryView } from './useLibraryView';
 import { useOrganize } from './useOrganize';
@@ -47,8 +53,40 @@ export function LibraryIndex({ data, notice, onDismissNotice }: LibraryIndexProp
   const dockOpen = dockTerm !== '' && !dock.closed;
   const { query: searchQuery, errorMessage } = useInsideSearch(dockTerm, dockOpen);
 
-  const books = filterBooks(data.books, filter);
-  const groups = filterGroups(data.groups, filter);
+  const meta = useBookMeta();
+  const [addOpen, setAddOpen] = useState(false);
+  const [storedGroup, setStoredGroup] = useState<GroupBy>(() => {
+    const saved = readStorage(GROUP_KEY);
+    return saved === 'tag' || saved === 'collection' ? saved : 'category';
+  });
+  const groupOptions = useMemo<GroupBy[]>(
+    () => [
+      'category',
+      ...(meta.hasTags ? (['tag'] as const) : []),
+      ...(meta.hasCollections ? (['collection'] as const) : []),
+    ],
+    [meta.hasCollections, meta.hasTags],
+  );
+  // A remembered facet with no data (Zotero off today) falls back to categories.
+  const groupBy = groupOptions.includes(storedGroup) ? storedGroup : 'category';
+  const chooseGroup = (next: GroupBy) => {
+    setStoredGroup(next);
+    writeStorage(GROUP_KEY, next);
+  };
+
+  // Authors, tags and collections are searchable alongside the title.
+  const extraText = (rel: string) => {
+    const facts = meta.metaFor(rel);
+    return [...facts.authors, ...facts.tags, ...facts.collections, facts.year].join(' ');
+  };
+  const books = filterBooks(data.books, filter, extraText);
+  const groups =
+    groupBy === 'category'
+      ? filterGroups(data.groups, filter, extraText)
+      : groupByFacet(books, groupBy, meta.metaFor);
+  const zoteroText = meta.zotero?.available
+    ? `Zotero · ${meta.zotero.matched} matched`
+    : '';
 
   const openOrganize = () => {
     organize.clearStartError();
@@ -59,7 +97,7 @@ export function LibraryIndex({ data, notice, onDismissNotice }: LibraryIndexProp
   };
 
   return (
-    <>
+    <div className={styles.page}>
       <div aria-live="polite">
         {dockOpen ? (
           <SearchDock
@@ -72,22 +110,31 @@ export function LibraryIndex({ data, notice, onDismissNotice }: LibraryIndexProp
         ) : null}
       </div>
 
-      <div className={styles.grid}>
-        {notice ? (
-          <p className={styles.notice} role="status">
-            <span>{notice}</span>
-            <LinkButton tone="muted" onClick={onDismissNotice}>
-              Dismiss
-            </LinkButton>
-          </p>
-        ) : null}
-        <ResumeCard resume={data.resume} />
-        <IndexSide
-          hasResume={data.resume !== null}
-          notes={data.resume_notes}
-          recent={data.recent}
-          bookCount={data.book_count}
+      <HomeHello
+        bookCount={data.book_count}
+        zoteroText={zoteroText}
+        onAddPaper={() => setAddOpen(true)}
+      />
+
+      {notice ? (
+        <p className={styles.notice} role="status">
+          <span>{notice}</span>
+          <LinkButton tone="muted" onClick={onDismissNotice}>
+            Dismiss
+          </LinkButton>
+        </p>
+      ) : null}
+
+      <div className={home.jump}>
+        <ResumeCard
+          resume={data.resume}
+          meta={data.resume ? meta.metaFor(data.resume.rel) : undefined}
         />
+        <RecentBooks recent={data.recent} />
+      </div>
+      <div className={home.desk}>
+        <ResumeNotes hasResume={data.resume !== null} notes={data.resume_notes} />
+        <RecentChats />
       </div>
 
       <section id="library" aria-labelledby="library-heading">
@@ -95,6 +142,9 @@ export function LibraryIndex({ data, notice, onDismissNotice }: LibraryIndexProp
           categories={data.category_options}
           category={category}
           onCategory={setCategory}
+          groupOptions={groupOptions}
+          groupBy={groupBy}
+          onGroupBy={chooseGroup}
           view={view}
           onView={setView}
           organizeAvailable={data.organize_available}
@@ -106,12 +156,13 @@ export function LibraryIndex({ data, notice, onDismissNotice }: LibraryIndexProp
             {data.books.length === 0 ? 'The library has no books yet.' : 'No books match this filter.'}
           </EmptyState>
         ) : view === 'list' ? (
-          <BookTable books={books} />
+          <BookTable books={books} metaFor={meta.metaFor} />
         ) : (
-          <BookTiles groups={groups} />
+          <BookTiles groups={groups} metaFor={meta.metaFor} />
         )}
       </section>
 
+      <AddPaperDialog open={addOpen} onOpenChange={setAddOpen} />
       {data.organize_available ? (
         <OrganizeDialog
           open={organizeOpen}
@@ -122,6 +173,6 @@ export function LibraryIndex({ data, notice, onDismissNotice }: LibraryIndexProp
           onConfirm={() => void confirmOrganize()}
         />
       ) : null}
-    </>
+    </div>
   );
 }

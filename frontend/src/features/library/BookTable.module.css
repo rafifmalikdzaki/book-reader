@@ -124,3 +124,9 @@
     padding-left: 10px;
   }
 }
+
+.by {
+  margin-left: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}

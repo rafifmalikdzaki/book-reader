@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { ChatMode } from '../../api/types';
 import { useStage } from '../../app';
@@ -27,7 +27,7 @@ export default function AskPage() {
   const { session } = data;
   const drawer = useDrawer();
   const input = useRef<HTMLTextAreaElement>(null);
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => (url.q && !url.send ? url.q : ''));
   const [mode, setMode] = useState<ChatMode>('teacher');
   const [error, setError] = useState('');
   const [draftCategories, setDraftCategories] = useState<string[]>([]);
@@ -43,6 +43,18 @@ export default function AskPage() {
     select: url.select,
     onSendingChange: setSending,
   });
+  // A question typed on the home page arrives as `?q=…&send=1`: ask it once, on arrival.
+  const handedOver = useRef(false);
+  const handOver = url.send ? url.q : null;
+  const sendNow = sender.send;
+  useEffect(() => {
+    if (!handOver || handedOver.current) return;
+    handedOver.current = true;
+    void sendNow(handOver, false);
+    // `sendNow` is a new function every render; the ref makes this run once per arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handOver]);
+
   const isAgentThinking = sender.busy || data.sessionStatus === 'thinking';
   const locked = isAgentThinking || actions.scopeBusy;
   const shownError = error || data.listError;

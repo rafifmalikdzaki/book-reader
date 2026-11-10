@@ -1,6 +1,7 @@
 import type { CategoryOption } from '../../api/types';
 import { Button, Segmented, Select } from '../../ui';
 import styles from './LibraryHead.module.css';
+import type { GroupBy } from './grouping';
 import type { LibraryView } from './useLibraryView';
 
 const VIEW_OPTIONS = [
@@ -8,10 +9,20 @@ const VIEW_OPTIONS = [
   { value: 'tiles', label: 'Tiles' },
 ] as const;
 
+const GROUP_LABELS: Record<GroupBy, string> = {
+  category: 'Group by category',
+  tag: 'Group by tag',
+  collection: 'Group by Zotero collection',
+};
+
 export interface LibraryHeadProps {
   categories: CategoryOption[];
   category: string;
   onCategory: (id: string) => void;
+  /** Facets that have data; `category` is always offered. */
+  groupOptions: GroupBy[];
+  groupBy: GroupBy;
+  onGroupBy: (groupBy: GroupBy) => void;
   view: LibraryView;
   onView: (view: LibraryView) => void;
   organizeAvailable: boolean;
@@ -24,6 +35,9 @@ export function LibraryHead({
   categories,
   category,
   onCategory,
+  groupOptions,
+  groupBy,
+  onGroupBy,
   view,
   onView,
   organizeAvailable,
@@ -49,6 +63,20 @@ export function LibraryHead({
           </option>
         ))}
       </Select>
+      {groupOptions.length > 1 && view === 'tiles' ? (
+        <Select
+          aria-label="Group books by"
+          className={styles.category}
+          value={groupBy}
+          onChange={(event) => onGroupBy(event.target.value as GroupBy)}
+        >
+          {groupOptions.map((option) => (
+            <option key={option} value={option}>
+              {GROUP_LABELS[option]}
+            </option>
+          ))}
+        </Select>
+      ) : null}
       <Segmented label="Library view" options={VIEW_OPTIONS} value={view} onChange={onView} />
       {organizeAvailable ? (
         <Button variant="ghost" size="sm" onClick={onOrganize}>

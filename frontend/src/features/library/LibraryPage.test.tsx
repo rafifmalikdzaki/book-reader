@@ -27,7 +27,7 @@ describe('library page', () => {
     installLibraryApi();
     renderLibrary();
 
-    const heading = await screen.findByRole('heading', { level: 1, name: 'Deep Learning' });
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Deep Learning' });
     expect(within(heading).getByRole('link')).toHaveAttribute('href', '/book/ml/Deep%20Learning.pdf#p12');
     expect(screen.getByText('PDF · § Optimization · ml')).toBeInTheDocument();
     expect(within(screen.getByRole('article')).getByRole('progressbar')).toHaveAttribute(
@@ -59,7 +59,7 @@ describe('library page', () => {
     const grid = await tiles();
     expect(grid.getByRole('heading', { name: 'Machine learning' })).toBeInTheDocument();
     expect(grid.getByRole('heading', { name: 'Miscellaneous' })).toBeInTheDocument();
-    const cover = document.querySelector('img');
+    const cover = document.querySelector('[role="group"] img');
     expect(cover).toHaveAttribute('loading', 'lazy');
     expect(cover).toHaveAttribute('width', '300');
     expect(cover).toHaveAttribute('height', '400');
@@ -75,7 +75,7 @@ describe('library page', () => {
     installLibraryApi({ libraries: [makeLibrary({ resume: null, resume_notes: [], recent: [] })] });
     renderLibrary();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Nothing open yet' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Nothing open yet' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Browse the library' })).toHaveAttribute('href', '#library');
     expect(screen.getByText('Select text in a book to keep a passage here.')).toBeInTheDocument();
     expect(screen.queryByText('Recently opened')).not.toBeInTheDocument();
@@ -148,13 +148,13 @@ describe('library page', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('index exploded');
     api.libraryFailure = null;
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Deep Learning' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Deep Learning' })).toBeInTheDocument();
   });
 
   it('does not refetch the library on window focus', async () => {
     const api = installLibraryApi();
     renderLibrary();
-    await screen.findByRole('heading', { level: 1, name: 'Deep Learning' });
+    await screen.findByRole('heading', { level: 2, name: 'Deep Learning' });
     window.dispatchEvent(new Event('focus'));
     document.dispatchEvent(new Event('visibilitychange'));
     await waitFor(() => expect(api.count('GET /api/library')).toBe(1));
@@ -174,5 +174,104 @@ describe('library page', () => {
     renderLibrary('/', first.client);
     expect(await screen.findByRole('link', { name: 'Resume page 80' })).toBeInTheDocument();
     expect(api.count('GET /api/library')).toBe(2);
+  });
+
+  it('shows Zotero authors on tiles, searches them, and groups by tag', async () => {
+    installLibraryApi();
+    const fetchLibrary = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), 'http://localhost').pathname;
+        if (path === '/api/zotero') {
+          return new Response(
+            JSON.stringify({
+              available: true,
+              reason: '',
+              item_count: 5,
+              matched: 1,
+              collections: ['Thesis'],
+              books: {
+                'ml/Deep Learning.pdf': {
+                  key: 'K1',
+                  title: 'Deep Learning',
+                  creators: ['Ian Goodfellow', 'Yoshua Bengio', 'Aaron Courville'],
+                  year: '2016',
+                  item_type: 'book',
+                  publication: '',
+                  doi: '',
+                  url: '',
+                  tags: ['Neural networks'],
+                  collections: ['Thesis'],
+                  matched_by: 'content',
+                  select_uri: 'zotero://select/library/items/K1',
+                },
+              },
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        }
+        return fetchLibrary(input, init);
+      }),
+    );
+    const user = userEvent.setup();
+    renderLibrary();
+
+    const grid = await tiles();
+    expect(await grid.findByText('Goodfellow et al. · 2016')).toBeInTheDocument();
+    expect(screen.getByText('Zotero · 1 matched')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open in Zotero' })).toHaveAttribute(
+      'href',
+      'zotero://select/library/items/K1',
+    );
+
+    await pickOption(user, screen.getByRole('combobox', { name: 'Group books by' }), 'Group by tag');
+    const regrouped = await tiles();
+    expect(regrouped.getByRole('heading', { name: 'Neural networks' })).toBeInTheDocument();
+    expect(regrouped.getByRole('heading', { name: 'Untagged' })).toBeInTheDocument();
+  });
+
+  it('imports a paper by arXiv id and opens it', async () => {
+    const api = installLibraryApi();
+    const inner = globalThis.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), 'http://localhost').pathname;
+        if (path === '/api/papers/import') {
+          const { identifier } = JSON.parse(String(init?.body)) as { identifier: string };
+          if (identifier === 'nope') {
+            return new Response(JSON.stringify({ detail: 'Paste a DOI or an arXiv id.' }), {
+              status: 400,
+              headers: { 'content-type': 'application/json' },
+            });
+          }
+          return new Response(
+            JSON.stringify({ rel: 'Papers/Lovelace 2024 - Maths.pdf', created: true }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        }
+        return inner(input, init);
+      }),
+    );
+    const user = userEvent.setup();
+    renderLibrary();
+
+    await user.click(await screen.findByRole('button', { name: 'Add paper' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Add a paper' }));
+    const field = dialog.getByRole('textbox', { name: 'DOI or arXiv id' });
+    await user.type(field, 'nope');
+    await user.click(dialog.getByRole('button', { name: 'Add to library' }));
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Paste a DOI or an arXiv id.');
+
+    await user.clear(field);
+    await user.type(field, '2403.04807');
+    await user.click(dialog.getByRole('button', { name: 'Add to library' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/book/Papers/Lovelace%202024%20-%20Maths.pdf',
+      ),
+    );
+    expect(api.count('GET /api/library')).toBeGreaterThan(1);
   });
 });

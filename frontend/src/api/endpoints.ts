@@ -37,10 +37,13 @@ import type {
   OrganizeStartResponse,
   OrganizeStatus,
   PagesResponse,
+  PaperImportResponse,
+  PaperKeywordsResponse,
   ProgressBody,
   ProgressResponse,
   ReindexReport,
   SearchResponse,
+  ZoteroResponse,
 } from './types';
 
 const enc = encodeURIComponent;
@@ -266,4 +269,22 @@ export function notepadExportUrl(format: NotepadExportFormat, group?: string): s
   const params = new URLSearchParams({ format });
   if (group) params.set('group', group);
   return `/api/notepad/export?${params.toString()}`;
+}
+
+/* ---- Zotero and paper import ------------------------------------------- */
+
+export function getZotero(options?: RequestOptions): Promise<ZoteroResponse> {
+  return apiGet<ZoteroResponse>('/api/zotero', options);
+}
+
+export function getPaperKeywords(options?: RequestOptions): Promise<PaperKeywordsResponse> {
+  return apiGet<PaperKeywordsResponse>('/api/papers/keywords', options);
+}
+
+/** Downloads an open-access paper by DOI or arXiv id into the library's `Papers/` folder. */
+export function importPaper(
+  identifier: string,
+  options?: RequestOptions,
+): Promise<PaperImportResponse> {
+  return apiSend<PaperImportResponse>('POST', '/api/papers/import', { identifier }, options);
 }

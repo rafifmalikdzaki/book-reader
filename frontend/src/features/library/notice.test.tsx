@@ -45,7 +45,7 @@ describe('relocation notice', () => {
   it('is absent when the server sends none', async () => {
     installLibraryApi();
     renderLibrary();
-    await screen.findByRole('heading', { level: 1, name: 'Deep Learning' });
+    await screen.findByRole('heading', { level: 2, name: 'Deep Learning' });
     expect(screen.queryByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument();
   });
 });

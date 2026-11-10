@@ -27,7 +27,7 @@ describe('auto-organize', () => {
       statuses: [running(1), running(2), { available: true, running: false, phase: 'done', done: 3, total: 3 }],
     });
     renderLibrary();
-    await screen.findByRole('heading', { level: 1, name: 'Deep Learning' });
+    await screen.findByRole('heading', { level: 2, name: 'Deep Learning' });
 
     await user.click(screen.getByRole('button', { name: 'Auto-organize' }));
     const dialog = await screen.findByRole('dialog', { name: 'Auto-organize the library?' });
@@ -95,7 +95,7 @@ describe('auto-organize', () => {
   it('hides the control when the organizer is not configured', async () => {
     installLibraryApi({ libraries: [makeLibrary({ organize_available: false })] });
     renderLibrary();
-    await screen.findByRole('heading', { level: 1, name: 'Deep Learning' });
+    await screen.findByRole('heading', { level: 2, name: 'Deep Learning' });
     expect(screen.queryByRole('button', { name: 'Auto-organize' })).not.toBeInTheDocument();
   });
 });

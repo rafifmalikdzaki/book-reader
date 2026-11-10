@@ -586,3 +586,63 @@ export interface NotepadExport {
   groups: NotepadGroup[];
   notes: NotepadNote[];
 }
+
+/* ------------------------------------------------------------------ */
+/* Zotero and paper import                                            */
+/* ------------------------------------------------------------------ */
+
+/** One Zotero item matched to a library book (read-only; from the local Zotero database). */
+export interface ZoteroMeta {
+  key: string;
+  title: string;
+  /** "First Last", in author order. */
+  creators: string[];
+  /** Four digits, or "". */
+  year: string;
+  item_type: string;
+  publication: string;
+  doi: string;
+  url: string;
+  tags: string[];
+  collections: string[];
+  /** How the book was matched: same bytes, filename, DOI/arXiv id, or title. */
+  matched_by: 'content' | 'filename' | 'identifier' | 'title';
+  /** `zotero://select/...`: opens the item in the Zotero app. */
+  select_uri: string;
+}
+
+/** GET /api/zotero. `available` is false when no Zotero directory is configured or readable. */
+export interface ZoteroResponse {
+  available: boolean;
+  reason: string;
+  item_count: number;
+  matched: number;
+  /** Keyed by book `rel`. */
+  books: Record<string, ZoteroMeta>;
+  collections: string[];
+}
+
+/** Keywords, authors and DOI embedded in a PDF's own metadata. */
+export interface PaperKeywords {
+  keywords: string[];
+  authors: string[];
+  doi: string;
+}
+
+/** GET /api/papers/keywords: only PDFs that carry keywords or a DOI are listed. */
+export interface PaperKeywordsResponse {
+  books: Record<string, PaperKeywords>;
+}
+
+/** POST /api/papers/import. 400 bad identifier, 404 unknown, 422 no open-access PDF, 502 upstream. */
+export interface PaperImportResponse {
+  rel: string;
+  /** False when the paper was already in the library. */
+  created: boolean;
+  source: 'arxiv' | 'doi';
+  identifier: string;
+  title: string;
+  authors: string[];
+  year: string;
+  keywords: string[];
+}

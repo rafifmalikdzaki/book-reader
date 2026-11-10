@@ -3,9 +3,15 @@ import { Link } from 'react-router-dom';
 import type { LibraryBook } from '../../api/types';
 import { bookHref } from './bookLinks';
 import styles from './BookTable.module.css';
+import { byline, type BookMeta } from './useBookMeta';
 
 /** The list view: one row per book in server order. */
-export function BookTable({ books }: { books: LibraryBook[] }) {
+export interface BookTableProps {
+  books: LibraryBook[];
+  metaFor?: (rel: string) => BookMeta;
+}
+
+export function BookTable({ books, metaFor }: BookTableProps) {
   return (
     <table className={styles.books}>
       <colgroup>
@@ -29,17 +35,21 @@ export function BookTable({ books }: { books: LibraryBook[] }) {
         </tr>
       </thead>
       <tbody>
-        {books.map((book) => (
+        {books.map((book) => {
+          const by = metaFor ? byline(metaFor(book.rel)) : '';
+          return (
           <tr key={book.rel}>
             <td className={styles.title}>
-              <Link to={bookHref(book.rel, book.page)}>{book.title}</Link>
+              <Link to={bookHref(book.rel, book.page)}>{metaFor?.(book.rel).zotero?.title || book.title}</Link>
               <span className={styles.kind}>{book.kind.toUpperCase()}</span>
+              {by ? <span className={styles.by}>{by}</span> : null}
             </td>
             <td className={`${styles.shelf} ${styles.shelfCell}`}>{book.category_name}</td>
             <td className={`${styles.right} ${styles.pages}`}>{book.page_count ?? '—'}</td>
             <td className={`${styles.right} ${styles.opened}`}>{book.last_read_label}</td>
           </tr>
-        ))}
+          );
+        })}
       </tbody>
     </table>
   );
