@@ -30,6 +30,18 @@ Book Reader points at a folder of textbooks, papers and notes and gives you one 
 
 It is built for one person on one machine: no accounts, no database to import into, no cloud.
 
+<div align="center">
+
+<img src="docs/screenshots/library.jpg" alt="The library: a grid of book covers with page counts and reading progress, grouped by category" width="100%">
+
+<sub><b>Library</b> — covers, progress and categories from the folder you already keep</sub>
+
+<img src="docs/screenshots/ask.png" alt="Ask: a chat workspace with model, effort and category scope controls above the composer" width="100%">
+
+<sub><b>Ask</b> — library-wide or book-scoped questions, answered from your books with page citations</sub>
+
+</div>
+
 ## ✨ Features
 
 | | |
