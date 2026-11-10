@@ -18,6 +18,7 @@ from ..reading.pdf import PdfCache
 from ..reading.sections import SectionIndex
 from ..search.service import Searcher
 from .graph import GraphMixin
+from .guidance import select_guidance
 from .limits import MAX_STEPS
 from .model import _chat_model, _extractive_answer, _message_text, provider_key
 from .prompts import _is_socratic_request, openui_format
@@ -142,13 +143,21 @@ class ChatService(ToolsMixin, GraphMixin):
                 callbacks.on_step(clean)
 
         step_tracker("Starting research agent…")
-        tools = list(
-            self.tool_map(
-                allowed_books=allowed_books,
-                on_step=step_tracker,
-                on_found=callbacks.on_found,
-            ).values()
+        last_user = ""
+        for message in reversed(messages):
+            if message.get("role") == "user":
+                last_user = _message_text(message.get("content", ""))
+                break
+        socratic = _is_socratic_request(options.mode, messages)
+        # Bind only the tools this question's steering asks for: fewer, clearer choices for
+        # the model, less schema on every request. Unmatched questions keep every read tool.
+        guidance = select_guidance(last_user, socratic=socratic)
+        available = self.tool_map(
+            allowed_books=allowed_books,
+            on_step=step_tracker,
+            on_found=callbacks.on_found,
         )
+        tools = [available[name] for name in guidance.tools if name in available]
         key = provider_key(provider)
         accepts_effort = model_info(key).reasoning_effort is not False
         effort = options.effort if accepts_effort and key not in self._effort_rejected else None
@@ -167,7 +176,6 @@ class ChatService(ToolsMixin, GraphMixin):
             provider=provider,
         )
         excerpt = self._page_excerpt(book, page, allowed_books=allowed_books)
-        socratic = _is_socratic_request(options.mode, messages)
         history: list[BaseMessage] = [
             SystemMessage(
                 content=self._system_prompt(
@@ -178,6 +186,7 @@ class ChatService(ToolsMixin, GraphMixin):
                     allowed_books=allowed_books,
                     socratic=socratic,
                     openui_format=openui_format(key),
+                    question=last_user,
                 )
             )
         ]

@@ -31,6 +31,11 @@
 - Ask citations are grouped per book, with passages gathered under their section as page
   or line chips, instead of one identical row per retrieved passage.
 - A Markdown horizontal rule (`---`) renders as a rule in answers, not as three dashes.
+- Ask composes its system prompt per question from steering modules
+  (`skills/steering/*.md`, chosen in `chat/guidance.py`, at most two) and binds only the tools
+  those modules name. Locator and note questions no longer carry the OpenUI component guide or
+  the note-writing tool: a plain library question drops from ~3.5k to ~1.4k prompt+tools
+  tokens, a locator question to ~0.9k.
 - FastAPI now serves the SPA bundle from `static/app`; the React shell is the only UI.
 - A source checkout must run `scripts/build_frontend.sh` before `uv run book-reader`.
 - Reader progress writes are flushed on route unmount; library data refreshes on

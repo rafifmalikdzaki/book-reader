@@ -52,7 +52,11 @@ just vendor-katex               # Vendor KaTeX
   retrieval, and projects. Chat sessions expire after seven days unless pinned or
   assigned to a project.
 - Chat model preferences and reasoning effort options (`/api/chat/options`,
-  `chat_model`, `chat_effort`) persist across sessions. Generation tracks step
+  `chat_model`, `chat_effort`) persist across sessions.
+- Ask steering is modular: `chat/guidance.py` picks at most two modules from
+  `skills/steering/*.md` from the last user message (deterministic regex, no model call) and
+  binds only their tools. Unmatched questions keep every read-only tool; `add_note` is offered
+  only for note questions. Grow a module instead of growing `core.md`. Generation tracks step
   progress and thought traces, storing `thought_steps` directly in session message state.
 - Text state (notes, progress, categories, chat book/source contexts) is
   content-addressed and portable.

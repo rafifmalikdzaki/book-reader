@@ -125,3 +125,27 @@ warm = the same process afterwards.
 
 Both caches are guarded by `test_pageindex_reuses_a_result_until_the_library_changes` and
 `test_normalized_page_text_avoids_rewalking_the_page`.
+
+## 2026-11-10 Ask prompt tokens: per-question steering
+
+Prompt text plus tool schemas and descriptions, measured with `build_services` on the live
+library; ≈tokens is characters / 4, consistent with the numbers above. Before, every request
+carried the full OpenUI format guide (6,774 chars), the teacher block and all seven tools
+(4,036 chars of schema + descriptions) whatever the question.
+
+| Request | Before ≈tok | After ≈tok | Change |
+|---|---:|---:|---|
+| Plain question, no book ("Hello there.") | 3,461 | 1,380 | −60 % |
+| Locator question ("What page defines…") | 3,461 (no book) | **946** | −73 % |
+| Save-to-notes question | 3,461 | **806** | −77 % |
+| Survey ("Which books should I read…") | 3,461 | 3,084 | −11 % |
+| Explanation ("Explain consistent hashing") | ~3,200 (book context) | 2,653 | ~−17 % |
+| Book page + 8k excerpt, locator | 5,141 | 3,021 | −41 % |
+| Book page + 8k excerpt, explanation | 5,141 | 4,728 | −8 % |
+| Socratic tutor | 5,530 | 5,001 | −10 % |
+
+The saving is structural: non-visual questions skip the component guide, and every request
+binds 3–6 tools instead of 7 (`add_note` only for note questions). Visual shapes still carry
+the full guide, because a malformed `openui` block is worse than the tokens. Selection is
+deterministic regex over the last user message (no model call, no added latency); the worst
+case is the fallback that keeps all read-only tools and the plain-Markdown instruction.
