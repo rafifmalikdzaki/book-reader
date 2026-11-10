@@ -12,7 +12,18 @@ from .models import UNFILED, Book
 
 BOOK_SUFFIXES = {".pdf", ".md"}
 SKIP_DIRS = {"__pycache__", "node_modules", ".venv"}
+# A folder holding one of these is a source checkout (this app's own repository, say), not a
+# shelf: its READMEs and design notes are not books.
+PROJECT_MARKERS = ("pyproject.toml", "package.json", "Cargo.toml", "go.mod")
+# Repository scaffolding, often an empty placeholder: never a book.
+SKIP_FILES = {"readme.md"}
 SCAN_TTL_SECONDS = 30.0
+
+
+def _skipped(parent: Path, name: str) -> bool:
+    if name.startswith(".") or name in SKIP_DIRS:
+        return True
+    return any((parent / name / marker).is_file() for marker in PROJECT_MARKERS)
 
 
 class Library:
@@ -32,14 +43,12 @@ class Library:
 
         books: list[Book] = []
         for dirpath, dirnames, filenames in os.walk(self.root, followlinks=False):
-            dirnames[:] = sorted(
-                name for name in dirnames if not name.startswith(".") and name not in SKIP_DIRS
-            )
             base = Path(dirpath)
+            dirnames[:] = sorted(name for name in dirnames if not _skipped(base, name))
             for name in filenames:
                 path = base / name
                 suffix = path.suffix.lower()
-                if suffix not in BOOK_SUFFIXES:
+                if suffix not in BOOK_SUFFIXES or name.lower() in SKIP_FILES:
                     continue
                 try:
                     stat = path.stat()
@@ -109,10 +118,12 @@ class Library:
             raise InvalidPath
         # Same directory filter as scan(): a direct URL must not reach what the index hides.
         # Checked after resolve(), so ``a/../.hidden/x`` and symlinks into hidden dirs are caught.
-        if any(
-            part.startswith(".") or part in SKIP_DIRS
-            for part in resolved.relative_to(self.root).parts[:-1]
-        ):
+        parent = self.root
+        for part in resolved.relative_to(self.root).parts[:-1]:
+            if _skipped(parent, part):
+                raise PathNotFound
+            parent = parent / part
+        if resolved.name.lower() in SKIP_FILES:
             raise PathNotFound
         if not resolved.is_file():
             raise PathNotFound

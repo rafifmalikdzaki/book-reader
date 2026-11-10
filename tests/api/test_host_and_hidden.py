@@ -93,3 +93,29 @@ def test_allowed_hosts_accepts_dot_prefixed_suffixes(
     app = create_app(library, tmp_path / "state", allowed_hosts=allowed)
     with TestClient(app) as test_client:
         assert test_client.get("/healthz", headers={"host": host}).status_code == status
+
+
+def test_source_checkouts_inside_the_library_are_not_books(client: Client, library: Path) -> None:
+    test_client, _state = client
+    repo = library / "my-tool"
+    (repo / "docs").mkdir(parents=True)
+    (repo / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    (repo / "docs" / "ADR-001.md").write_text("# decision", encoding="utf-8")
+    test_client.post("/api/library/reindex")
+
+    rels = [book["rel"] for book in test_client.get("/api/library").json()["books"]]
+    assert not any(rel.startswith("my-tool/") for rel in rels)
+    assert "note.md" in rels
+    assert test_client.get("/api/book?path=my-tool/docs/ADR-001.md").status_code == 404
+    assert test_client.get("/raw/my-tool/docs/ADR-001.md").status_code == 404
+
+
+def test_readme_files_are_not_books(client: Client, library: Path) -> None:
+    test_client, _state = client
+    (library / "sub" / "README.md").write_text("# index", encoding="utf-8")
+    test_client.post("/api/library/reindex")
+
+    rels = [book["rel"] for book in test_client.get("/api/library").json()["books"]]
+    assert "sub/README.md" not in rels
+    assert "note.md" in rels
+    assert test_client.get("/api/book?path=sub/README.md").status_code == 404
