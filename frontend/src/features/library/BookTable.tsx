@@ -38,16 +38,16 @@ export function BookTable({ books, metaFor }: BookTableProps) {
         {books.map((book) => {
           const by = metaFor ? byline(metaFor(book.rel)) : '';
           return (
-          <tr key={book.rel}>
-            <td className={styles.title}>
-              <Link to={bookHref(book.rel, book.page)}>{metaFor?.(book.rel).zotero?.title || book.title}</Link>
-              <span className={styles.kind}>{book.kind.toUpperCase()}</span>
-              {by ? <span className={styles.by}>{by}</span> : null}
-            </td>
-            <td className={`${styles.shelf} ${styles.shelfCell}`}>{book.category_name}</td>
-            <td className={`${styles.right} ${styles.pages}`}>{book.page_count ?? '—'}</td>
-            <td className={`${styles.right} ${styles.opened}`}>{book.last_read_label}</td>
-          </tr>
+            <tr key={book.rel}>
+              <td className={styles.title}>
+                <Link to={bookHref(book.rel, book.page)}>{metaFor?.(book.rel).zotero?.title || book.title}</Link>
+                <span className={styles.kind}>{book.kind.toUpperCase()}</span>
+                {by ? <span className={styles.by}>{by}</span> : null}
+              </td>
+              <td className={`${styles.shelf} ${styles.shelfCell}`}>{book.category_name}</td>
+              <td className={`${styles.right} ${styles.pages}`}>{book.page_count ?? '—'}</td>
+              <td className={`${styles.right} ${styles.opened}`}>{book.last_read_label}</td>
+            </tr>
           );
         })}
       </tbody>
