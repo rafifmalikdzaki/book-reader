@@ -106,6 +106,18 @@ function pageOffsetFraction(container: HTMLElement, pageNumber: number): number 
   return Math.min(1, Math.max(-1, fraction));
 }
 
+/** Undoes the jump to the page top that a reflow causes, back to `fraction` of the page. */
+function restorePageOffset(
+  container: HTMLElement | null,
+  pageNumber: number,
+  fraction: number,
+): void {
+  if (!container || fraction === 0 || typeof container.scrollBy !== 'function') return;
+  const slot = container.querySelector<HTMLElement>(`.page[data-page-number="${pageNumber}"]`);
+  const height = slot?.getBoundingClientRect().height ?? 0;
+  if (height > 0) container.scrollBy({ top: fraction * height, behavior: 'instant' });
+}
+
 function detectVisiblePage(container: HTMLElement): number | null {
   const slots = container.querySelectorAll<HTMLElement>('.page[data-page-number]');
   if (slots.length === 0) return null;
@@ -397,13 +409,7 @@ function PdfSurface({ book }: PdfReaderProps) {
     const container = viewportRef.current;
     programmaticScroll.current = true;
     scrollPageSlotIntoView(container, currentPageRef.current, 'instant');
-    if (container && pageOffset.current !== 0 && typeof container.scrollBy === 'function') {
-      const slot = container.querySelector<HTMLElement>(
-        `.page[data-page-number="${currentPageRef.current}"]`,
-      );
-      const height = slot?.getBoundingClientRect().height ?? 0;
-      container.scrollBy({ top: pageOffset.current * height, behavior: 'instant' });
-    }
+    restorePageOffset(container, currentPageRef.current, pageOffset.current);
     const timer = window.setTimeout(() => {
       programmaticScroll.current = false;
     }, 120);

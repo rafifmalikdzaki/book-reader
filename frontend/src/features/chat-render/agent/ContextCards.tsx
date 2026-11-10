@@ -43,7 +43,7 @@ function groupByBook(sources: ChatSource[]): BookGroup[] {
       group = {
         book,
         name: title || (book.split('/').pop() ?? book),
-        kind: source.kind === 'md' || /\.(md|markdown)$/i.test(book) ? 'MD' : 'PDF',
+        kind: (source.kind === 'md' || /\.(md|markdown)$/i.test(book)) ? 'MD' : 'PDF',
         count: 0,
         sections: [],
       };

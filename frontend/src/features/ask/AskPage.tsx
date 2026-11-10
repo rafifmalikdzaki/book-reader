@@ -19,6 +19,12 @@ import { useDrawer } from './useDrawer';
 import { useSendMessage } from './useSendMessage';
 import { useSessionActions } from './useSessionActions';
 
+/** The question the home box handed over in history state; anything else there is ignored. */
+function handedOverQuestion(state: unknown): string | null {
+  const ask = (state as { ask?: unknown } | null)?.ask;
+  return typeof ask === 'string' && ask.trim() ? ask : null;
+}
+
 /** Library-wide Ask workspace: sessions sidebar, category scope, transcript, composer. */
 export default function AskPage() {
   useStage('ask');
@@ -49,8 +55,7 @@ export default function AskPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const handedOver = useRef(false);
-  const state = location.state as { ask?: unknown } | null;
-  const handOver = typeof state?.ask === 'string' && state.ask.trim() ? state.ask : null;
+  const handOver = handedOverQuestion(location.state);
   const sendNow = sender.send;
   useEffect(() => {
     if (!handOver || handedOver.current) return;
