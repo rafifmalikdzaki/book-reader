@@ -34,7 +34,7 @@ It is built for one person on one machine: no accounts, no database to import in
 
 | | |
 | :--- | :--- |
-| 📚 **Library** | Scans a folder in place (nothing is imported), cover thumbnails, recents, resume cards, and optional AI-assisted virtual categories. Files are never moved or modified. `README.md` files, hidden folders and source checkouts (a folder holding `pyproject.toml`, `package.json`, `Cargo.toml` or `go.mod`) are skipped, so a repository kept inside the library does not show up as books. |
+| 📚 **Library** | Scans a folder in place (nothing is imported), cover thumbnails, recents, resume cards, and optional AI-assisted virtual categories. Files are never moved or modified. `README.md` files, hidden folders and source checkouts (a folder holding `pyproject.toml`, `package.json`, `Cargo.toml` or `go.mod` and no PDF of its own) are skipped, so a repository kept inside the library does not show up as books. |
 | 🏠 **Home** | A desk, not a file list: greeting, an Ask box, continue reading, recently opened, notes from the current book and recent chats, with the library below. Group it by category, tag or Zotero collection. |
 | 📑 **Papers** | Paste a DOI or an arXiv id; the open-access PDF is fetched into `Papers/` with its title, authors and keywords written into the file. |
 | 🗂️ **Zotero** | Reads a local Zotero library read-only and shows authors, year, tags and collections on the books it recognises. Nothing is written to Zotero. |
@@ -178,7 +178,7 @@ Override a single provider's model with `BOOK_READER_{INCEPTION,GEMINI,MISTRAL,O
 - **Local by design.** Single user, no auth, no telemetry or analytics. The server binds `127.0.0.1` by default and supports a `Host` allow-list against DNS rebinding.
 - **Offline assets.** The PDF.js worker, CMaps, fonts and KaTeX are vendored in `static/vendor/`; there is no CDN dependency.
 - **You choose the model.** Ask sends your question and the retrieved passages to the provider you configure. Use a local Ollama to keep everything on the machine. The optional categorizer sends only a document's title, section headings and a short first-page excerpt to Mistral, and only after you confirm in the UI.
-- **Paper import is the one outbound fetch.** It runs only when you paste an identifier, talks to arXiv, Crossref and (if you set an email) Unpaywall, then downloads the PDF over HTTPS from a public host. Private and loopback addresses are refused, redirects are re-checked, and the result must be a PDF under 150 MB. Paywalled papers are reported as such, not worked around.
+- **Paper import is the one outbound fetch.** It runs only when you paste an identifier, talks to arXiv, Crossref and (if you set an email) Unpaywall, then downloads the PDF over HTTPS from a public host. Private and loopback addresses are refused, redirects are re-checked, the connection goes to the address that was checked, and the result must be a PDF under 150 MB. Paywalled papers are reported as such, not worked around.
 - **Zotero is read-only.** The database is opened immutable; no API key, no sync, no writes.
 - **Crash-safe storage.** State is plain JSON under a cross-process lock, written atomically with backups, and recovered on startup.
 - **Untrusted content stays inert.** Raw HTML in Markdown is not executed, and `/raw` serves only PDF, Markdown and raster images inline (everything else downloads as `application/octet-stream`).

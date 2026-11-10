@@ -62,7 +62,8 @@ just vendor-katex               # Vendor KaTeX
 - Paper import (`papers/`) is the only code that fetches from the network on the user's
   behalf and the only code that adds a file to the library (`Papers/`, never overwriting).
   Keep every download behind `PaperFetcher`'s checks (https, public address, redirect
-  re-validation, size cap, PDF magic). Metadata lives in the PDF's own Info dictionary,
+  re-validation, connection pinned to the checked address, size cap, PDF magic).
+  Metadata lives in the PDF's own Info dictionary,
   not in a state store. Tests use `httpx.MockTransport`; none may reach the network.
 
 ## Decision records

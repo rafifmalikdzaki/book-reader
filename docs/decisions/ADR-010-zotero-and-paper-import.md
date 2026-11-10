@@ -21,7 +21,8 @@ providers, and never added a file to the library (ADR-004).
    user's behalf, and only in response to `POST /api/papers/import`. It resolves arXiv ids
    through the arXiv API and DOIs through Crossref (plus Unpaywall when
    `BOOK_READER_UNPAYWALL_EMAIL` is set), accepts https only, refuses non-public addresses,
-   re-validates every redirect, caps the body at 150 MB and requires the `%PDF-` magic.
+   re-validates every redirect, connects to the very address it checked (so a name cannot
+   re-resolve to a private one between check and connect), streams to disk, caps the body at 150 MB and requires the `%PDF-` magic.
    A paper with no open-access PDF is a 422 with a plain explanation; there is no scraping
    and no paywall workaround.
 3. **Metadata travels in the file.** Title, authors, keywords and DOI are written into the
