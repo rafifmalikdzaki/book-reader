@@ -37,6 +37,10 @@ class SectionIndex:
         self.path = Path(state_dir) / "sections.json"
         self._lock: AbstractContextManager[object] = lock or threading.RLock()
         self._cache: dict[str, dict[str, object]] | None = None
+        # Decoded trees, reused while the entry they came from is the live one. A search
+        # asks for a page's section once per scored page; decoding the whole tree each
+        # time cost more than the page scan it fed.
+        self._decoded: dict[str, tuple[dict[str, object], list[Section]]] = {}
         self._available: bool | None = None
 
     def available(self) -> bool:
@@ -81,6 +85,7 @@ class SectionIndex:
                 moved = apply_remap(entries, safe)
                 previous = self._cache
                 self._cache = moved
+                self._decoded.clear()
                 if not self._write():
                     self._cache = previous
                     raise RemapError(f"cannot persist section cache to {self.path}")
@@ -101,6 +106,24 @@ class SectionIndex:
     def reload(self) -> None:
         with self._lock:
             self._cache = None
+            self._decoded.clear()
+
+    def _decoded_entry(
+        self, rel: str, entry: dict[str, object]
+    ) -> list[Section] | None:
+        """``entry``'s sections, decoded once per live cache entry.
+
+        An entry replaced in the cache (new extraction, remap) is a different object and
+        decodes again; ``None`` keeps the caller's "no tree stored" path intact.
+        """
+        with self._lock:
+            memo = self._decoded.get(rel)
+            if memo is not None and memo[0] is entry:
+                return memo[1]
+            decoded = _decode_sections(entry.get("sections"))
+            if decoded is not None:
+                self._decoded[rel] = (entry, decoded)
+            return decoded
 
     def sections(self, rel: str, path: Path) -> list[Section]:
         if path.suffix.lower() != ".pdf" or not self.available():
@@ -112,7 +135,7 @@ class SectionIndex:
         with self._lock:
             entry = self._load().get(rel)
             if _entry_is_current(entry, stat):
-                decoded = _decode_sections(entry.get("sections") if entry else None)
+                decoded = self._decoded_entry(rel, entry) if entry else None
                 if decoded is not None:
                     return decoded
 
@@ -128,7 +151,7 @@ class SectionIndex:
             entries = self._load()
             current = entries.get(rel)
             if _entry_is_current(current, stat):
-                decoded = _decode_sections(current.get("sections") if current else None)
+                decoded = self._decoded_entry(rel, current) if current else None
                 if decoded is not None:
                     return decoded
             entries[rel] = {
@@ -137,13 +160,15 @@ class SectionIndex:
                 "sections": sections,
             }
             self._write()
+            self._decoded[rel] = (entries[rel], sections)
         return sections
 
     def cached(self, rel: str) -> list[Section]:
         """Sections already on disk for ``rel``, without running extraction."""
         entry = self._load().get(rel)
-        decoded = _decode_sections(entry.get("sections") if entry else None)
-        return decoded or []
+        if entry is None:
+            return []
+        return self._decoded_entry(rel, entry) or []
 
     def cached_section_for_page(self, rel: str, page: int) -> str:
         """Deepest cached section containing ``page``; never triggers extraction."""

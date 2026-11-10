@@ -103,6 +103,9 @@ class PdfCache:
         # edited file drops out on its own.
         self._text_max = 4096
         self._text_cache: OrderedDict[tuple[str, float, int], str] = OrderedDict()
+        # Scans want each page's text whitespace-collapsed; doing that on every query
+        # copied whole pages for nothing. Same eviction bound as the raw texts.
+        self._normalized_cache: OrderedDict[tuple[str, float, int], str] = OrderedDict()
         self._title_cache: OrderedDict[tuple[str, float], str | None] = OrderedDict()
 
     def _doc(self, path: Path) -> pymupdf.Document:
@@ -170,6 +173,20 @@ class PdfCache:
             self._text_cache[key] = text
             while len(self._text_cache) > self._text_max:
                 self._text_cache.popitem(last=False)
+            return text
+
+    def page_text_normalized(self, path: Path, page: int) -> str:
+        """``page_text`` with runs of whitespace collapsed, cached per page version."""
+        key = (str(path), path.stat().st_mtime, page)
+        with self._lock:
+            cached = self._normalized_cache.get(key)
+            if cached is not None:
+                self._normalized_cache.move_to_end(key)
+                return cached
+            text = " ".join(self.page_text(path, page).split())
+            self._normalized_cache[key] = text
+            while len(self._normalized_cache) > self._text_max:
+                self._normalized_cache.popitem(last=False)
             return text
 
     def page_words(self, path: Path, page: int) -> dict[str, object]:

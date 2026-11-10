@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import logging
 import math
+import threading
+from collections import OrderedDict
 from pathlib import Path
+from typing import cast
 
 from ..library.scan import Library
 from ..reading.pdf import PdfCache
@@ -35,23 +38,56 @@ class PageIndexSearch:
     PHRASE_BONUS = 4.0
     SECTION_BONUS = 3.0
     DEPTH_WEIGHT = 0.02
+    RESULT_CACHE_SIZE = 64
 
     def __init__(self, library: Library, sections: SectionIndex, pdf: PdfCache) -> None:
         self._library = library
         self._sections = sections
         self._pdf = pdf
+        self._lock = threading.Lock()
+        # An Ask answer asks several near-identical questions in a row; repeating a scan
+        # costs the same 70ms. Keyed by the library's file versions and cached trees, so
+        # an edited file or a new tree misses instead of answering from stale text.
+        self._results: OrderedDict[tuple[object, ...], list[SearchHit]] = OrderedDict()
+
+    def _signature(self) -> tuple[object, ...]:
+        books = self._library.scan()
+        return (
+            tuple((book.rel, book.mtime, book.size) for book in books),
+            tuple(self._sections.cached_books()),
+        )
+
+    def _cached(self, key: tuple[object, ...]) -> list[SearchHit] | None:
+        with self._lock:
+            hits = self._results.get(key)
+            if hits is None:
+                return None
+            self._results.move_to_end(key)
+        return [cast(SearchHit, dict(hit)) for hit in hits]
+
+    def _remember(self, key: tuple[object, ...], hits: list[SearchHit]) -> None:
+        with self._lock:
+            self._results[key] = [cast(SearchHit, dict(hit)) for hit in hits]
+            while len(self._results) > self.RESULT_CACHE_SIZE:
+                self._results.popitem(last=False)
 
     def search(self, query: str, *, limit: int = 50, book: str | None = None) -> list[SearchHit]:
         terms = query_terms(query)
         if not terms or not self._sections.available():
             return []
+        key = (" ".join(query.casefold().split()), limit, book, self._signature())
+        remembered = self._cached(key)
+        if remembered is not None:
+            return remembered
         scored: list[tuple[int, SearchHit]] = []
         for rel, path in self._books(book):
             scored.extend(self._search_book(rel, path, terms, limit))
             if len(scored) >= limit * 3:
                 break
         scored.sort(key=lambda item: (-item[0], item[1]["book"], item[1]["page"] or 0))
-        return [hit for _score, hit in scored[:limit]]
+        hits = [hit for _score, hit in scored[:limit]]
+        self._remember(key, hits)
+        return hits
 
     def _candidate_pages(self, total: int, title_pages: set[int]) -> list[int]:
         if total <= self.MAX_SCAN_PAGES:
@@ -65,7 +101,7 @@ class PageIndexSearch:
         texts: dict[int, str] = {}
         for number in page_numbers:
             try:
-                texts[number] = " ".join(self._pdf.page_text(path, number).split())
+                texts[number] = self._pdf.page_text_normalized(path, number)
             except Exception:
                 continue
         return texts

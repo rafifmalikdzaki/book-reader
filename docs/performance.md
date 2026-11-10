@@ -95,3 +95,33 @@ read would take cold home from ~2.28 s to ~1.5 s, at the cost of a cross-domain 
 
 Two-page view verified live: toggle pressed, pages 2 and 3 render side by side, zoom refits
 to 138 %, no console errors, reader stays on page 3.
+
+## 2026-11-10 Ask retrieval: sections, page text, and result caches
+
+Measured in-process against a copy of the live state (186 books, 10 cached PageIndex
+trees), `library_wide(query, 12)`, no model calls. Cold = first query after `build_services`;
+warm = the same process afterwards.
+
+| Stage | Cold query | Repeat, same query | New query | 6 tool rounds |
+|---|---:|---:|---:|---:|
+| Baseline | 1,909 ms | 331 ms | 303 ms | 1,313 ms |
+| + decoded section memo | 1,695 ms | 190 ms | 243 ms | 994 ms |
+| + normalized page-text cache | — | 190 ms | 163 ms | — |
+| + 64-entry query→hits LRU | 1,710 ms | **0.2 ms** | 163 ms | **0.7 ms** |
+
+- `SectionIndex.sections()` decoded the whole tree on every `section_for_page` call: 588
+  decodes per query, 62% of the warm profile. Decoded lists are now reused while the cache
+  entry they came from is still the live object; extraction, remap and reload replace the
+  entry, so stale trees decode again.
+- `_page_texts` re-joined and re-split every page on every query. `PdfCache.page_text_normalized`
+  caches the collapsed text with the same mtime-keyed, 4096-entry bound. New queries now
+  extract only pages they have never seen (13 of 516 in the measurement).
+- `PageIndexSearch` keeps 64 query→hits results, keyed by query, limit, book, and a
+  signature of every book's `(rel, mtime, size)` plus the cached tree set. An edited file or
+  a new tree misses; the 30 s library scan TTL is the staleness ceiling.
+- Cold cost is unchanged (~1.7 s): that is the first extraction of 516 pages across 10 books,
+  serialized under `PdfCache`'s lock. Parallel extraction would need one document per thread;
+  not attempted.
+
+Both caches are guarded by `test_pageindex_reuses_a_result_until_the_library_changes` and
+`test_normalized_page_text_avoids_rewalking_the_page`.

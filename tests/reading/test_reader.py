@@ -15,8 +15,9 @@ from book_reader.reading.markdown import render_markdown
 from book_reader.reading.pdf import PdfCache
 from book_reader.reading.sections import SectionIndex
 from book_reader.search.elastic import ElasticSearch
+from book_reader.search.pageindex import PageIndexSearch
 from book_reader.search.service import Searcher
-from book_reader.search.types import SearchUnavailable
+from book_reader.search.types import SearchHit, SearchUnavailable
 
 JPEG_MAGIC = b"\xff\xd8\xff"
 Client = tuple[TestClient, Path]
@@ -419,6 +420,70 @@ def test_pageindex_tree_search_uses_cached_sections(library: Path, tmp_path: Pat
     assert [(hit["section"], hit["page"]) for hit in hits] == [("Retrieval", 1)]
     library_hits = searcher.library_wide("vector", 10)
     assert [hit["section"] for hit in library_hits] == ["Vector similarity"]
+
+
+def test_pageindex_reuses_a_result_until_the_library_changes(
+    library: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state = tmp_path / "state"
+    state.mkdir()
+    path = library / "sub" / "a.pdf"
+    stat = path.stat()
+    cache = {
+        "version": 1,
+        "books": {
+            "sub/a.pdf": {
+                "mtime": stat.st_mtime,
+                "size": stat.st_size,
+                "sections": [
+                    {"title": "Retrieval", "start_page": 1, "end_page": 2},
+                    {"title": "Vector similarity", "start_page": 2, "end_page": 3},
+                ],
+            }
+        },
+    }
+    (state / "sections.json").write_text(json.dumps(cache), encoding="utf-8")
+    scans: list[str] = []
+    original = PageIndexSearch._search_book
+
+    def counting(
+        self: PageIndexSearch, rel: str, target: Path, terms: list[str], limit: int
+    ) -> list[tuple[int, SearchHit]]:
+        scans.append(rel)
+        return original(self, rel, target, terms, limit)
+
+    monkeypatch.setattr(PageIndexSearch, "_search_book", counting)
+    catalogue = Library(library)
+    searcher = Searcher(catalogue, PdfCache(), SectionIndex(state), None, "pageindex")
+
+    first = searcher.library_wide("vector", 10)
+    assert scans == ["sub/a.pdf"]
+    assert searcher.library_wide("vector", 10) == first
+    assert scans == ["sub/a.pdf"]
+
+    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+    catalogue.scan(force=True)
+    searcher.library_wide("vector", 10)
+    assert scans == ["sub/a.pdf", "sub/a.pdf"]
+
+
+def test_normalized_page_text_avoids_rewalking_the_page(
+    library: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pdf = PdfCache()
+    path = library / "sub" / "a.pdf"
+    reads: list[int] = []
+    original = PdfCache.page_text
+
+    def counting(self: PdfCache, target: Path, page: int) -> str:
+        reads.append(page)
+        return original(self, target, page)
+
+    monkeypatch.setattr(PdfCache, "page_text", counting)
+    first = pdf.page_text_normalized(path, 1)
+    assert pdf.page_text_normalized(path, 1) == first
+    assert first == " ".join(first.split())
+    assert reads == [1]
 
 
 def test_page_words_exposes_block_and_line_numbers(library: Path) -> None:
