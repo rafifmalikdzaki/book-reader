@@ -81,6 +81,8 @@ def _chunk_text(content: object) -> str:
 
 def _message_text(content: object) -> str:
     """Flatten LangChain content (string or content blocks) to plain text."""
+    if content is None:
+        return ""
     if isinstance(content, str):
         return content.strip()
     if isinstance(content, list):
