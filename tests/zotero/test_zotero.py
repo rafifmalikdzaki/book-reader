@@ -153,3 +153,18 @@ def test_endpoint_is_off_by_default_and_on_with_a_directory(
         body = on.get("/api/zotero").json()
     assert body["available"] is True
     assert body["books"]["sub/a.pdf"]["key"] == "KEY1"
+
+
+def test_titles_match_only_when_long_enough_to_be_specific(tmp_path: Path, library: Path) -> None:
+    (library / "Deep Learning Foundations.pdf").write_bytes(b"%PDF-1.4 a")
+    (library / "Thesis.pdf").write_bytes(b"%PDF-1.4 bb")
+    b = Builder(tmp_path / "zotero")
+    b.article("Deep Learning Foundations")
+    b.article("Thesis")
+    b.done()
+
+    lib = Library(library)
+    books = ZoteroLibrary(tmp_path / "zotero").snapshot(lib.scan(), lib.root)["books"]
+    assert isinstance(books, dict)
+    assert books["Deep Learning Foundations.pdf"]["matched_by"] == "title"
+    assert "Thesis.pdf" not in books

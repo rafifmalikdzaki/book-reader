@@ -313,7 +313,6 @@ def _match_book(
             if needle in identifiers:
                 return item, "identifier"
 
-    title = _title_key(book.title)
-    if len(title) >= MIN_TITLE_KEY and title in by_title:
-        return by_title[title], "title"
-    return None
+    # by_title only holds titles long enough to be specific (MIN_TITLE_KEY).
+    by_same_title = by_title.get(_title_key(book.title))
+    return (by_same_title, "title") if by_same_title is not None else None
