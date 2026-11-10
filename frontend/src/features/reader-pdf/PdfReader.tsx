@@ -79,13 +79,31 @@ function ErrorPanel({ message }: { message: string }) {
   );
 }
 
-function scrollPageSlotIntoView(container: HTMLElement | null, pageNumber: number): void {
+/**
+ * Jumps the reader makes glide (the container scrolls smoothly); restoring a position after a
+ * reload or a reflow must be `instant`, or the pages passed on the way are taken for the
+ * reader's place.
+ */
+function scrollPageSlotIntoView(
+  container: HTMLElement | null,
+  pageNumber: number,
+  behavior: ScrollBehavior = 'auto',
+): void {
   if (!container) return;
   const target = container.querySelector<HTMLElement>(`.page[data-page-number="${pageNumber}"]`);
   if (!target) return;
   if (typeof target.scrollIntoView === 'function') {
-    target.scrollIntoView({ block: 'start' });
+    target.scrollIntoView({ block: 'start', behavior });
   }
+}
+
+/** How far the viewport top sits below the top of `pageNumber`, as a share of its height. */
+function pageOffsetFraction(container: HTMLElement, pageNumber: number): number {
+  const slot = container.querySelector<HTMLElement>(`.page[data-page-number="${pageNumber}"]`);
+  const rect = slot?.getBoundingClientRect();
+  if (!rect || rect.height <= 0) return 0;
+  const fraction = (container.getBoundingClientRect().top - rect.top) / rect.height;
+  return Math.min(1, Math.max(-1, fraction));
 }
 
 function detectVisiblePage(container: HTMLElement): number | null {
@@ -140,6 +158,8 @@ function PdfSurface({ book }: PdfReaderProps) {
   const bubbleRef = useRef<HTMLButtonElement>(null);
   const ownHashes = useRef<string[]>([]);
   const programmaticScroll = useRef(false);
+  // Position within the current page (0 = its top edge at the top of the viewport).
+  const pageOffset = useRef(0);
   const currentPageRef = useRef(currentPage);
   const numPagesRef = useRef(numPages);
 
@@ -172,6 +192,7 @@ function PdfSurface({ book }: PdfReaderProps) {
     (rawPage: number, options: { record?: boolean; scroll?: boolean } = {}) => {
       const page = clampPage(rawPage, numPagesRef.current);
       currentPageRef.current = page;
+      if (options.scroll) pageOffset.current = 0;
       setCurrentPage(page);
 
       const {
@@ -303,7 +324,7 @@ function PdfSurface({ book }: PdfReaderProps) {
 
       if (startPage > 1) {
         window.setTimeout(() => {
-          scrollPageSlotIntoView(viewportRef.current, startPage);
+          scrollPageSlotIntoView(viewportRef.current, startPage, 'instant');
         }, 0);
       }
 
@@ -336,6 +357,7 @@ function PdfSurface({ book }: PdfReaderProps) {
     if (visible !== null && visible !== currentPageRef.current) {
       commitPage(visible, { record: true, scroll: false });
     }
+    pageOffset.current = pageOffsetFraction(container, currentPageRef.current);
   }, [commitPage]);
 
   const spreadAvailable = containerSize.width >= SPREAD_MIN_WIDTH;
@@ -364,15 +386,24 @@ function PdfSurface({ book }: PdfReaderProps) {
     ],
   );
 
-  // Zooming or switching to facing pages reflows every slot; keep the page being read in view.
+  // Zooming, resizing or switching to facing pages reflows every slot; keep the reader at the
+  // same spot of the same page.
   const anchored = useRef(false);
   useLayoutEffect(() => {
     if (!anchored.current) {
       anchored.current = true;
       return;
     }
+    const container = viewportRef.current;
     programmaticScroll.current = true;
-    scrollPageSlotIntoView(viewportRef.current, currentPageRef.current);
+    scrollPageSlotIntoView(container, currentPageRef.current, 'instant');
+    if (container && pageOffset.current !== 0 && typeof container.scrollBy === 'function') {
+      const slot = container.querySelector<HTMLElement>(
+        `.page[data-page-number="${currentPageRef.current}"]`,
+      );
+      const height = slot?.getBoundingClientRect().height ?? 0;
+      container.scrollBy({ top: pageOffset.current * height, behavior: 'instant' });
+    }
     const timer = window.setTimeout(() => {
       programmaticScroll.current = false;
     }, 120);
