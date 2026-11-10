@@ -110,6 +110,18 @@ def test_source_checkouts_inside_the_library_are_not_books(client: Client, libra
     assert test_client.get("/raw/my-tool/docs/ADR-001.md").status_code == 404
 
 
+def test_a_book_kept_beside_its_code_samples_is_still_listed(client: Client, library: Path) -> None:
+    test_client, _state = client
+    shelf = library / "js-book"
+    shelf.mkdir()
+    (shelf / "package.json").write_text("{}", encoding="utf-8")
+    (shelf / "book.pdf").write_bytes((library / "sub" / "a.pdf").read_bytes())
+    test_client.post("/api/library/reindex")
+
+    rels = [book["rel"] for book in test_client.get("/api/library").json()["books"]]
+    assert "js-book/book.pdf" in rels
+
+
 def test_readme_files_are_not_books(client: Client, library: Path) -> None:
     test_client, _state = client
     (library / "sub" / "README.md").write_text("# index", encoding="utf-8")

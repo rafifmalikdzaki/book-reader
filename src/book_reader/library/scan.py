@@ -12,8 +12,9 @@ from .models import UNFILED, Book
 
 BOOK_SUFFIXES = {".pdf", ".md"}
 SKIP_DIRS = {"__pycache__", "node_modules", ".venv"}
-# A folder holding one of these is a source checkout (this app's own repository, say), not a
-# shelf: its READMEs and design notes are not books.
+# A folder holding one of these and no PDF of its own is a source checkout (this app's own
+# repository, say), not a shelf: its design notes are not books. A book kept beside its
+# code samples still counts as a shelf.
 PROJECT_MARKERS = ("pyproject.toml", "package.json", "Cargo.toml", "go.mod")
 # Repository scaffolding, often an empty placeholder: never a book.
 SKIP_FILES = {"readme.md"}
@@ -23,7 +24,13 @@ SCAN_TTL_SECONDS = 30.0
 def _skipped(parent: Path, name: str) -> bool:
     if name.startswith(".") or name in SKIP_DIRS:
         return True
-    return any((parent / name / marker).is_file() for marker in PROJECT_MARKERS)
+    folder = parent / name
+    if not any((folder / marker).is_file() for marker in PROJECT_MARKERS):
+        return False
+    try:
+        return not any(entry.lower().endswith(".pdf") for entry in os.listdir(folder))
+    except OSError:
+        return True
 
 
 class Library:
