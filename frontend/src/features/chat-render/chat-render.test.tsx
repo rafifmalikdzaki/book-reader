@@ -173,7 +173,7 @@ describe('ChatMessageView', () => {
     );
     expect(screen.getByText('**not bold**')).toBeInTheDocument();
     expect(container.querySelectorAll('strong')).toHaveLength(1);
-    expect(screen.getByText('a.pdf · p.1')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'a.pdf · p.1' })).toHaveTextContent('p.1');
   });
 });
 

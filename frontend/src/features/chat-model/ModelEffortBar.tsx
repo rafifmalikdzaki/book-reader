@@ -3,6 +3,7 @@ import { type ChangeEvent } from 'react';
 
 import { getChatOptions, setChatOptions } from '../../api/endpoints';
 import { cx } from '../../ui/cx';
+import { ChevronDownIcon } from '../chat-render/icons';
 import styles from './ModelEffortBar.module.css';
 
 const CHAT_OPTIONS_KEY = ['chat', 'options'] as const;
@@ -77,9 +78,7 @@ export function ModelEffortBar({ variant = 'bar', className }: Props) {
               </option>
             ))}
           </select>
-          <span className={styles.selectChevron} aria-hidden="true">
-            ▼
-          </span>
+          <ChevronDownIcon className={styles.selectChevron} width={12} height={12} />
         </div>
       </div>
 
@@ -101,9 +100,7 @@ export function ModelEffortBar({ variant = 'bar', className }: Props) {
               <option value="medium">Medium</option>
               <option value="high">High (Deep)</option>
             </select>
-            <span className={styles.selectChevron} aria-hidden="true">
-              ▼
-            </span>
+            <ChevronDownIcon className={styles.selectChevron} width={12} height={12} />
           </div>
         ) : (
           <div className={styles.effortGroup} role="group" aria-labelledby="effort-label">

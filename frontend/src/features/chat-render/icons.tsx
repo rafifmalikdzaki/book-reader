@@ -69,3 +69,102 @@ export function StopIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function ChevronLeftIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9.8 4 6 8l3.8 4" />
+    </svg>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6.2 4 10 8l-3.8 4" />
+    </svg>
+  );
+}
+
+export function ChevronUpIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 9.8 8 6l4 3.8" />
+    </svg>
+  );
+}
+
+export function MinusIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3.5 8h9" />
+    </svg>
+  );
+}
+
+export function PlusIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3.5 8h9M8 3.5v9" />
+    </svg>
+  );
+}
+
+export function RotateIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M13 8a5 5 0 1 1-1.6-3.7" />
+      <path d="M13.2 2.6v3h-3" />
+    </svg>
+  );
+}
+
+export function FullscreenIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M2.8 6V2.8H6M10 2.8h3.2V6M13.2 10v3.2H10M6 13.2H2.8V10" />
+    </svg>
+  );
+}
+
+export function ExternalIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6.5 3.5h-3v9h9v-3" />
+      <path d="M9.5 3h3.5v3.5M13 3 7.5 8.5" />
+    </svg>
+  );
+}
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="7" cy="7" r="4.2" />
+      <path d="m10.2 10.2 3 3" />
+    </svg>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="m4 4 8 8M12 4l-8 8" />
+    </svg>
+  );
+}
+
+export function SinglePageIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="4.5" y="2.5" width="7" height="11" rx="1" />
+    </svg>
+  );
+}
+
+export function TwoPageIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M8 3.5v10M8 3.5C6.6 2.7 4.6 2.5 2.5 2.8v10c2.1-.3 4.1-.1 5.5.7 1.4-.8 3.4-1 5.5-.7v-10C11.4 2.5 9.4 2.7 8 3.5Z" />
+    </svg>
+  );
+}

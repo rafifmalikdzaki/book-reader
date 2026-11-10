@@ -39,7 +39,7 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -48,32 +48,17 @@
 .card {
   border-radius: var(--radius-card);
   background: var(--paper-lit);
-  box-shadow: 0 0 0 1px var(--rule), var(--shadow-bubble);
+  box-shadow: 0 0 0 1px var(--rule), var(--shadow-plate);
   animation: fade-up 320ms var(--ease-out-strong) both;
   overflow: hidden;
 }
 
-.row {
+.bookHead {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.row:hover {
-  background: var(--paper-edge);
-}
-
-.row:hover .titleText {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.row:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: -2px;
+  padding: 9px 12px 8px;
+  border-bottom: 1px solid var(--rule-soft);
 }
 
 .badge {
@@ -83,41 +68,142 @@
   box-shadow: 0 0 0 1px var(--rule-soft);
   padding: 1px 6px;
   color: var(--muted);
-  font-family: var(--mono);
   font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
-.titleText {
+.bookName {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  color: var(--ink);
+  font: 600 13.5px/1.3 var(--serif);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12.5px;
-  font-weight: 500;
 }
 
-.go {
+.bookCount {
   flex-shrink: 0;
   color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
-.snippet {
+.sections {
+  display: flex;
+  flex-direction: column;
   margin: 0;
-  padding: 0 10px 8px 34px;
-  color: var(--muted);
-  font-size: 11.5px;
-  line-height: 1.4;
+  padding: 4px 12px 8px;
+  list-style: none;
+}
+
+.section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 4px 14px;
+  padding: 5px 0;
+}
+
+.section + .section {
+  border-top: 1px dotted var(--rule);
+}
+
+.sectionName {
   overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+/* One line of the retrieved passage, so a citation shows its evidence before the click. */
+.snippet {
+  grid-column: 1 / -1;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font: italic 400 12px/1.45 var(--serif);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A section-less passage has only its chips: let them start at the left edge. */
+.section > .chips:first-child {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+}
+
+.chip {
+  padding: 1px 7px;
+  border-radius: var(--radius-chip);
+  background: var(--paper-edge);
+  box-shadow: 0 0 0 1px var(--rule-soft);
+  color: var(--brass-deep);
+  font-size: 11.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+
+.chip:hover {
+  background: var(--brass-wash);
+  box-shadow: 0 0 0 1px var(--brass);
+  color: var(--ink);
+}
+
+.chip:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .chip {
+    padding: 6px 10px;
+  }
+}
+
+/* Foot of a long card: unfolds the remaining sections in place. */
+.cardMore {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  border-top: 1px solid var(--rule-soft);
+  background: var(--paper-edge);
+  color: var(--brass-deep);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cardMore:hover {
+  color: var(--ink);
+}
+
+.cardMore:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
 }
 
 .more {
   align-self: flex-start;
-  margin-top: 2px;
+  margin-top: 8px;
   padding: 3px 10px;
   border: 1px solid var(--rule);
   border-radius: var(--radius-pill);

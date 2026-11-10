@@ -96,6 +96,8 @@ function BlockView({ block, onPrompt }: { block: Block; onPrompt?: (prompt: stri
           </table>
         </div>
       );
+    case 'rule':
+      return <hr className={styles.mdRule} />;
     case 'math':
       return (
         <p>

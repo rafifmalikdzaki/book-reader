@@ -12,16 +12,19 @@ export function SmartLink({
   children,
   className,
   title,
+  ariaLabel,
 }: {
   href: string;
   children: ReactNode;
   className?: string;
   title?: string;
+  /** Accessible name when the visible text is abbreviated (citation chips). */
+  ariaLabel?: string;
 }) {
   const inRouter = useInRouterContext();
   if (inRouter && isInternalHref(href)) {
     return (
-      <Link to={href} rel="noreferrer" className={className} title={title}>
+      <Link to={href} rel="noreferrer" className={className} title={title} aria-label={ariaLabel}>
         {children}
       </Link>
     );
@@ -34,6 +37,7 @@ export function SmartLink({
       target={external ? '_blank' : undefined}
       className={className}
       title={title}
+      aria-label={ariaLabel}
     >
       {children}
     </a>

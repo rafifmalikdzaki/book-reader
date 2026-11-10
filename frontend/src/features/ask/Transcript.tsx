@@ -91,7 +91,6 @@ export function Transcript({
               className={`${styles.showcaseCard} ${styles.showcaseTour}`}
               onClick={() => onPrompt(tourPrompt(aboutBook))}
             >
-              <span className={styles.showcaseBadge}>All features</span>
               <strong className={styles.showcaseTitle}>Capability tour</strong>
               <span className={styles.showcaseDesc}>
                 One ready-made prompt: cited search, math, and every visual block in a single answer
@@ -104,7 +103,6 @@ export function Transcript({
                 className={styles.showcaseCard}
                 onClick={() => onPrompt(item.prompt)}
               >
-                <span className={styles.showcaseBadge}>{item.badge}</span>
                 <strong className={styles.showcaseTitle}>{item.title}</strong>
                 <span className={styles.showcaseDesc}>{item.desc}</span>
               </button>

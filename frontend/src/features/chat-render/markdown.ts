@@ -22,6 +22,7 @@ export type Block =
   | { kind: 'heading'; level: 1 | 2 | 3 | 4; children: Inline[] }
   | { kind: 'blockquote'; lines: Inline[][] }
   | { kind: 'table'; headers: Inline[][]; rows: Inline[][][] }
+  | { kind: 'rule' }
   | { kind: 'math'; text: string }
   | { kind: 'list'; ordered: boolean; items: Inline[][] }
   | { kind: 'paragraph'; lines: Inline[][] };
@@ -32,6 +33,8 @@ const FENCE = /^\s*```([\w-]*)\s*$/;
 const OPENUI_COMPONENT_RE =
   /"component"\s*:\s*"(?:SkillMap|ConceptCard|ComparisonTable|StepWalkthrough|BookList|QuizCheck|ConceptGraph|Graph|Architecture|Chart|BarChart|MetricChart)"/;
 const HEADING = /^\s*(#{1,4})\s+(.+?)\s*$/;
+/** A thematic break on its own block: `---`, `***` or `___`. */
+const RULE = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/;
 const BLOCKQUOTE = /^\s*>\s?(.*)$/;
 const TABLE_ROW = /^\s*\|(.+)\|\s*$/;
 const TABLE_SEP = /^\s*\|[\s:|-]+\|\s*$/;
@@ -135,6 +138,7 @@ export function parseMarkdown(text: string): Block[] {
       }
       return { kind: 'fence', code, lang: lang || undefined, closed };
     }
+    if (lines.length === 1 && RULE.test(lines[0] ?? '')) return { kind: 'rule' };
     if (lines.length === 1) {
       const headingMatch = HEADING.exec(lines[0] ?? '');
       if (headingMatch) {
